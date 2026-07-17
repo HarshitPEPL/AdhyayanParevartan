@@ -1,0 +1,36 @@
+<div class="screen lesson-screen" style="padding: 0;">
+            <div class="media-player" id="lesson-viewer-container" style="background: #000; width: 100%; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; position: relative;">
+                <!-- Dynamically populated via lesson.js -->
+            </div>
+
+            <div class="metadata-registry">
+                <div class="breadcrumb" id="lesson-subject">SUBJECT - CLASS</div>
+                <h2 id="lesson-title">Material Title</h2>
+                
+                <div class="data-table" style="margin-top: 16px;">
+                    <div class="col">
+                        <div class="label">Format</div>
+                        <div class="val" id="lesson-format">Format</div>
+                    </div>
+                    <div class="col">
+                        <div class="label">Duration</div>
+                        <div class="val" id="lesson-duration">--</div>
+                    </div>
+                    <div class="col">
+                        <div class="label">Author/Instructor</div>
+                        <div class="val green-text" id="lesson-instructor">Name</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="asset-management" style="padding: 20px;">
+                <div class="download-row" id="lesson-download-btn">
+                    <i class="fa-solid fa-cloud-arrow-down" id="lesson-download-icon"></i>
+                    <span id="lesson-download-text">Download Material</span>
+                </div>
+            </div>
+
+            <div class="sticky-action">
+                <button class="btn btn-primary" onclick="navigateTo('courses')">Back to Library</button>
+            </div>
+        </div>

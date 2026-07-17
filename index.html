@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Adhyayan K-12</title>
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2e7d32">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+</head>
+<body>
+    <div id="desktop-wrapper">
+        <div id="app-container">
+            <!-- Top System Ribbon -->
+            <div id="system-ribbon">
+                <div class="time">9:40</div>
+                <div class="status-icons">
+                    <i class="fa-solid fa-signal"></i>
+                    <i class="fa-solid fa-wifi"></i>
+                    <i class="fa-solid fa-battery-full"></i>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div id="root-view"></div>
+
+            <!-- Bottom Navigation -->
+            <div id="bottom-nav" class="hidden">
+                <div class="nav-item active" data-route="home">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Home</span>
+                </div>
+                <div class="nav-item" data-route="courses">
+                    <i class="fa-solid fa-book-open"></i>
+                    <span>Courses</span>
+                </div>
+                <div class="nav-item" data-route="progress">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Progress</span>
+                </div>
+                <div class="nav-item" data-route="profile">
+                    <i class="fa-solid fa-user"></i>
+                    <span>Profile</span>
+                </div>
+            </div>
+
+            <!-- Format Modal for Screen 5 -->
+            <div id="format-modal" class="hidden">
+                <div class="modal-overlay"></div>
+                <div class="modal-sheet">
+                    <div class="modal-header">
+                        <div class="close-btn" id="modal-close"><i class="fa-solid fa-xmark"></i></div>
+                        <h2>Select Content Format</h2>
+                        <p>Choose how you would like to study this class material.</p>
+                    </div>
+                    <div class="modal-options">
+                        <div class="format-option" data-format="ebook">
+                            <i class="fa-solid fa-file-pdf icon"></i>
+                            <span>E-Book</span>
+                            <i class="fa-solid fa-chevron-right chevron"></i>
+                        </div>
+                        <div class="format-option" data-format="audio">
+                            <i class="fa-solid fa-headphones icon"></i>
+                            <span>Audio Book</span>
+                            <i class="fa-solid fa-chevron-right chevron"></i>
+                        </div>
+                        <div class="format-option" data-format="video">
+                            <i class="fa-solid fa-video icon"></i>
+                            <span>Video Contents</span>
+                            <i class="fa-solid fa-chevron-right chevron"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- General Alert Modal (Used for Admin Delete etc) -->
+             <div id="alert-modal" class="hidden">
+                <div class="modal-overlay"></div>
+                <div class="modal-sheet">
+                    <div class="modal-header">
+                        <h2 id="alert-title">Warning</h2>
+                        <p id="alert-message">Are you sure?</p>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="alert-cancel" class="btn btn-outline">Cancel</button>
+                        <button id="alert-confirm" class="btn btn-danger">Confirm</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+    <!-- Templates for different screens (moved to /pages/) -->
+
+    <!-- Application Core -->
+    <script type="module" src="/core/app.js"></script>
+</body>
+</html>

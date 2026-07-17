@@ -1,0 +1,40 @@
+<div class="screen courses-screen has-bottom-nav">
+
+    <div class="header-module">
+        <div>
+            <h2>My Library</h2>
+            <div class="courses-class-label" id="courses-class-label">Loading your class...</div>
+        </div>
+        <div class="controls" id="courses-filter-icon" title="Filter">
+            <i class="fa-solid fa-sliders"></i>
+        </div>
+    </div>
+
+    <!-- Subject filter (dynamic) -->
+    <div class="subject-filter-row" id="subject-filter-slider">
+        <!-- Populated by courses.js -->
+        <div class="subject-pill active" data-subject="All">All</div>
+    </div>
+
+    <!-- Format type filter -->
+    <div class="category-slider">
+        <div class="category-pill active" data-filter="All">All Types</div>
+        <div class="category-pill" data-filter="Video Content">
+            <i class="fa-solid fa-play-circle"></i> Videos
+        </div>
+        <div class="category-pill" data-filter="E-Book">
+            <i class="fa-solid fa-file-pdf"></i> E-Books
+        </div>
+        <div class="category-pill" data-filter="Audio Book">
+            <i class="fa-solid fa-headphones"></i> Audio
+        </div>
+    </div>
+
+    <div class="curriculum-list" id="student-materials-list">
+        <div class="loading-state">
+            <div class="loader-ring"></div>
+            <p>Loading your library...</p>
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,206 @@
+<div class="screen admin-login-screen">
+    <!-- Top Bar with Back Arrow -->
+    <div class="admin-login-navbar">
+        <button class="back-btn" id="btn-login-back" aria-label="Go Back">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+    </div>
+
+    <!-- MAIN LOGIN VIEW -->
+    <div class="login-subview active" id="view-signin">
+        <div class="login-header">
+            <!-- Concentric Tech Target Security Ring with Lock -->
+            <div class="security-badge">
+                <div class="ring-outer"></div>
+                <div class="ring-middle"></div>
+                <div class="ring-inner">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+            </div>
+            <h2>Admin Portal</h2>
+            <p>Login to access the admin panel</p>
+        </div>
+
+        <form class="login-card" id="form-admin-login">
+            <div class="form-group">
+                <label for="admin-id-input">Admin ID</label>
+                <div class="input-container">
+                    <i class="fa-regular fa-user prefix-icon"></i>
+                    <input type="text" id="admin-id-input" placeholder="Enter admin ID or email" required autocomplete="username">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="admin-pass-input">Admin Password</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-lock prefix-icon"></i>
+                    <input type="password" id="admin-pass-input" placeholder="Enter admin password" required autocomplete="current-password">
+                    <button type="button" class="eye-toggle" id="btn-toggle-login-pass" aria-label="Toggle Password Visibility">
+                        <i class="fa-regular fa-eye-slash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-footer">
+                <button type="button" class="forgot-link" id="btn-forgot-creds">Forgot ID / Password?</button>
+            </div>
+
+            <div class="login-error-msg hidden" id="login-error-msg"></div>
+            <button type="submit" class="btn-submit">Login</button>
+        </form>
+
+        <!-- Security Reminder Card -->
+        <div class="security-reminder">
+            <div class="reminder-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div class="reminder-text">
+                <h5>Security Reminder</h5>
+                <p>Unauthorized access is strictly prohibited. All activities are monitored and logged.</p>
+            </div>
+        </div>
+
+        <!-- Dynamic Bottom Desktop Illustration -->
+        <div class="desktop-illustration">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 150" class="illustration-svg">
+                <!-- Desk Surface -->
+                <line x1="20" y1="135" x2="380" y2="135" stroke="#CBD5E1" stroke-width="4" stroke-linecap="round"/>
+                
+                <!-- Desktop Monitor -->
+                <rect x="130" y="30" width="140" height="80" rx="6" fill="#1E293B"/>
+                <rect x="135" y="35" width="130" height="70" rx="3" fill="#334155"/>
+                <!-- Browser window/UI on screen -->
+                <rect x="145" y="45" width="60" height="50" rx="2" fill="#475569"/>
+                <rect x="215" y="45" width="40" height="8" rx="1" fill="#475569"/>
+                <rect x="215" y="58" width="40" height="8" rx="1" fill="#475569"/>
+                <rect x="215" y="71" width="40" height="8" rx="1" fill="#475569"/>
+                
+                <!-- Monitor Stand -->
+                <path d="M190 110 L210 110 L215 130 L185 130 Z" fill="#475569"/>
+                <ellipse cx="200" cy="130" rx="25" ry="5" fill="#334155"/>
+                
+                <!-- Keyboard & Coffee Cup -->
+                <rect x="150" y="131" width="100" height="4" rx="1" fill="#94A3B8"/>
+                <rect x="275" y="120" width="14" height="15" rx="2" fill="#F97316"/>
+                <rect x="272" y="124" width="4" height="6" rx="1" fill="#F97316" transform="rotate(-15)"/>
+                
+                <!-- Laptop on Left -->
+                <rect x="40" y="100" width="60" height="35" rx="3" fill="#475569"/>
+                <line x1="30" y1="134" x2="110" y2="134" stroke="#64748B" stroke-width="3" stroke-linecap="round"/>
+                
+                <!-- Administrator Figure (simplified silhouette) -->
+                <path d="M90 135 C90 110 100 80 120 80 C130 80 135 85 140 90 L120 135 Z" fill="#FDBA74"/>
+                <circle cx="120" cy="65" r="14" fill="#FFEDD5"/>
+                <path d="M115 51 C115 51 125 45 132 55 C132 55 135 65 125 70 Z" fill="#1E293B"/> <!-- Hair -->
+                
+                <!-- Arm Typing/Working -->
+                <path d="M125 95 C145 95 160 110 170 125" fill="none" stroke="#FDBA74" stroke-width="8" stroke-linecap="round"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- FORGOT CREDENTIALS EMAIL DISPATCH VIEW -->
+    <div class="login-subview" id="view-forgot" style="display: none;">
+        <div class="login-header">
+            <div class="security-badge reset-badge">
+                <div class="ring-outer"></div>
+                <div class="ring-middle"></div>
+                <div class="ring-inner">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                </div>
+            </div>
+            <h2>Password Recovery</h2>
+            <p>Verification code will be sent to recover credentials</p>
+        </div>
+
+        <form class="login-card" id="form-forgot-email">
+            <div class="form-group">
+                <label for="recovery-email-input">Registered Administrator Email</label>
+                <div class="input-container">
+                    <i class="fa-regular fa-envelope prefix-icon"></i>
+                    <input type="email" id="recovery-email-input" placeholder="Enter registered admin email" required>
+                </div>
+                <span class="form-tip">Verification OTP will be dispatched to the entered admin email.</span>
+            </div>
+
+            <button type="submit" class="btn-submit">Request Security OTP</button>
+            <button type="button" class="btn-back-link" id="btn-back-to-signin">Back to Login</button>
+        </form>
+    </div>
+
+    <!-- OTP VERIFICATION VIEW -->
+    <div class="login-subview" id="view-otp" style="display: none;">
+        <div class="login-header">
+            <div class="security-badge reset-badge">
+                <div class="ring-outer"></div>
+                <div class="ring-middle"></div>
+                <div class="ring-inner">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+            </div>
+            <h2>OTP Verification</h2>
+            <p id="otp-message-label">We sent a verification code to your email</p>
+        </div>
+
+        <form class="login-card" id="form-verify-otp">
+            <div class="form-group">
+                <label for="otp-code-input">6-Digit Verification OTP</label>
+                <div class="otp-input-container">
+                    <input type="text" id="otp-code-input" maxlength="6" placeholder="******" pattern="\d{6}" required style="text-align: center; letter-spacing: 12px; font-size: 24px; font-weight: 800;">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">Verify Identity</button>
+            <button type="button" class="btn-back-link" id="btn-resend-otp">Resend Security Code</button>
+        </form>
+    </div>
+
+    <!-- NEW PASSWORD RESET VIEW -->
+    <div class="login-subview" id="view-reset" style="display: none;">
+        <div class="login-header">
+            <div class="security-badge update-badge">
+                <div class="ring-outer"></div>
+                <div class="ring-middle"></div>
+                <div class="ring-inner">
+                    <i class="fa-solid fa-user-gear"></i>
+                </div>
+            </div>
+            <h2>Update Credentials</h2>
+            <p>Define your new Administrator login specifications</p>
+        </div>
+
+        <form class="login-card" id="form-reset-creds">
+            <div class="form-group">
+                <label for="new-admin-id">New Admin ID</label>
+                <div class="input-container">
+                    <i class="fa-regular fa-user prefix-icon"></i>
+                    <input type="text" id="new-admin-id" placeholder="Enter new Admin ID" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="new-admin-pass">New Admin Password</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-lock prefix-icon"></i>
+                    <input type="password" id="new-admin-pass" placeholder="Enter new Admin Password" required>
+                    <button type="button" class="eye-toggle" id="btn-toggle-reset-pass" aria-label="Toggle Password Visibility">
+                        <i class="fa-regular fa-eye-slash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">Save & Update Credentials</button>
+        </form>
+    </div>
+
+    <!-- Premium Sliding Floating Toast System for OTP -->
+    <div class="security-toast hidden" id="otp-toast">
+        <div class="toast-content">
+            <i class="fa-solid fa-circle-exclamation toast-icon"></i>
+            <div class="toast-text">
+                <h6>Security Dispatch System</h6>
+                <p id="otp-toast-message">OTP Code <strong>123456</strong> sent to rahul@parevartan.com</p>
+            </div>
+        </div>
+    </div>
+</div>

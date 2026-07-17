@@ -1,0 +1,430 @@
+/* Admin Sign-In Screen Styles */
+
+.admin-login-screen {
+    background-color: #FFFFFF;
+    padding: 30px 24px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    color: #1A202C;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+}
+
+/* Custom Hide Scrollbar */
+.admin-login-screen::-webkit-scrollbar {
+    display: none;
+}
+
+/* Navigation Bar */
+.admin-login-navbar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.back-btn {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    color: #4A5568;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+.back-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Header & Security Badge */
+.login-header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.security-badge {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    margin: 0 auto 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Concentric rings styled like mockup */
+.ring-outer {
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    border: 2px dashed rgba(27, 128, 57, 0.25);
+    border-radius: 50%;
+    animation: rotateClockwise 20s linear infinite;
+}
+
+.ring-middle {
+    position: absolute;
+    width: 76px;
+    height: 76px;
+    border: 2px solid rgba(27, 128, 57, 0.4);
+    border-top: 2px solid #1B8039;
+    border-bottom: 2px solid #1B8039;
+    border-radius: 50%;
+    animation: rotateCounter 10s linear infinite;
+}
+
+.ring-inner {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: rgba(27, 128, 57, 0.1);
+    border: 2px solid #1B8039;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #1B8039;
+    font-size: 22px;
+}
+
+.login-header h2 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 6px 0;
+}
+
+.login-header p {
+    font-size: 13px;
+    color: #6B7280;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Login/Form Card */
+.login-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 20px;
+    padding: 24px 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1B8039;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.prefix-icon {
+    position: absolute;
+    left: 16px;
+    color: #64748B;
+    font-size: 16px;
+}
+
+.input-container input {
+    width: 100%;
+    padding: 14px 16px 14px 44px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    color: #0F172A;
+    font-size: 14px;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.input-container input::placeholder {
+    color: #94A3B8;
+}
+
+.input-container input:focus {
+    border-color: #1B8039;
+    box-shadow: 0 0 0 3px rgba(27, 128, 57, 0.1);
+}
+
+.eye-toggle {
+    position: absolute;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: #64748B;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.eye-toggle:hover {
+    color: #334155;
+}
+
+.form-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -6px;
+    margin-bottom: 22px;
+}
+
+.forgot-link {
+    background: transparent;
+    border: none;
+    color: #1B8039;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+    opacity: 0.9;
+}
+
+.btn-submit {
+    width: 100%;
+    padding: 14px;
+    background: #1B8039;
+    border: none;
+    border-radius: 12px;
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(27, 128, 57, 0.2);
+}
+
+.btn-submit:hover {
+    background: #15622B;
+    transform: translateY(-1px);
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+}
+
+/* Security Reminder */
+.security-reminder {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(27, 128, 57, 0.05);
+    border: 1px solid rgba(27, 128, 57, 0.15);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+}
+
+.reminder-icon {
+    color: #1B8039;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.reminder-text h5 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0 0 3px 0;
+}
+
+.reminder-text p {
+    font-size: 11px;
+    color: #475569;
+    line-height: 1.4;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Illustration at bottom */
+.desktop-illustration {
+    margin-top: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-top: 10px;
+}
+
+.illustration-svg {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+}
+
+/* Secondary Actions / Recover Views */
+.btn-back-link {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid #CBD5E1;
+    border-radius: 12px;
+    color: #64748B;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-back-link:hover {
+    background: #F1F5F9;
+    color: #334155;
+}
+
+.form-tip {
+    font-size: 11px;
+    color: #64748B;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+/* OTP Verification custom inputs */
+.otp-input-container input {
+    background: #FFFFFF;
+    border: 2px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 16px;
+    color: #1B8039;
+    transition: all 0.2s ease;
+}
+
+.otp-input-container input:focus {
+    border-color: #1B8039;
+    background: rgba(27, 128, 57, 0.02);
+}
+
+/* Floating security toast styles */
+.security-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    right: 24px;
+    background: #1E293B;
+    color: #FFFFFF;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.security-toast.hidden {
+    display: none;
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toast-icon {
+    font-size: 24px;
+    color: #FBBF24;
+}
+
+.toast-text h6 {
+    margin: 0 0 2px 0;
+    font-size: 12px;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+.toast-text p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #E2E8F0;
+}
+
+/* Animations */
+@keyframes rotateClockwise {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes rotateCounter {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.login-subview {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Inline Error Messages and Card Shaking Animation */
+.login-error-msg {
+    color: #DC2626;
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    animation: fadeIn 0.2s ease;
+}
+
+.login-error-msg.hidden {
+    display: none;
+}
+
+.login-card.shake {
+    animation: shakeCard 0.4s ease;
+}
+
+@keyframes shakeCard {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}

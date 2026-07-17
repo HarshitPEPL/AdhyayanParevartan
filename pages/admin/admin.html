@@ -1,0 +1,146 @@
+<div class="screen admin-screen" style="max-width: 900px; margin: 0 auto; width: 100%; border: none;">
+    <div class="admin-header">
+        <h2>Admin Control Panel</h2>
+        <button class="btn btn-outline" onclick="window.location.reload()" style="width: auto; padding: 8px 16px;">Exit Admin</button>
+    </div>
+    <div id="supabase-status-bar" style="display:none; margin: 0 0 12px; padding: 10px 16px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;"></div>
+
+    <div class="admin-tabs">
+        <button class="tab-btn active" data-tab="users">Users</button>
+        <button class="tab-btn" data-tab="subjects">Subjects</button>
+        <button class="tab-btn" data-tab="materials">Materials</button>
+    </div>
+
+    <!-- USERS TAB -->
+    <div class="admin-tab-content active" id="tab-users">
+        <div class="admin-section">
+            <div class="admin-card">
+                <h4>Add New User</h4>
+                <form id="form-add-user" class="form-grid">
+                    <input type="text" id="user-name" placeholder="Full Name" class="admin-input" required>
+                    <input type="email" id="user-email" placeholder="Email Address" class="admin-input" required>
+                    <input type="password" id="user-password" placeholder="Password" class="admin-input" required>
+                    <select id="user-role" class="admin-input" required>
+                        <option value="3">Student</option>
+                        <option value="2">Teacher</option>
+                        <option value="1">Admin</option>
+                    </select>
+                    <input type="number" id="user-class" placeholder="Class (e.g., 9)" class="admin-input">
+                    <button type="submit" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Add User</button>
+                </form>
+            </div>
+
+            <div class="admin-card">
+                <h4>Users Directory</h4>
+                <div style="margin: 8px 0 12px; display:flex; gap:8px; align-items:center;">
+                    <input id="users-search" placeholder="Search users by name, email, or ID" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #DDD;">
+                    <button id="users-clear-search" style="padding:8px 12px; border-radius:8px; border:1px solid #DDD; background:#FFF; cursor:pointer;">Clear</button>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Class</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-users-table">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBJECTS TAB -->
+    <div class="admin-tab-content" id="tab-subjects" style="display: none;">
+        <div class="admin-section">
+            <div class="admin-card">
+                <h4>Add New Subject</h4>
+                <form id="form-add-subject" class="form-grid">
+                    <input type="text" id="subject-name" placeholder="Subject Name (e.g., Mathematics)" class="admin-input" required>
+                    <input type="number" id="subject-class" placeholder="Class Number (e.g., 9)" class="admin-input" required>
+                    <button type="submit" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Add Subject</button>
+                </form>
+            </div>
+
+            <div class="admin-card">
+                <h4>Subjects Directory</h4>
+                <div style="margin: 8px 0 12px; display:flex; gap:8px; align-items:center;">
+                    <input id="subjects-search" placeholder="Search subjects by name, class or ID" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #DDD;">
+                    <button id="subjects-clear-search" style="padding:8px 12px; border-radius:8px; border:1px solid #DDD; background:#FFF; cursor:pointer;">Clear</button>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Subject Name</th>
+                            <th>Class</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-subjects-table">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MATERIALS TAB -->
+    <div class="admin-tab-content" id="tab-materials" style="display: none;">
+        <div class="admin-section">
+            <div class="admin-card">
+                <h4>Publish New Material</h4>
+                <form id="form-add-material" class="form-grid">
+                    <input type="text" id="material-title" placeholder="Material Title" class="admin-input" style="grid-column: span 2;" required>
+                    <select id="material-class" class="admin-input" required>
+                        <option value="" disabled selected>Select Class</option>
+                        <!-- Populated via JS -->
+                    </select>
+                    <select id="material-subject" class="admin-input" required disabled>
+                        <option value="" disabled selected>Select Subject</option>
+                        <!-- Populated via JS after class selection -->
+                    </select>
+                    <select id="material-format" class="admin-input" required>
+                        <option value="1">E-Book</option>
+                        <option value="2">Audio Book</option>
+                        <option value="3">Video Content</option>
+                    </select>
+                    <input type="text" id="material-instructor" placeholder="Instructor Name" class="admin-input">
+                    <input type="text" id="material-duration" placeholder="Page/Duration of the content" class="admin-input">
+                    <label for="material-file" style="grid-column: span 2; font-size: 0.9em; margin-bottom: -10px;">Upload File (E-Book, Audio, Video):</label>
+                    <input type="file" id="material-file" class="admin-input" style="grid-column: span 2;" accept="video/*,audio/*,.pdf,.epub">
+                    <input type="text" id="material-url" placeholder="Or enter File URL manually (e.g., /vids/math1.mp4)" class="admin-input" style="grid-column: span 2;">
+                    <button type="submit" id="btn-add-material" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Publish Material</button>
+                </form>
+            </div>
+            
+            <div class="admin-card">
+                <h4>Materials Inventory</h4>
+                <div style="margin: 8px 0 12px; display:flex; gap:8px; align-items:center;">
+                    <input id="materials-search" placeholder="Search materials by title, subject or ID" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #DDD;">
+                    <button id="materials-clear-search" style="padding:8px 12px; border-radius:8px; border:1px solid #DDD; background:#FFF; cursor:pointer;">Clear</button>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Subject ID</th>
+                            <th>Format</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-materials-table">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

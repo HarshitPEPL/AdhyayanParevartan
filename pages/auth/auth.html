@@ -1,0 +1,399 @@
+<div class="screen auth-screen" style="background-color: #FFFFFF; padding: 40px 20px; overflow-y: auto;">
+    
+    <div class="auth-header-container" style="text-align: center; margin-bottom: 40px;">
+        <div class="mortarboard-icon" style="width: 70px; height: 70px; border: 1px solid #ccc; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px;">
+            <i class="fa-solid fa-graduation-cap" style="font-size: 36px; color: #1B8039;"></i>
+        </div>
+        <h2 style="font-size: 24px; font-weight: 800; color: #111; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            Welcome to 
+            <span style="font-size: 36px; font-weight: 500; font-family: serif; display: inline-block; transform: translateY(2px);"><span style="color:#000;">अdh</span><span style="color:#1B8039;">yayan</span></span>
+        </h2>
+        <p style="font-size: 12px; color: #666; font-weight: 600;">Sign in to continue your learning journey</p>
+    </div>
+    
+    <div class="form-group" style="margin-bottom: 25px;">
+        <div class="input-with-icon" style="position: relative; margin-bottom: 12px;">
+            <i class="fa-regular fa-envelope" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #666; font-size: 18px;"></i>
+            <input type="email" placeholder="Enter your email" id="auth-email" style="width: 100%; padding: 14px 16px 14px 48px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
+        </div>
+        <div class="input-with-icon" style="position: relative; margin-bottom: 12px;">
+            <i class="fa-solid fa-lock" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #666; font-size: 18px;"></i>
+            <input type="password" placeholder="Enter your password" id="auth-password" style="width: 100%; padding: 14px 16px 14px 48px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
+        </div>
+        <div style="text-align: left; padding-left: 10px;">
+            <a href="#" class="forgot-link" id="btn-forgot-password" style="color: #1B8039; font-size: 13px; font-weight: 800; text-decoration: none;">Forgot password?</a>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-continue" style="background-color: #65b865; color: #FFF; border-radius: 30px; padding: 14px; font-size: 16px; font-weight: 700; width: 100%; border: 1px solid #4a9e4a; box-shadow: inset 0 -2px 5px rgba(0,0,0,0.1); cursor: pointer;">Continue</button>
+    
+    <div class="separator" style="display: flex; align-items: center; text-align: center; margin: 20px 0;">
+        <span style="flex: 1; border-bottom: 1px solid #111;"></span>
+        <span style="padding: 0 15px; color: #111; font-size: 14px; font-weight: 600;">OR</span>
+        <span style="flex: 1; border-bottom: 1px solid #111;"></span>
+    </div>
+    
+    <button class="btn btn-social" id="btn-google" style="background-color: #F9F9F9; color: #666; border: 1px solid #111; border-radius: 30px; padding: 14px; font-size: 14px; font-weight: 600; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.7 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Continue with Google
+    </button>
+    
+    <div class="footer-links" style="text-align: center; margin-top: 20px; font-size: 14px; color: #333; font-weight: 500;">
+        New to Adhyayan ? <a href="#" id="btn-show-signup" style="color: #1B8039; font-weight: 800; text-decoration: none;">Sign up</a> | <a href="#" id="btn-visible-admin-login" style="color: #666; font-weight: 800; text-decoration: none; margin-left: 5px;">Admin Portal</a>
+    </div>
+
+    <style>
+        .class-capsules-container {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+            scrollbar-width: none; /* Firefox */
+        }
+        .class-capsules-container::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+        .class-group {
+            display: flex;
+            gap: 15px;
+            scroll-snap-align: start;
+            min-width: 100%;
+            justify-content: center;
+        }
+        .capsule {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 1px solid #999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            font-weight: 400;
+            color: #111;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .carousel-dot {
+            width: 6px; height: 6px; border-radius: 50%; background-color: #ccc; cursor: pointer; transition: background-color 0.2s ease;
+        }
+        .carousel-dot.active {
+            background-color: #1B8039;
+        }
+    </style>
+    <div class="class-setter" style="margin-top: 30px; text-align: center;">
+        <div style="display:flex; justify-content: space-between; align-items: baseline; padding: 0 10px; margin-bottom: 15px;">
+            <p style="font-size: 12px; color: #111; font-weight: 800; margin: 0;">I'm in class <span id="class-error" style="color:red; font-size:10px; font-weight:600; display:none; margin-left:5px;">(Required)</span></p>
+        </div>
+        
+        <div class="class-capsules-container" id="class-slider">
+            <div class="class-group">
+                <div class="capsule" data-class="1">1</div>
+                <div class="capsule" data-class="2">2</div>
+                <div class="capsule" data-class="3">3</div>
+                <div class="capsule" data-class="4">4</div>
+            </div>
+            <div class="class-group">
+                <div class="capsule" data-class="5">5</div>
+                <div class="capsule" data-class="6">6</div>
+                <div class="capsule" data-class="7">7</div>
+                <div class="capsule" data-class="8">8</div>
+            </div>
+            <div class="class-group">
+                <div class="capsule" data-class="9">9</div>
+                <div class="capsule" data-class="10">10</div>
+                <div class="capsule" data-class="11">11</div>
+                <div class="capsule" data-class="12">12</div>
+            </div>
+        </div>
+        <div class="carousel-indicators" style="display: flex; gap: 6px; justify-content: center; margin-bottom: 25px;" id="carousel-dots">
+            <span class="carousel-dot active" data-index="0"></span>
+            <span class="carousel-dot" data-index="1"></span>
+            <span class="carousel-dot" data-index="2"></span>
+        </div>
+    </div>
+
+    <!-- Hidden Admin Button for functionality -->
+    <button id="btn-admin-login" style="opacity: 0; width: 1px; height: 1px; position: absolute; bottom: 0; left: 0;">Admin</button>
+
+    <div class="compliance-text" style="text-align: center; margin-top: auto; font-size: 10px; color: #666; font-weight: 600; padding-bottom: 20px;">
+        By continuing you agree to Terms & Privacy
+    </div>
+
+    <!-- Sign Up Modal Sheet -->
+    <div id="signup-modal" class="hidden">
+        <div class="modal-overlay" id="signup-overlay" onclick="document.getElementById('signup-modal').classList.add('hidden')"></div>
+        <div class="modal-sheet">
+            <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                <button type="button" class="close-btn" id="signup-modal-close" onclick="document.getElementById('signup-modal').classList.add('hidden')" style="position: absolute; right: 0; top: 0; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 100; border: none; background: transparent; font-size: 20px;"><i class="fa-solid fa-xmark" style="pointer-events: none;"></i></button>
+                <h2 style="font-size: 20px; font-weight: 800; color: #111;">Create Account</h2>
+                <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Sign up as a student to begin learning</p>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <input type="text" placeholder="Full Name" id="signup-name" style="width: 100%; padding: 14px 16px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <input type="email" placeholder="Email Address" id="signup-email" style="width: 100%; padding: 14px 16px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <input type="password" placeholder="Password" id="signup-password" style="width: 100%; padding: 14px 16px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
+            </div>
+            
+            <button class="btn btn-primary" id="btn-submit-signup" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%;">Create Account</button>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal Sheet -->
+    <div id="forgot-pwd-modal" class="hidden">
+        <div class="modal-overlay" id="forgot-pwd-overlay" onclick="document.getElementById('forgot-pwd-modal').classList.add('hidden')"></div>
+        <div class="modal-sheet">
+            
+            <!-- View 1: Request OTP -->
+            <div id="forgot-view-email" class="forgot-subview" style="display: flex; flex-direction: column;">
+                <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                    <button type="button" class="close-btn" id="forgot-modal-close" onclick="document.getElementById('forgot-pwd-modal').classList.add('hidden')" style="position: absolute; right: 0; top: 0; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 100; border: none; background: transparent; font-size: 20px;"><i class="fa-solid fa-xmark" style="pointer-events: none;"></i></button>
+                    <h2 style="font-size: 20px; font-weight: 800; color: #111;">Recover Password</h2>
+                    <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Enter your registered email to receive a recovery code</p>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <div class="input-with-icon" style="position: relative;">
+                        <i class="fa-regular fa-envelope" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #666; font-size: 18px;"></i>
+                        <input type="email" placeholder="Enter registered email" id="forgot-email-input" style="width: 100%; padding: 14px 16px 14px 48px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" id="btn-forgot-send-otp" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%;">Send Verification Code</button>
+            </div>
+            
+            <!-- View 2: Verify OTP -->
+            <div id="forgot-view-otp" class="forgot-subview" style="display: none; flex-direction: column;">
+                <div class="modal-header" style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="font-size: 20px; font-weight: 800; color: #111;">Verify OTP</h2>
+                    <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;" id="forgot-otp-label">We sent a security code to your email</p>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <input type="text" id="forgot-otp-input" maxlength="6" placeholder="******" style="width: 100%; padding: 12px; border-radius: 30px; border: 2px solid #E2E8F0; background-color: #F9F9F9; font-size: 22px; outline: none; font-weight: 800; text-align: center; letter-spacing: 8px;">
+                </div>
+                
+                <button class="btn btn-primary" id="btn-forgot-verify-otp" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%; margin-bottom: 12px;">Verify Code</button>
+                <button type="button" class="btn btn-outline" id="btn-forgot-resend-otp" style="border-radius: 30px; padding: 10px; font-size: 13px; font-weight: 600; width: 100%;">Resend Code</button>
+            </div>
+            
+            <!-- View 3: Reset Password -->
+            <div id="forgot-view-reset" class="forgot-subview" style="display: none; flex-direction: column;">
+                <div class="modal-header" style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="font-size: 20px; font-weight: 800; color: #111;">Create New Password</h2>
+                    <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Set your new account access password</p>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <div class="input-with-icon" style="position: relative;">
+                        <i class="fa-solid fa-lock" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #666; font-size: 18px;"></i>
+                        <input type="password" placeholder="New Password" id="forgot-new-password" style="width: 100%; padding: 14px 16px 14px 48px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" id="btn-forgot-save-pwd" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%;">Update & Continue</button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Premium Sliding Floating Toast System for OTP -->
+    <div class="security-toast hidden" id="auth-otp-toast">
+        <div class="toast-content">
+            <i class="fa-solid fa-circle-exclamation toast-icon"></i>
+            <div class="toast-text">
+                <h6>Security Dispatch System</h6>
+                <p id="auth-otp-toast-message">OTP Code <strong>123456</strong> sent successfully</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Premium Supabase Connection Manager Icon (responsive) -->
+    <div id="btn-supabase-manager" class="supabase-manager" title="Database Connections" aria-label="Database Connections">
+        <i class="fa-solid fa-database" aria-hidden="true"></i>
+    </div>
+
+    <style>
+        .supabase-manager {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            min-width: 40px;
+            min-height: 40px;
+            border-radius: 50%;
+            background: #F3F4F6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border: 1px solid #E5E7EB;
+            color: #1B8039;
+            font-size: 18px;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .supabase-manager:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px -1px rgba(0,0,0,0.08);
+        }
+
+        .supabase-manager i { font-size: 18px; line-height: 1; }
+
+        /* Smaller screens: reduce size and inset from edges */
+        @media (max-width: 480px) {
+            .supabase-manager { width: 40px; height: 40px; top: 14px; right: 14px; font-size: 16px; }
+            .supabase-manager i { font-size: 16px; }
+        }
+
+        @media (max-width: 360px) {
+            .supabase-manager { width: 36px; height: 36px; top: 10px; right: 10px; font-size: 14px; }
+            .supabase-manager i { font-size: 14px; }
+        }
+    </style>
+
+    <!-- Supabase Configuration Modal Sheet -->
+    <div id="supabase-modal" class="hidden">
+        <div class="modal-overlay" id="supabase-overlay"></div>
+        <div class="modal-sheet">
+            <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                <div class="close-btn" id="supabase-modal-close" style="position: absolute; right: 0; top: 0;"><i class="fa-solid fa-xmark"></i></div>
+                <h2 style="font-size: 20px; font-weight: 800; color: #111;">Database Connections</h2>
+                <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Configure your cloud Supabase database settings</p>
+            </div>
+
+            <div id="supabase-status-badge" style="text-align: center; padding: 8px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 20px; background: rgba(27,128,57,0.1); color: #1B8039;">
+                Status: Running locally on SQLite (Local Fallback)
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">Supabase URL</label>
+                <input type="text" placeholder="https://your-project.supabase.co" id="input-supabase-url" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">Supabase Anon Key</label>
+                <input type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." id="input-supabase-key" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <button class="btn btn-primary" id="btn-save-supabase" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%; margin-bottom: 10px;">Connect & Sync Cloud</button>
+            <button class="btn btn-outline" id="btn-migration-help" style="border-radius: 30px; padding: 10px; font-size: 13px; font-weight: 600; width: 100%; margin-bottom: 10px; background: #F0F9FF; color: #0369A1; border-color: #0EA5E9;">📖 Setup Help & SQL Schema</button>
+            <button class="btn btn-outline" id="btn-clear-supabase" style="border-radius: 30px; padding: 10px; font-size: 13px; font-weight: 600; width: 100%; display: none; background: #FEF2F2; color: #DC2626; border-color: #FCA5A5;">Disconnect Supabase</button>
+        </div>
+    </div>
+
+    <!-- Migration Help Modal -->
+    <div id="migration-help-modal" class="hidden">
+        <div class="modal-overlay" id="migration-help-overlay"></div>
+        <div class="modal-sheet" style="max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                <button type="button" class="close-btn" id="migration-help-close" style="position: absolute; right: 0; top: 0; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 100; border: none; background: transparent; font-size: 20px;"><i class="fa-solid fa-xmark" style="pointer-events: none;"></i></button>
+                <h2 style="font-size: 20px; font-weight: 800; color: #111;">Supabase Migration Setup</h2>
+                <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Copy the SQL schema and run it in your Supabase SQL Editor</p>
+            </div>
+
+            <div style="background: #F5F5F5; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #111;">SQL Schema</h4>
+                    <button id="btn-copy-sql" style="background: #1B8039; color: #FFF; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;">📋 Copy SQL</button>
+                </div>
+                <pre id="sql-schema" style="background: #FFFFFF; border: 1px solid #DDD; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 11px; line-height: 1.5; color: #333; margin: 0;">-- Create Roles and Users Tables
+create table if not exists roles (
+  role_id serial primary key,
+  role_name text unique not null
+);
+
+create table if not exists users (
+  user_id serial primary key,
+  role_id int not null references roles(role_id),
+  full_name text not null,
+  email text unique not null,
+  password_hash text not null,
+  google_oauth_id text,
+  class_number int,
+  board text,
+  streak_days int default 0,
+  xp_points int default 0,
+  is_approved int default 0,
+  created_at timestamptz default now()
+);
+
+-- Create Subjects and Content Formats
+create table if not exists subjects (
+  subject_id serial primary key,
+  subject_name text not null,
+  class_number int not null
+);
+
+create table if not exists content_formats (
+  format_id serial primary key,
+  format_name text unique not null
+);
+
+-- Create Learning Materials and Progress
+create table if not exists learning_materials (
+  material_id serial primary key,
+  subject_id int not null references subjects(subject_id) on delete cascade,
+  format_id int not null references content_formats(format_id),
+  title text not null,
+  description text,
+  file_url text not null,
+  duration_lessons text,
+  instructor_name text,
+  created_at timestamptz default now()
+);
+
+create table if not exists student_progress (
+  progress_id serial primary key,
+  student_id int not null references users(user_id) on delete cascade,
+  material_id int not null references learning_materials(material_id) on delete cascade,
+  completion_percentage int default 0,
+  is_completed boolean default false,
+  updated_at timestamptz default now()
+);
+
+-- Seed Initial Data (Roles and Formats)
+insert into roles (role_name) select * from (values ('Admin'),('Teacher'),('Student')) as v(name)
+  on conflict (role_name) do nothing;
+
+insert into content_formats (format_name) select * from (values ('E-Book'),('Audio Book'),('Video Content')) as v(name)
+  on conflict (format_name) do nothing;</pre>
++            </div>
++
++            <div style="background: #FFFACD; border: 1px solid #FFD700; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
++                <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #B8860B;">📋 Steps to Complete:</h5>
++                <ol style="margin: 0; padding-left: 20px; font-size: 12px; color: #333; line-height: 1.6;">
++                    <li>Go to <strong>Supabase → SQL Editor</strong> → New query</li>
++                    <li>Click <strong>"📋 Copy SQL"</strong> button above</li>
++                    <li>Paste into the SQL Editor and click <strong>Execute</strong></li>
++                    <li>Create a storage bucket named <strong>learning_materials</strong> (Supabase → Storage → New bucket)</li>
++                    <li>Set bucket visibility to <strong>Public</strong> (or setup signed URLs for private)</li>
++                    <li>Get your <strong>Supabase URL</strong> and <strong>Anon Key</strong> from Settings → API</li>
++                    <li>Return here and enter credentials in the form above</li>
++                </ol>
++            </div>
++
++            <div style="background: #F0F0F0; border: 1px solid #CCC; border-radius: 8px; padding: 12px;">
++                <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #333;">⚠️ Important (Temporary Local Testing):</h5>
++                <p style="margin: 0; font-size: 11px; color: #555; line-height: 1.6;">For <strong>local testing only</strong>, you can disable Row Level Security (RLS) in Supabase Settings → Tables. For <strong>production</strong>, set up RLS policies to restrict access by role.</p>
++            </div>
+         </div>
+     </div>
+ </div>
