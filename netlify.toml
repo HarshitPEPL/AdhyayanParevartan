@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# Hash-based in-app routing (#home, #courses, ...) means every real path is
+# just index.html; this only matters for a direct/deep link to a bad path.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
