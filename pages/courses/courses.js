@@ -31,39 +31,66 @@ export async function init(navigateTo, state) {
     const classNumber = parseInt(state.currentUser?.class_number || state.selectedClass || 9, 10);
     const container   = document.getElementById('student-materials-list');
     const subjectSlider = document.getElementById('subject-filter-slider');
-    const formatPills   = document.querySelectorAll('.category-pill');
     const classLabel    = document.getElementById('courses-class-label');
+    const activeFiltersRow = document.getElementById('active-filters-row');
+
+    // Filter modal elements (opened via the top-right sliders icon)
+    const filterIcon      = document.getElementById('courses-filter-icon');
+    const filterOverlay    = document.getElementById('courses-filter-overlay');
+    const filterSheet      = document.getElementById('courses-filter-sheet');
+    const filterClose      = document.getElementById('courses-filter-close');
+    const filterApplyBtn   = document.getElementById('courses-filter-apply');
+    const filterResetBtn   = document.getElementById('courses-filter-reset');
+    const modalSubjectRow  = document.getElementById('filter-modal-subjects');
+    const modalChapterRow  = document.getElementById('filter-modal-chapters');
 
     if (classLabel) {
         const name = state.currentUser?.full_name || 'Student';
         classLabel.textContent = `${name}  •  Class ${classNumber}`;
     }
 
-    let materials    = [];
-    let activeFormat  = 'All';
-    let activeSubject = 'All';
+    let materials     = [];
+    let activeChapter  = 'All';
+    let activeSubject  = 'All';
+    // Selections staged inside the modal until "Apply Filters" is pressed
+    let pendingChapter = 'All';
+    let pendingSubject = 'All';
 
-    // --- Load subject filter pills ---
+    // --- Load subject filter pills (quick row + modal copy) ---
     try {
         const subjects = await getSubjectsByClass(classNumber);
-        if (subjectSlider && subjects.length > 0) {
-            const pills = [`<div class="subject-pill active" data-subject="All">All Subjects</div>`];
-            subjects.forEach(s => {
-                const icon = SUBJECT_ICONS[s.subject_name] || 'fa-book';
-                pills.push(`
-                    <div class="subject-pill" data-subject="${escapeHTML(s.subject_name)}">
-                        <i class="fa-solid ${icon}"></i> ${escapeHTML(s.subject_name)}
-                    </div>
-                `);
-            });
-            subjectSlider.innerHTML = pills.join('');
+        const pillsHTML = [`<div class="subject-pill active" data-subject="All">All Subjects</div>`];
+        subjects.forEach(s => {
+            const icon = SUBJECT_ICONS[s.subject_name] || 'fa-book';
+            pillsHTML.push(`
+                <div class="subject-pill" data-subject="${escapeHTML(s.subject_name)}">
+                    <i class="fa-solid ${icon}"></i> ${escapeHTML(s.subject_name)}
+                </div>
+            `);
+        });
 
+        if (subjectSlider && subjects.length > 0) {
+            subjectSlider.innerHTML = pillsHTML.join('');
             subjectSlider.querySelectorAll('.subject-pill').forEach(pill => {
                 pill.addEventListener('click', () => {
-                    subjectSlider.querySelectorAll('.subject-pill').forEach(p => p.classList.remove('active'));
-                    pill.classList.add('active');
-                    activeSubject = pill.dataset.subject;
+                    activeSubject = pendingSubject = pill.dataset.subject;
+                    activeChapter = pendingChapter = 'All';
+                    syncSubjectPills();
+                    renderActiveFilterChip();
                     renderFiltered();
+                });
+            });
+        }
+
+        if (modalSubjectRow && subjects.length > 0) {
+            modalSubjectRow.innerHTML = pillsHTML.join('');
+            modalSubjectRow.querySelectorAll('.subject-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    pendingSubject = pill.dataset.subject;
+                    pendingChapter = 'All';
+                    modalSubjectRow.querySelectorAll('.subject-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    renderChapterChips();
                 });
             });
         }
@@ -82,26 +109,156 @@ export async function init(navigateTo, state) {
         }
     }
 
-    // --- Format pill clicks ---
-    formatPills.forEach(pill => {
-        pill.addEventListener('click', () => {
-            formatPills.forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-            activeFormat = pill.dataset.filter;
+    // Prefer the real chapter_number column when materials have it set; otherwise
+    // fall back to deriving an order from first-appearance (sorted by material_id,
+    // since older seeded materials predate the chapter_number column).
+    function getSubjectChapters(subject) {
+        const chapters = [...materials]
+            .filter(m => m.subject_name === subject)
+            .sort((a, b) => a.material_id - b.material_id)
+            .reduce((acc, m) => {
+                const existing = acc.find(c => c.title === m.title);
+                if (!existing) {
+                    acc.push({ title: m.title, chapter_number: m.chapter_number ?? null });
+                } else if (existing.chapter_number == null && m.chapter_number != null) {
+                    existing.chapter_number = m.chapter_number;
+                }
+                return acc;
+            }, []);
+
+        if (chapters.some(c => c.chapter_number != null)) {
+            chapters.sort((a, b) => {
+                if (a.chapter_number == null) return 1;
+                if (b.chapter_number == null) return -1;
+                return a.chapter_number - b.chapter_number;
+            });
+        }
+        return chapters;
+    }
+
+    function getSubjectChapterTitles(subject) {
+        return getSubjectChapters(subject).map(c => c.title);
+    }
+
+    // --- Chapter chips (inside the filter modal, scoped to the selected subject) ---
+    function renderChapterChips() {
+        if (!modalChapterRow) return;
+
+        const chapters = pendingSubject === 'All' ? [] : getSubjectChapters(pendingSubject);
+
+        const chips = [`<div class="category-pill" data-chapter="All">All Chapters</div>`];
+        chapters.forEach((c, i) => {
+            const label = c.chapter_number ? `Chapter ${c.chapter_number}` : `Chapter ${i + 1}`;
+            chips.push(`<div class="category-pill" data-chapter="${escapeHTML(c.title)}">${label}</div>`);
+        });
+        modalChapterRow.innerHTML = chips.join('');
+
+        modalChapterRow.querySelectorAll('.category-pill').forEach(pill => {
+            pill.classList.toggle('active', pill.dataset.chapter === pendingChapter);
+            pill.addEventListener('click', () => {
+                pendingChapter = pill.dataset.chapter;
+                modalChapterRow.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+            });
+        });
+    }
+
+    // --- Filter modal open/close ---
+    function openFilterModal() {
+        pendingSubject = activeSubject;
+        pendingChapter = activeChapter;
+        if (modalSubjectRow) {
+            modalSubjectRow.querySelectorAll('.subject-pill').forEach(p => {
+                p.classList.toggle('active', p.dataset.subject === activeSubject);
+            });
+        }
+        renderChapterChips();
+        filterOverlay?.classList.remove('hidden');
+        filterSheet?.classList.remove('hidden');
+        filterIcon?.classList.add('active');
+    }
+
+    function closeFilterModal() {
+        filterOverlay?.classList.add('hidden');
+        filterSheet?.classList.add('hidden');
+        filterIcon?.classList.toggle('active', activeChapter !== 'All' || activeSubject !== 'All');
+    }
+
+    filterIcon?.addEventListener('click', openFilterModal);
+    filterClose?.addEventListener('click', closeFilterModal);
+    filterOverlay?.addEventListener('click', closeFilterModal);
+
+    filterApplyBtn?.addEventListener('click', () => {
+        activeSubject = pendingSubject;
+        activeChapter = pendingChapter;
+        syncSubjectPills();
+        renderActiveFilterChip();
+        renderFiltered();
+        closeFilterModal();
+    });
+
+    filterResetBtn?.addEventListener('click', () => {
+        pendingSubject = 'All';
+        pendingChapter = 'All';
+        activeSubject  = 'All';
+        activeChapter  = 'All';
+        syncSubjectPills();
+        if (modalSubjectRow) {
+            modalSubjectRow.querySelectorAll('.subject-pill').forEach(p => p.classList.toggle('active', p.dataset.subject === 'All'));
+        }
+        renderChapterChips();
+        renderActiveFilterChip();
+        renderFiltered();
+        closeFilterModal();
+    });
+
+    // --- Keep the quick subject row in sync with the active selection ---
+    function syncSubjectPills() {
+        if (!subjectSlider) return;
+        subjectSlider.querySelectorAll('.subject-pill').forEach(p => {
+            p.classList.toggle('active', p.dataset.subject === activeSubject);
+        });
+    }
+
+    // --- Show a removable chip when a chapter filter is applied ---
+    function renderActiveFilterChip() {
+        if (!activeFiltersRow) return;
+        if (activeChapter === 'All') {
+            activeFiltersRow.classList.add('hidden');
+            activeFiltersRow.innerHTML = '';
+            return;
+        }
+        const chapters = getSubjectChapters(activeSubject);
+        const idx = chapters.findIndex(c => c.title === activeChapter);
+        const matchedChapter = idx >= 0 ? chapters[idx] : null;
+        const chapterLabel = matchedChapter?.chapter_number
+            ? `Chapter ${matchedChapter.chapter_number}`
+            : (idx >= 0 ? `Chapter ${idx + 1}` : escapeHTML(activeChapter));
+        activeFiltersRow.classList.remove('hidden');
+        activeFiltersRow.innerHTML = `
+            <div class="active-filter-chip">
+                ${chapterLabel}
+                <i class="fa-solid fa-xmark" id="clear-chapter-filter"></i>
+            </div>
+        `;
+        document.getElementById('clear-chapter-filter')?.addEventListener('click', () => {
+            activeChapter = pendingChapter = 'All';
+            renderChapterChips();
+            renderActiveFilterChip();
             renderFiltered();
         });
-    });
+    }
 
     // --- Render function ---
     function renderFiltered() {
         if (!container) return;
 
         let filtered = materials;
-        if (activeFormat !== 'All') {
-            filtered = filtered.filter(m => m.format_name === activeFormat);
-        }
         if (activeSubject !== 'All') {
             filtered = filtered.filter(m => m.subject_name === activeSubject);
+        }
+        if (activeChapter !== 'All') {
+            filtered = filtered.filter(m => m.title === activeChapter);
         }
 
         if (filtered.length === 0) {
@@ -109,7 +266,7 @@ export async function init(navigateTo, state) {
                 <div class="empty-state">
                     <i class="fa-solid fa-book-open"></i>
                     <p>No materials found for this filter.</p>
-                    <span>Try selecting a different subject or type.</span>
+                    <span>Try selecting a different subject or chapter.</span>
                 </div>
             `;
             return;

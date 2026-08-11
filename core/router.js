@@ -8,18 +8,52 @@ export const routes = {
     'classes': { showNav: false },
     'lesson': { showNav: false },
     'quiz': { showNav: false },
+    'quiz-center': { showNav: true },
     'progress': { showNav: true },
     'profile': { showNav: true },
+    'help-support': { showNav: false },
+    'downloads': { showNav: false },
     'admin-login': { showNav: false },
     'admin': { showNav: false }
 };
 
+const pageModules = import.meta.glob('../pages/*/*.js', { eager: true });
+
 // Cache for loaded styles
 const loadedStyles = new Set();
 
-export async function navigateTo(routeId) {
+// --- Hardware/gesture back-button support ---------------------------------
+// The app renders every "page" via fetch + innerHTML instead of real browser
+// navigation, so by default the Android back button has no history to pop
+// and just exits the app (or does nothing) instead of moving back through
+// the app's own screens. To keep the OS-level back button in sync with our
+// in-app navigation, every navigateTo() call also pushes a matching entry
+// onto the real browser history, and a single `popstate` listener translates
+// hardware/gesture back presses back into navigateTo() calls. This works
+// both in the browser and inside the Capacitor Android WebView, since
+// Capacitor's default back-button handling calls the WebView's native
+// goBack() (which fires `popstate`) whenever there is history to go back to.
+let popstateInstalled = false;
+function installPopstateHandler() {
+    if (popstateInstalled) return;
+    popstateInstalled = true;
+    window.addEventListener('popstate', (e) => {
+        const targetRoute = e.state && e.state.routeId;
+        if (targetRoute) {
+            navigateTo(targetRoute, { fromPopState: true });
+        }
+        // If there's no state (user went back past our first tracked entry),
+        // let the platform's default back behavior happen (Android exits the app).
+    });
+}
+
+export async function navigateTo(routeId, options = {}) {
+    const { replace = false, fromPopState = false } = options;
+    const requestedRouteId = routeId;
+
     // Expose globally for inline onclicks in HTML
     window.navigateTo = navigateTo;
+    installPopstateHandler();
 
     // Secure Route Guarding
     const publicRoutes = ['splash', 'auth', 'admin-login'];
@@ -43,17 +77,21 @@ export async function navigateTo(routeId) {
     const route = routes[routeId];
     if(!route) return;
 
-    state.currentRoute = routeId;
-    
-    const wrapper = document.getElementById('desktop-wrapper');
-    if(routeId === 'admin') {
-        wrapper.classList.add('full-screen');
-        document.body.classList.add('admin-theme');
-    } else {
-        wrapper.classList.remove('full-screen');
-        document.body.classList.remove('admin-theme');
+    // Keep the browser/native history stack in sync with in-app navigation
+    // so the hardware/gesture back button steps back through app screens.
+    if (!fromPopState) {
+        const wasForcedRedirect = routeId !== requestedRouteId;
+        const useReplace = replace || wasForcedRedirect;
+        const url = '#' + routeId;
+        if (useReplace) {
+            history.replaceState({ routeId }, '', url);
+        } else {
+            history.pushState({ routeId }, '', url);
+        }
     }
-    
+
+    state.currentRoute = routeId;
+
     const bottomNav = document.getElementById('bottom-nav');
     if(route.showNav) {
         bottomNav.classList.remove('hidden');
@@ -69,7 +107,7 @@ export async function navigateTo(routeId) {
     
     try {
         // Load HTML
-        const response = await fetch(`/pages/${routeId}/${routeId}.html`);
+        const response = await fetch(`./pages/${routeId}/${routeId}.html`);
         if (!response.ok) throw new Error('Failed to load page');
         rootView.innerHTML = await response.text();
         
@@ -77,17 +115,27 @@ export async function navigateTo(routeId) {
         if (!loadedStyles.has(routeId)) {
             const link = document.createElement('link');
             link.rel = 'stylesheet';
-            link.href = `/pages/${routeId}/${routeId}.css`;
+            link.href = `./pages/${routeId}/${routeId}.css`;
             document.head.appendChild(link);
             loadedStyles.add(routeId);
         }
 
         // Load JS
         try {
-            // Using a dynamic import; path is fully dynamic so Vite leaves it as-is
-            const module = await import(/* @vite-ignore */ `/pages/${routeId}/${routeId}.js`);
-            if (module.init) {
-                module.init(navigateTo, state);
+            const modulePath = `../pages/${routeId}/${routeId}.js`;
+            if (pageModules[modulePath]) {
+                const module = pageModules[modulePath];
+                if (module.init) {
+                    module.init(navigateTo, state);
+                }
+            } else {
+                console.log(`No JS module found in glob for ${routeId}`);
+                // fallback to standard dynamic import if not found by glob
+                const fallbackPath = `./pages/${routeId}/${routeId}.js`;
+                const module = await import(/* @vite-ignore */ fallbackPath);
+                if (module.init) {
+                    module.init(navigateTo, state);
+                }
             }
         } catch (e) {
             console.log(`No JS module init for ${routeId}:`, e.message);

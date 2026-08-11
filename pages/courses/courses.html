@@ -16,25 +16,42 @@
         <div class="subject-pill active" data-subject="All">All</div>
     </div>
 
-    <!-- Format type filter -->
-    <div class="category-slider">
-        <div class="category-pill active" data-filter="All">All Types</div>
-        <div class="category-pill" data-filter="Video Content">
-            <i class="fa-solid fa-play-circle"></i> Videos
-        </div>
-        <div class="category-pill" data-filter="E-Book">
-            <i class="fa-solid fa-file-pdf"></i> E-Books
-        </div>
-        <div class="category-pill" data-filter="Audio Book">
-            <i class="fa-solid fa-headphones"></i> Audio
-        </div>
-    </div>
+    <!-- Active content-type filter chip (set via the filter button) -->
+    <div class="active-filters-row hidden" id="active-filters-row"></div>
 
     <div class="curriculum-list" id="student-materials-list">
         <div class="loading-state">
             <div class="loader-ring"></div>
             <p>Loading your library...</p>
         </div>
+    </div>
+
+    <!-- Filter modal sheet (triggered by the sliders icon) -->
+    <div class="modal-overlay hidden" id="courses-filter-overlay"></div>
+    <div class="modal-sheet hidden" id="courses-filter-sheet">
+        <div class="modal-header" style="text-align:center;">
+            <div class="close-btn" id="courses-filter-close"><i class="fa-solid fa-xmark"></i></div>
+            <h2>Filter Library</h2>
+            <p>Choose a subject and chapter to narrow down your materials</p>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-group-label">Subject</label>
+            <div class="subject-filter-row" id="filter-modal-subjects">
+                <!-- Populated by courses.js -->
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-group-label">Chapter</label>
+            <div class="category-slider" id="filter-modal-chapters">
+                <!-- Populated by courses.js based on the selected subject -->
+                <div class="category-pill active" data-chapter="All">All Chapters</div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" id="courses-filter-apply">Apply Filters</button>
+        <button class="btn btn-outline" id="courses-filter-reset">Reset</button>
     </div>
 
 </div>

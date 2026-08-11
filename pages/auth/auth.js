@@ -1,9 +1,12 @@
 // Uses window.adhyayan global (set by the bundled core/app.js after db init)
+import { sendEmail, isEmailConfigured } from '../../core/email.js';
+import { signInWithGoogle, isGoogleAuthConfigured } from '../../core/googleAuth.js';
 
 export function init(navigateTo, state) {
     const { getUserByEmail, addUser, updateUserPassword } = window.adhyayan;
     let selectedClass = null;
     const errorEl = document.getElementById('class-error');
+    const googleWarningEl = document.getElementById('google-class-warning');
     
     document.querySelectorAll('.capsule').forEach(el => {
         el.addEventListener('click', (e) => {
@@ -17,6 +20,7 @@ export function init(navigateTo, state) {
             e.target.style.borderColor = '#1B8039';
             selectedClass = e.target.dataset.class;
             if(errorEl) errorEl.style.display = 'none';
+            if(googleWarningEl) googleWarningEl.style.display = 'none';
         });
     });
 
@@ -52,24 +56,68 @@ export function init(navigateTo, state) {
                 
                 state.currentUser = user;
                 state.selectedClass = user.class_number || selectedClass || 9;
-                navigateTo(route);
+                navigateTo(route, { replace: true });
             } catch (e) {
                 console.error("Login error:", e);
                 alert("Login failed. Check connection.");
             }
         } else {
             state.selectedClass = selectedClass || 9;
-            navigateTo(route);
+            navigateTo(route, { replace: true });
         }
     };
 
     document.getElementById('btn-continue')?.addEventListener('click', () => validateAndNavigate('home'));
-    document.getElementById('btn-google')?.addEventListener('click', () => {
-        // Mock google login
-        const cls = selectedClass || 9;
-        state.currentUser = { full_name: "Google User", email: "google@user.com", class_number: cls, is_approved: 1, role_id: 3 };
-        state.selectedClass = cls;
-        navigateTo('home');
+    document.getElementById('btn-google')?.addEventListener('click', async (e) => {
+        if (!selectedClass) {
+            if (googleWarningEl) googleWarningEl.style.display = 'block';
+            return;
+        }
+        if (googleWarningEl) googleWarningEl.style.display = 'none';
+
+        if (!isGoogleAuthConfigured()) {
+            // No live OAuth Client ID yet (added later once the app has a live domain
+            // to register with Google) — fall back to the placeholder mock login.
+            state.currentUser = { full_name: "Google User", email: "google@user.com", class_number: selectedClass, is_approved: 1, role_id: 3 };
+            state.selectedClass = selectedClass;
+            navigateTo('home', { replace: true });
+            return;
+        }
+
+        const btnGoogle = e.currentTarget;
+        const originalLabel = btnGoogle.innerHTML;
+        btnGoogle.style.pointerEvents = 'none';
+        btnGoogle.style.opacity = '0.6';
+
+        try {
+            const profile = await signInWithGoogle();
+            if (!profile?.email) throw new Error('No email returned by Google.');
+
+            let user = await getUserByEmail(profile.email);
+            if (!user) {
+                const randomPassword = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                await addUser(profile.name, profile.email, randomPassword, 3, selectedClass, 1, profile.sub);
+                user = await getUserByEmail(profile.email);
+            }
+
+            if (user.role_id === 3 && !user.is_approved) {
+                alert("Access Denied: Your account is pending administrator approval. Please contact your admin to activate your account.");
+                return;
+            }
+
+            state.currentUser = user;
+            state.selectedClass = user.class_number || selectedClass;
+            navigateTo('home', { replace: true });
+        } catch (err) {
+            console.error("Google sign-in failed:", err);
+            if (err?.message !== 'popup_closed') {
+                alert("Google sign-in failed. Please try again.");
+            }
+        } finally {
+            btnGoogle.style.pointerEvents = '';
+            btnGoogle.style.opacity = '';
+            btnGoogle.innerHTML = originalLabel;
+        }
     });
     document.getElementById('btn-admin-login')?.addEventListener('click', () => navigateTo('admin-login'));
     document.getElementById('btn-visible-admin-login')?.addEventListener('click', (e) => {
@@ -143,7 +191,16 @@ export function init(navigateTo, state) {
 
             // Create new student user (role 3) in pending state (isApproved = 0)
             await addUser(name, email, password, 3, selectedClass, 0);
-            
+
+            // Send a registration confirmation email (best-effort; app still works
+            // without it since the on-screen alert already confirms registration)
+            sendEmail({
+                toEmail: email,
+                toName: name,
+                subject: 'Adhyayan Parevartan — Registration Received',
+                message: `Hi ${name},\n\nThank you for registering with Adhyayan Parevartan for Class ${selectedClass}.\n\nYour account has been created and is currently pending administrator approval. You will be able to log in once an administrator activates your account.\n\nIf you did not request this, please ignore this email.`
+            }).catch(() => {});
+
             alert("Registration requested successfully! Your account is created in 'Pending' status. Only after the administrator approves/creates your credentials can you log in.");
             closeSignupModal();
         } catch (e) {
@@ -171,15 +228,18 @@ export function init(navigateTo, state) {
         });
     };
 
-    const dispatchAuthOTP = (email) => {
+    const dispatchAuthOTP = async (email) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         authOTP = otp;
 
         const toast = document.getElementById('auth-otp-toast');
         const toastMsg = document.getElementById('auth-otp-toast-message');
+        const emailConfigured = isEmailConfigured();
 
         if (toast && toastMsg) {
-            toastMsg.innerHTML = `OTP verification code <strong>${otp}</strong> successfully dispatched to ${email}`;
+            toastMsg.innerHTML = emailConfigured
+                ? `OTP verification code <strong>${otp}</strong> is being emailed to ${email}`
+                : `OTP verification code <strong>${otp}</strong> successfully dispatched to ${email} (email service not configured — showing code here)`;
             toast.classList.remove('hidden');
 
             setTimeout(() => {
@@ -195,6 +255,18 @@ export function init(navigateTo, state) {
         if (input) {
             input.value = '';
             input.focus();
+        }
+
+        // Best-effort real email dispatch; the on-screen toast above already
+        // lets the flow work even if the email service isn't configured yet.
+        const result = await sendEmail({
+            toEmail: email,
+            subject: 'Adhyayan Parevartan — Password Reset Code',
+            message: `Your password reset verification code is: ${otp}\n\nThis code expires shortly. If you did not request a password reset, you can safely ignore this email.`
+        });
+
+        if (toastMsg && result.sent) {
+            toastMsg.innerHTML = `A verification code has been emailed to <strong>${email}</strong>`;
         }
     };
 
@@ -292,113 +364,6 @@ export function init(navigateTo, state) {
         } catch (e) {
             console.error("Failed to save updated password in database:", e);
             alert("Database Error: Could not save password change. Please try again.");
-        }
-    });
-
-    // --- SUPABASE CONNECTION MANAGER FLOW ---
-    const btnSupabaseManager = document.getElementById('btn-supabase-manager');
-    const supabaseModal = document.getElementById('supabase-modal');
-    const supabaseClose = document.getElementById('supabase-modal-close');
-    const supabaseOverlay = document.getElementById('supabase-overlay');
-    const statusBadge = document.getElementById('supabase-status-badge');
-    const inputUrl = document.getElementById('input-supabase-url');
-    const inputKey = document.getElementById('input-supabase-key');
-    const btnSaveSupabase = document.getElementById('btn-save-supabase');
-    const btnClearSupabase = document.getElementById('btn-clear-supabase');
-
-    const updateStatusUI = () => {
-        const currentDbType = window.adhyayan.dbType;
-        if (currentDbType === 'supabase') {
-            if (statusBadge) {
-                statusBadge.textContent = "Status: Connected to Supabase Cloud Database! 🚀";
-                statusBadge.style.background = "rgba(27,128,57,0.1)";
-                statusBadge.style.color = "#1B8039";
-            }
-            if (btnClearSupabase) btnClearSupabase.style.display = 'block';
-        } else {
-            if (statusBadge) {
-                statusBadge.textContent = "Status: Running locally on SQLite (Local Fallback) 📦";
-                statusBadge.style.background = "#F3F4F6";
-                statusBadge.style.color = "#4B5563";
-            }
-            if (btnClearSupabase) btnClearSupabase.style.display = 'none';
-        }
-    };
-
-    btnSupabaseManager?.addEventListener('click', () => {
-        if (supabaseModal) {
-            supabaseModal.classList.remove('hidden');
-            updateStatusUI();
-
-            if (inputUrl) inputUrl.value = localStorage.getItem("VITE_SUPABASE_URL") || "";
-            if (inputKey) inputKey.value = localStorage.getItem("VITE_SUPABASE_ANON_KEY") || "";
-        }
-    });
-
-    const closeSupabaseModal = () => {
-        if (supabaseModal) supabaseModal.classList.add('hidden');
-    };
-
-    supabaseClose?.addEventListener('click', closeSupabaseModal);
-    supabaseOverlay?.addEventListener('click', closeSupabaseModal);
-
-    btnSaveSupabase?.addEventListener('click', () => {
-        const url = inputUrl ? inputUrl.value.trim() : "";
-        const key = inputKey ? inputKey.value.trim() : "";
-
-        if (!url || !key) {
-            alert("Validation Error: Please enter both Supabase URL and Anon Key.");
-            return;
-        }
-
-        localStorage.setItem("VITE_SUPABASE_URL", url);
-        localStorage.setItem("VITE_SUPABASE_ANON_KEY", key);
-
-        alert("Supabase Credentials Configured! Restoring cloud database connection...");
-        closeSupabaseModal();
-        window.location.reload();
-    });
-
-    btnClearSupabase?.addEventListener('click', () => {
-        localStorage.removeItem("VITE_SUPABASE_URL");
-        localStorage.removeItem("VITE_SUPABASE_ANON_KEY");
-
-        alert("Supabase Credentials Disconnected! Falling back to offline SQLite...");
-        closeSupabaseModal();
-        window.location.reload();
-    });
-
-    // --- MIGRATION HELP MODAL ---
-    const migrationHelpModal = document.getElementById('migration-help-modal');
-    const migrationHelpClose = document.getElementById('migration-help-close');
-    const migrationHelpOverlay = document.getElementById('migration-help-overlay');
-    const btnMigrationHelp = document.getElementById('btn-migration-help');
-    const btnCopySQL = document.getElementById('btn-copy-sql');
-    const sqlSchemaEl = document.getElementById('sql-schema');
-
-    const closeMigrationModal = () => {
-        if (migrationHelpModal) migrationHelpModal.classList.add('hidden');
-    };
-
-    btnMigrationHelp?.addEventListener('click', () => {
-        if (migrationHelpModal) migrationHelpModal.classList.remove('hidden');
-    });
-
-    migrationHelpClose?.addEventListener('click', closeMigrationModal);
-    migrationHelpOverlay?.addEventListener('click', closeMigrationModal);
-
-    btnCopySQL?.addEventListener('click', () => {
-        const sqlText = sqlSchemaEl?.innerText || '';
-        if (sqlText) {
-            navigator.clipboard.writeText(sqlText).then(() => {
-                const origText = btnCopySQL.innerText;
-                btnCopySQL.innerText = '✓ Copied!';
-                setTimeout(() => {
-                    btnCopySQL.innerText = origText;
-                }, 2000);
-            }).catch(err => {
-                alert("Failed to copy. Please try again.");
-            });
         }
     });
 }

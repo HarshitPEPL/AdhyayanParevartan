@@ -167,3 +167,64 @@
     border-color: #FCA5A5;
     color: #DC2626;
 }
+
+.class-picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.class-picker-overlay.hidden {
+    display: none;
+}
+
+.class-picker-card {
+    background: #FFF;
+    border-radius: 20px;
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 340px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+
+.class-picker-card h3 {
+    font-size: 17px;
+    font-weight: 800;
+    color: #222;
+    margin: 0 0 16px;
+    text-align: center;
+}
+
+.class-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.class-picker-btn {
+    border: 1.5px solid #E0E0E0;
+    background: #FAFAFA;
+    color: #333;
+    border-radius: 12px;
+    padding: 12px 0;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.class-picker-btn:hover {
+    background: rgba(27,128,57,0.08);
+    border-color: var(--primary-green);
+}
+
+.class-picker-btn.active {
+    background: var(--primary-green);
+    border-color: var(--primary-green);
+    color: #FFF;
+}

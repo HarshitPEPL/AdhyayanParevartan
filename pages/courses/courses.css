@@ -51,6 +51,31 @@
 
 .subject-pill i { font-size: 10px; }
 
+/* Active content-type filter chip (shown when set via the filter modal) */
+.active-filters-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.active-filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #111;
+    color: #FFF;
+}
+
+.active-filter-chip i {
+    font-size: 10px;
+    cursor: pointer;
+    padding: 4px;
+}
+
 /* Format category pills */
 .category-slider {
     gap: 8px;
@@ -82,6 +107,89 @@
 }
 
 .category-pill i { font-size: 10px; }
+
+/* Filter modal (sliders icon) */
+/* Use position:fixed (viewport-relative) instead of the shared .modal-overlay/
+   .modal-sheet position:absolute, since the courses list can grow much taller
+   than the visible screen and "position:absolute; bottom:0" would otherwise
+   anchor to the bottom of the full scrollable page instead of the visible area. */
+#courses-filter-overlay {
+    position: fixed !important;
+}
+
+#courses-filter-sheet {
+    position: fixed !important;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+#courses-filter-icon {
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #FAFAFA;
+    border: 1.5px solid #E0E0E0;
+    transition: all 0.2s ease;
+}
+
+#courses-filter-icon.active {
+    background: var(--primary-green);
+    border-color: var(--primary-green);
+    color: #FFF;
+}
+
+#courses-filter-sheet .filter-group {
+    margin-bottom: 20px;
+}
+
+#courses-filter-sheet .filter-group-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary-green, #1B8039);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+}
+
+#courses-filter-sheet #filter-modal-subjects,
+#courses-filter-sheet #filter-modal-chapters {
+    flex-wrap: wrap;
+    overflow: visible;
+}
+
+#filter-modal-chapters .category-pill {
+    text-align: center;
+}
+
+#courses-filter-apply {
+    background-color: #1B8039;
+    color: #FFF;
+    border-radius: 30px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    width: 100%;
+    margin-bottom: 10px;
+    border: none;
+    cursor: pointer;
+}
+
+#courses-filter-reset {
+    border-radius: 30px;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    width: 100%;
+    background: #F5F5F5;
+    color: #555;
+    border: 1px solid #E0E0E0;
+    cursor: pointer;
+}
 
 /* Material cards */
 .curriculum-list {
@@ -220,4 +328,38 @@
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .subject-filter-row,
+    .category-slider {
+        gap: 6px;
+        padding-bottom: 10px;
+    }
+
+    .subject-pill,
+    .category-pill {
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .curriculum-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .item-icon-wrap {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+
+    .item-details h4 {
+        white-space: normal;
+    }
+
+    .item-action {
+        align-self: flex-start;
+    }
 }

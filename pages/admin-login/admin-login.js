@@ -1,3 +1,5 @@
+import { sendEmail, isEmailConfigured } from '../../core/email.js';
+
 let localNavigateTo = null;
 let localState = null;
 let currentOTP = null;
@@ -133,7 +135,7 @@ function setupLogin() {
             // Set session for admin to pass the route guard
             localState.currentUser = adminUser;
             
-            localNavigateTo('admin');
+            localNavigateTo('admin', { replace: true });
         } else {
             // Shake card animation
             if (card) {
@@ -262,8 +264,9 @@ function setupRecoveryFlow() {
     }
 }
 
-// Generate, dispatch, and display OTP Simulation
-function dispatchOTP(email) {
+// Generate, dispatch, and display OTP (also emailed for real when the Email
+// Notifications service is configured on the student login screen)
+async function dispatchOTP(email) {
     // Generate 6-digit random code
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     currentOTP = otp;
@@ -271,9 +274,12 @@ function dispatchOTP(email) {
     // Show floating premium security toast
     const toast = document.getElementById('otp-toast');
     const toastMsg = document.getElementById('otp-toast-message');
-    
+    const emailConfigured = isEmailConfigured();
+
     if (toast && toastMsg) {
-        toastMsg.innerHTML = `OTP verification code <strong>${otp}</strong> successfully dispatched to ${email}`;
+        toastMsg.innerHTML = emailConfigured
+            ? `OTP verification code <strong>${otp}</strong> is being emailed to ${email}`
+            : `OTP verification code <strong>${otp}</strong> successfully dispatched to ${email} (email service not configured — showing code here)`;
         toast.classList.remove('hidden');
 
         // Hide after 8 seconds
@@ -287,4 +293,15 @@ function dispatchOTP(email) {
     document.getElementById('otp-message-label').textContent = `We sent a security verification code to ${email}`;
     document.getElementById('otp-code-input').value = '';
     document.getElementById('otp-code-input').focus();
+
+    const result = await sendEmail({
+        toEmail: email,
+        subject: 'Adhyayan Parevartan — Admin Password Reset Code',
+        message: `Your administrator password reset verification code is: ${otp}\n\nThis code expires shortly. If you did not request this, please ignore this email.`
+    });
+
+    if (toastMsg && result.sent) {
+        toastMsg.innerHTML = `A verification code has been emailed to <strong>${email}</strong>`;
+    }
 }
+

@@ -3,12 +3,79 @@
         <h2>Admin Control Panel</h2>
         <button class="btn btn-outline" onclick="window.location.reload()" style="width: auto; padding: 8px 16px;">Exit Admin</button>
     </div>
+
+    <!-- Owner-only config icons (Database/Email/Google) - only shown here in the
+         Admin Control Panel, after a successful admin login. -->
+    <div id="btn-supabase-manager" class="supabase-manager" title="Database Connections" aria-label="Database Connections">
+        <i class="fa-solid fa-database" aria-hidden="true"></i>
+    </div>
+
+    <div id="btn-email-manager" class="supabase-manager email-manager" title="Email Notifications" aria-label="Email Notifications">
+        <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+    </div>
+
+    <div id="btn-google-manager" class="supabase-manager google-manager" title="Google Sign-In Setup" aria-label="Google Sign-In Setup">
+        <i class="fa-brands fa-google" aria-hidden="true"></i>
+    </div>
+
+    <style>
+        .supabase-manager {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            min-width: 40px;
+            min-height: 40px;
+            border-radius: 50%;
+            background: #F3F4F6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border: 1px solid #E5E7EB;
+            color: #1B8039;
+            font-size: 18px;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .supabase-manager:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px -1px rgba(0,0,0,0.08);
+        }
+
+        .supabase-manager i { font-size: 18px; line-height: 1; }
+
+        .email-manager { top: 72px; }
+        .google-manager { top: 124px; }
+
+        /* Smaller screens: reduce size and inset from edges */
+        @media (max-width: 480px) {
+            .supabase-manager { width: 40px; height: 40px; top: 14px; right: 14px; font-size: 16px; }
+            .supabase-manager i { font-size: 16px; }
+            .email-manager { top: 62px; }
+            .google-manager { top: 110px; }
+        }
+
+        @media (max-width: 360px) {
+            .supabase-manager { width: 36px; height: 36px; top: 10px; right: 10px; font-size: 14px; }
+            .supabase-manager i { font-size: 14px; }
+            .email-manager { top: 54px; }
+            .google-manager { top: 98px; }
+        }
+    </style>
     <div id="supabase-status-bar" style="display:none; margin: 0 0 12px; padding: 10px 16px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;"></div>
 
     <div class="admin-tabs">
         <button class="tab-btn active" data-tab="users">Users</button>
         <button class="tab-btn" data-tab="subjects">Subjects</button>
         <button class="tab-btn" data-tab="materials">Materials</button>
+        <button class="tab-btn" data-tab="quizzes">Quizzes</button>
+        <button class="tab-btn" data-tab="notifications">Notifications</button>
+        <button class="tab-btn" data-tab="content">Help &amp; Support</button>
     </div>
 
     <!-- USERS TAB -->
@@ -42,6 +109,7 @@
                             <th>ID</th>
                             <th>Full Name</th>
                             <th>Email</th>
+                            <th>Password</th>
                             <th>Role</th>
                             <th>Class</th>
                             <th>Status</th>
@@ -52,6 +120,7 @@
                         <!-- Populated via JS -->
                     </tbody>
                 </table>
+                <div id="users-pagination" class="pagination-controls"></div>
             </div>
         </div>
     </div>
@@ -87,6 +156,7 @@
                         <!-- Populated via JS -->
                     </tbody>
                 </table>
+                <div id="subjects-pagination" class="pagination-controls"></div>
             </div>
         </div>
     </div>
@@ -113,17 +183,46 @@
                     </select>
                     <input type="text" id="material-instructor" placeholder="Instructor Name" class="admin-input">
                     <input type="text" id="material-duration" placeholder="Page/Duration of the content" class="admin-input">
+                    <input type="number" id="material-chapter-number" placeholder="Chapter Number (e.g. 1)" class="admin-input" min="1" step="1">
                     <label for="material-file" style="grid-column: span 2; font-size: 0.9em; margin-bottom: -10px;">Upload File (E-Book, Audio, Video):</label>
                     <input type="file" id="material-file" class="admin-input" style="grid-column: span 2;" accept="video/*,audio/*,.pdf,.epub">
                     <input type="text" id="material-url" placeholder="Or enter File URL manually (e.g., /vids/math1.mp4)" class="admin-input" style="grid-column: span 2;">
                     <button type="submit" id="btn-add-material" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Publish Material</button>
                 </form>
             </div>
-            
+
+            <div class="admin-card">
+                <h4>📊 Bulk Upload Materials (Excel)</h4>
+                <p style="font-size: 12px; color: #666; margin: -4px 0 14px;">Upload one Excel file to publish many books/videos at once — no need to add them one by one.</p>
+
+                <div id="bulk-material-status" style="display:none; border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:14px; line-height:1.6;"></div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+                    <button type="button" id="btn-download-material-template" class="btn btn-outline" style="width:auto; padding:10px 16px; background:#F0F9FF; color:#0369A1; border-color:#0EA5E9;">⬇️ Download Excel Template</button>
+                </div>
+
+                <input type="file" id="bulk-material-file" accept=".xlsx,.xls,.csv" class="admin-input" style="margin-bottom:14px;">
+                <button type="button" id="btn-bulk-upload-materials" class="btn btn-primary" style="width:100%;">🚀 Upload & Publish All</button>
+
+                <div style="background: #FFFACD; border: 1px solid #FFD700; border-radius: 8px; padding: 12px; margin-top: 14px;">
+                    <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #B8860B;">📋 Excel columns expected:</h5>
+                    <ol style="margin: 0; padding-left: 18px; font-size: 11px; color: #333; line-height: 1.6;">
+                        <li><strong>Title</strong> — material name (required)</li>
+                        <li><strong>Class</strong> — 1 to 12 (required)</li>
+                        <li><strong>Subject</strong> — must already exist under that class in the Subjects tab (required)</li>
+                        <li><strong>Format</strong> — E-Book / Audio Book / Video Content (defaults to E-Book)</li>
+                        <li><strong>Instructor</strong> — optional</li>
+                        <li><strong>Duration</strong> — optional (e.g. pages or minutes)</li>
+                        <li><strong>Chapter</strong> — chapter number, e.g. 1 (optional, helps students filter by chapter)</li>
+                        <li><strong>File URL</strong> — direct link or Google Drive share link (required)</li>
+                    </ol>
+                </div>
+            </div>
+
             <div class="admin-card">
                 <h4>Materials Inventory</h4>
                 <div style="margin: 8px 0 12px; display:flex; gap:8px; align-items:center;">
-                    <input id="materials-search" placeholder="Search materials by title, subject or ID" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #DDD;">
+                    <input id="materials-search" placeholder="Search materials by title, subject, chapter or ID" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #DDD;">
                     <button id="materials-clear-search" style="padding:8px 12px; border-radius:8px; border:1px solid #DDD; background:#FFF; cursor:pointer;">Clear</button>
                 </div>
                 <table class="admin-table">
@@ -132,6 +231,7 @@
                             <th>ID</th>
                             <th>Title</th>
                             <th>Subject ID</th>
+                            <th>Chapter</th>
                             <th>Format</th>
                             <th>Actions</th>
                         </tr>
@@ -140,6 +240,322 @@
                         <!-- Populated via JS -->
                     </tbody>
                 </table>
+                <div id="materials-pagination" class="pagination-controls"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUIZZES TAB -->
+    <div class="admin-tab-content" id="tab-quizzes" style="display: none;">
+        <div class="admin-section">
+            <div class="admin-card">
+                <h4>Create Quiz</h4>
+                <form id="form-add-quiz" class="form-grid">
+                    <input type="text" id="quiz-title" placeholder="Quiz Title" class="admin-input" style="grid-column: span 2;" required>
+                    <select id="quiz-class" class="admin-input" required>
+                        <option value="" disabled selected>Select Class</option>
+                    </select>
+                    <select id="quiz-subject" class="admin-input" required disabled>
+                        <option value="" disabled selected>Select Subject</option>
+                    </select>
+                    <input type="text" id="quiz-chapter" placeholder="Chapter Name (e.g. Linear Equations)" class="admin-input" required>
+                    <input type="number" id="quiz-chapter-number" placeholder="Chapter Number (e.g. 1)" class="admin-input" min="1" step="1">
+                    <select id="quiz-icon" class="admin-input" required>
+                        <option value="" disabled selected>Select Subject Icon</option>
+                        <option value="fa-calculator">Math</option>
+                        <option value="fa-flask">Science</option>
+                        <option value="fa-book">English</option>
+                        <option value="fa-language">Hindi</option>
+                        <option value="fa-globe">Social Studies</option>
+                        <option value="fa-leaf">EVS</option>
+                        <option value="fa-atom">Physics</option>
+                        <option value="fa-vial">Chemistry</option>
+                        <option value="fa-dna">Biology</option>
+                        <option value="fa-laptop-code">Computer Science</option>
+                    </select>
+                    <textarea id="quiz-questions" placeholder="Paste questions as JSON. MCQ: {&quot;question&quot;:&quot;What is 2+2?&quot;,&quot;type&quot;:&quot;mcq&quot;,&quot;options&quot;:[&quot;3&quot;,&quot;4&quot;,&quot;5&quot;,&quot;6&quot;],&quot;correctAnswer&quot;:&quot;4&quot;}  Subjective: {&quot;question&quot;:&quot;Explain photosynthesis.&quot;,&quot;type&quot;:&quot;subjective&quot;,&quot;answer&quot;:&quot;Model answer for reference&quot;}  Wrap all in a single [ ... ] array." class="admin-input" style="grid-column: span 2; min-height: 140px;" required></textarea>
+                    <small style="grid-column: span 2; color:#6B7280;">Tip: mix both types in the same array. Leave out <code>type</code> for MCQ (default). Subjective questions only need <code>question</code> (and an optional reference <code>answer</code>) — no <code>options</code>/<code>correctAnswer</code> needed.</small>
+                    <button type="submit" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Save Quiz</button>
+                </form>
+            </div>
+
+            <div class="admin-card">
+                <h4>Quiz Library</h4>
+                <div style="margin: 8px 0 12px; display:flex; gap:8px; align-items:center;">
+                    <input id="quizzes-search" placeholder="Search quizzes by title or class" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #DDD;">
+                    <button id="quizzes-clear-search" style="padding:8px 12px; border-radius:8px; border:1px solid #DDD; background:#FFF; cursor:pointer;">Clear</button>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Class</th>
+                            <th>Subject</th>
+                            <th>Chapter</th>
+                            <th>Chapter #</th>
+                            <th>Questions</th>
+                            <th>Icon</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-quizzes-table"></tbody>
+                </table>
+                <div id="quizzes-pagination" class="pagination-controls"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATIONS TAB -->
+    <div class="admin-tab-content" id="tab-notifications" style="display: none;">
+        <div class="admin-section">
+            <div class="admin-card">
+                <h4>Send Notification</h4>
+                <p style="font-size:0.85rem;color:#777;margin:-6px 0 12px;">Notifications sent here appear in the bell icon on every student's home screen.</p>
+                <form id="form-add-notification" class="form-grid">
+                    <input type="text" id="notification-title" placeholder="Notification Title" class="admin-input" style="grid-column: span 2;" required>
+                    <textarea id="notification-message" placeholder="Notification Message" class="admin-input" style="grid-column: span 2; min-height: 100px;" required></textarea>
+                    <button type="submit" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Send Notification</button>
+                </form>
+            </div>
+
+            <div class="admin-card">
+                <h4>Sent Notifications</h4>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Message</th>
+                            <th>Sent At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-notifications-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- HELP & SUPPORT CONTENT TAB -->
+    <div class="admin-tab-content" id="tab-content" style="display: none;">
+        <div class="admin-section">
+            <div class="admin-card">
+                <h4>Help &amp; Support Page Content</h4>
+                <p style="font-size:0.85rem;color:#777;margin:-6px 0 12px;">Whatever you write here instantly becomes the content students see on their Help &amp; Support page (Profile &rarr; Help &amp; Support). No app update needed.</p>
+                <form id="form-help-content" class="form-grid">
+                    <input type="text" id="help-content-title" placeholder="Page Title (e.g., Help & Support)" class="admin-input" style="grid-column: span 2;" required>
+                    <textarea id="help-content-body" placeholder="Write anything: FAQs, contact info, instructions..." class="admin-input" style="grid-column: span 2; min-height: 240px;" required></textarea>
+                    <button type="submit" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Save &amp; Publish</button>
+                </form>
+                <div id="help-content-status" style="margin-top:10px; font-size:0.85rem; color:#1B8039; font-weight:600;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase Configuration Modal Sheet -->
+    <div id="supabase-modal" class="hidden">
+        <div class="modal-overlay" id="supabase-overlay"></div>
+        <div class="modal-sheet">
+            <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                <div class="close-btn" id="supabase-modal-close" style="position: absolute; right: 0; top: 0;"><i class="fa-solid fa-xmark"></i></div>
+                <h2 style="font-size: 20px; font-weight: 800; color: #111;">Database Connections</h2>
+                <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Configure your cloud Supabase database settings</p>
+            </div>
+
+            <div id="supabase-status-badge" style="text-align: center; padding: 8px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 20px; background: rgba(27,128,57,0.1); color: #1B8039;">
+                Status: Running locally on SQLite (Local Fallback)
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">Supabase URL</label>
+                <input type="text" placeholder="https://your-project.supabase.co" id="input-supabase-url" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">Supabase Anon Key</label>
+                <input type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." id="input-supabase-key" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <button class="btn btn-primary" id="btn-save-supabase" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%; margin-bottom: 10px;">Connect & Sync Cloud</button>
+            <button class="btn btn-outline" id="btn-migration-help" style="border-radius: 30px; padding: 10px; font-size: 13px; font-weight: 600; width: 100%; margin-bottom: 10px; background: #F0F9FF; color: #0369A1; border-color: #0EA5E9;">📖 Setup Help & SQL Schema</button>
+            <button class="btn btn-outline" id="btn-clear-supabase" style="border-radius: 30px; padding: 10px; font-size: 13px; font-weight: 600; width: 100%; display: none; background: #FEF2F2; color: #DC2626; border-color: #FCA5A5;">Disconnect Supabase</button>
+        </div>
+    </div>
+
+    <!-- Email Notifications Configuration Modal Sheet -->
+    <div id="email-modal" class="hidden">
+        <div class="modal-overlay" id="email-overlay"></div>
+        <div class="modal-sheet">
+            <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                <div class="close-btn" id="email-modal-close" style="position: absolute; right: 0; top: 0;"><i class="fa-solid fa-xmark"></i></div>
+                <h2 style="font-size: 20px; font-weight: 800; color: #111;">Email Notifications</h2>
+                <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Send real OTP & registration emails via EmailJS (free, no backend needed)</p>
+            </div>
+
+            <div id="email-status-badge" style="text-align: center; padding: 8px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 20px; background: #F3F4F6; color: #4B5563;">
+                Status: Not configured (OTP shown on-screen only)
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">EmailJS Service ID</label>
+                <input type="text" placeholder="service_xxxxxxx" id="input-email-service" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">EmailJS Template ID</label>
+                <input type="text" placeholder="template_xxxxxxx" id="input-email-template" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">EmailJS Public Key</label>
+                <input type="password" placeholder="Public Key" id="input-email-key" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <button class="btn btn-primary" id="btn-save-email" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%; margin-bottom: 10px;">Save & Enable Real Emails</button>
+            <button class="btn btn-outline" id="btn-clear-email" style="border-radius: 30px; padding: 10px; font-size: 13px; font-weight: 600; width: 100%; display: none; background: #FEF2F2; color: #DC2626; border-color: #FCA5A5; margin-bottom: 14px;">Reset to Default Service</button>
+
+            <div style="background: #FFFACD; border: 1px solid #FFD700; border-radius: 8px; padding: 12px;">
+                <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #B8860B;">📋 One-time setup (free):</h5>
+                <ol style="margin: 0; padding-left: 18px; font-size: 11px; color: #333; line-height: 1.6;">
+                    <li>Create a free account at <strong>emailjs.com</strong></li>
+                    <li>Add an Email Service (e.g. Gmail) → copy its <strong>Service ID</strong></li>
+                    <li>Create an Email Template with variables <strong>{{to_email}}</strong>, <strong>{{to_name}}</strong>, <strong>{{subject}}</strong>, <strong>{{message}}</strong> → copy its <strong>Template ID</strong></li>
+                    <li>Go to Account → General → copy your <strong>Public Key</strong></li>
+                    <li>Paste all three above and save</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Sign-In Configuration Modal Sheet -->
+    <div id="google-modal" class="hidden">
+        <div class="modal-overlay" id="google-overlay"></div>
+        <div class="modal-sheet">
+            <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                <div class="close-btn" id="google-modal-close" style="position: absolute; right: 0; top: 0;"><i class="fa-solid fa-xmark"></i></div>
+                <h2 style="font-size: 20px; font-weight: 800; color: #111;">Google Sign-In Setup</h2>
+                <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Show each user's real Google name instead of "Google User"</p>
+            </div>
+
+            <div id="google-status-badge" style="text-align: center; padding: 8px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 20px; background: #F3F4F6; color: #4B5563;">
+                Status: Not configured (using placeholder name)
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-size: 11px; font-weight: 700; color: #1B8039; text-transform: uppercase; margin-bottom: 4px; display: block;">OAuth Client ID</label>
+                <input type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" id="input-google-client-id" style="width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #CCC; background-color: #F9F9F9; font-size: 13px; outline: none; font-weight: 500;">
+            </div>
+
+            <button class="btn btn-primary" id="btn-save-google" style="background-color: #1B8039; color: #FFF; border-radius: 30px; padding: 14px; font-size: 15px; font-weight: 700; width: 100%; margin-bottom: 10px;">Save & Enable Real Google Login</button>
+            <button class="btn btn-outline" id="btn-clear-google" style="border-radius: 30px; padding: 10px; font-size: 13px; font-weight: 600; width: 100%; display: none; background: #FEF2F2; color: #DC2626; border-color: #FCA5A5; margin-bottom: 14px;">Disconnect Google Sign-In</button>
+
+            <div style="background: #FFFACD; border: 1px solid #FFD700; border-radius: 8px; padding: 12px;">
+                <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #B8860B;">📋 One-time setup (free):</h5>
+                <ol style="margin: 0; padding-left: 18px; font-size: 11px; color: #333; line-height: 1.6;">
+                    <li>Go to <strong>console.cloud.google.com/apis/credentials</strong></li>
+                    <li>Create an <strong>OAuth client ID</strong> → Application type: <strong>Web application</strong></li>
+                    <li>Add this page's exact URL (e.g. <strong>http://localhost:5173</strong>) under <strong>Authorized JavaScript origins</strong></li>
+                    <li>Copy the generated <strong>Client ID</strong> and paste it above</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Migration Help Modal -->
+    <div id="migration-help-modal" class="hidden">
+        <div class="modal-overlay" id="migration-help-overlay"></div>
+        <div class="modal-sheet" style="max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="text-align: center; margin-bottom: 20px; position: relative;">
+                <button type="button" class="close-btn" id="migration-help-close" style="position: absolute; right: 0; top: 0; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 100; border: none; background: transparent; font-size: 20px;"><i class="fa-solid fa-xmark" style="pointer-events: none;"></i></button>
+                <h2 style="font-size: 20px; font-weight: 800; color: #111;">Supabase Migration Setup</h2>
+                <p style="font-size: 12px; color: #666; font-weight: 500; margin-top: 5px;">Copy the SQL schema and run it in your Supabase SQL Editor</p>
+            </div>
+
+            <div style="background: #F5F5F5; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #111;">SQL Schema</h4>
+                    <button id="btn-copy-sql" style="background: #1B8039; color: #FFF; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;">📋 Copy SQL</button>
+                </div>
+                <pre id="sql-schema" style="background: #FFFFFF; border: 1px solid #DDD; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 11px; line-height: 1.5; color: #333; margin: 0;">-- Create Roles and Users Tables
+create table if not exists roles (
+  role_id serial primary key,
+  role_name text unique not null
+);
+
+create table if not exists users (
+  user_id serial primary key,
+  role_id int not null references roles(role_id),
+  full_name text not null,
+  email text unique not null,
+  password_hash text not null,
+  google_oauth_id text,
+  class_number int,
+  board text,
+  streak_days int default 0,
+  xp_points int default 0,
+  is_approved int default 0,
+  created_at timestamptz default now()
+);
+
+-- Create Subjects and Content Formats
+create table if not exists subjects (
+  subject_id serial primary key,
+  subject_name text not null,
+  class_number int not null
+);
+
+create table if not exists content_formats (
+  format_id serial primary key,
+  format_name text unique not null
+);
+
+-- Create Learning Materials and Progress
+create table if not exists learning_materials (
+  material_id serial primary key,
+  subject_id int not null references subjects(subject_id) on delete cascade,
+  format_id int not null references content_formats(format_id),
+  title text not null,
+  description text,
+  file_url text not null,
+  duration_lessons text,
+  instructor_name text,
+  created_at timestamptz default now()
+);
+
+create table if not exists student_progress (
+  progress_id serial primary key,
+  student_id int not null references users(user_id) on delete cascade,
+  material_id int not null references learning_materials(material_id) on delete cascade,
+  completion_percentage int default 0,
+  is_completed boolean default false,
+  updated_at timestamptz default now()
+);
+
+-- Seed Initial Data (Roles and Formats)
+insert into roles (role_name) select * from (values ('Admin'),('Teacher'),('Student')) as v(name)
+  on conflict (role_name) do nothing;
+
+insert into content_formats (format_name) select * from (values ('E-Book'),('Audio Book'),('Video Content')) as v(name)
+  on conflict (format_name) do nothing;</pre>
+            </div>
+
+            <div style="background: #FFFACD; border: 1px solid #FFD700; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #B8860B;">📋 Steps to Complete:</h5>
+                <ol style="margin: 0; padding-left: 20px; font-size: 12px; color: #333; line-height: 1.6;">
+                    <li>Go to <strong>Supabase → SQL Editor</strong> → New query</li>
+                    <li>Click <strong>"📋 Copy SQL"</strong> button above</li>
+                    <li>Paste into the SQL Editor and click <strong>Execute</strong></li>
+                    <li>Create a storage bucket named <strong>learning_materials</strong> (Supabase → Storage → New bucket)</li>
+                    <li>Set bucket visibility to <strong>Public</strong> (or setup signed URLs for private)</li>
+                    <li>Get your <strong>Supabase URL</strong> and <strong>Anon Key</strong> from Settings → API</li>
+                    <li>Return here and enter credentials in the form above</li>
+                </ol>
+            </div>
+
+            <div style="background: #F0F0F0; border: 1px solid #CCC; border-radius: 8px; padding: 12px;">
+                <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #333;">⚠️ Important (Temporary Local Testing):</h5>
+                <p style="margin: 0; font-size: 11px; color: #555; line-height: 1.6;">For <strong>local testing only</strong>, you can disable Row Level Security (RLS) in Supabase Settings → Tables. For <strong>production</strong>, set up RLS policies to restrict access by role.</p>
             </div>
         </div>
     </div>

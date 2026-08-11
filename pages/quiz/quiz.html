@@ -1,34 +1,40 @@
 <div class="screen quiz-screen">
-            <div class="quiz-header">
-                <div class="back-btn" onclick="navigateTo('lesson')"><i class="fa-solid fa-chevron-left"></i></div>
-                <div class="counter">Question 3 of 10</div>
-                <div class="stopwatch"><i class="fa-solid fa-stopwatch"></i> 01:24</div>
-            </div>
-
-            <div class="question-frame">
-                "If 2x + 3y = 12 and x = 3, what is the value of y?"
-            </div>
-
-            <div class="options-matrix">
-                <div class="option-row">
-                    <div class="radio-node">A</div>
-                    <div class="response-metric">y = 1</div>
-                </div>
-                <div class="option-row active-selected">
-                    <div class="radio-node filled"><i class="fa-solid fa-check"></i></div>
-                    <div class="response-metric">y = 2</div>
-                </div>
-                <div class="option-row">
-                    <div class="radio-node">C</div>
-                    <div class="response-metric">y = 3</div>
-                </div>
-                <div class="option-row">
-                    <div class="radio-node">D</div>
-                    <div class="response-metric">y = 4</div>
-                </div>
-            </div>
-
-            <div style="margin-top: auto; padding-top: 20px;">
-                <button class="btn btn-primary" onclick="navigateTo('progress')">Next Question!</button>
+    <div class="quiz-header">
+        <button class="back-btn" onclick="navigateTo('home')" aria-label="Back to home"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="quiz-header-center">
+            <div class="counter" id="quiz-counter">Loading quiz...</div>
+            <div class="quiz-progress-track">
+                <div class="quiz-progress-fill" id="quiz-progress-fill"></div>
             </div>
         </div>
+        <div class="stopwatch"><i class="fa-solid fa-stopwatch"></i> <span id="quiz-timer">00:00</span></div>
+    </div>
+
+    <div class="quiz-meta-card">
+        <div class="quiz-meta-icon" id="quiz-page-icon"><i class="fa-solid fa-book"></i></div>
+        <div class="quiz-meta-text">
+            <div class="quiz-meta-subject" id="quiz-page-subject">Subject</div>
+            <div class="quiz-meta-chapter" id="quiz-page-chapter">Chapter name</div>
+        </div>
+        <div class="quiz-type-badge" id="quiz-type-badge">MCQ</div>
+    </div>
+
+    <div id="quiz-question-view" class="quiz-question-view">
+        <div class="question-frame" id="quiz-question"></div>
+        <div class="options-matrix" id="quiz-options"></div>
+    </div>
+
+    <div class="quiz-results-view hidden" id="quiz-results-view">
+        <div class="results-trophy"><i class="fa-solid fa-trophy"></i></div>
+        <div class="results-score-ring" id="results-score-ring"><span id="results-score-value">0%</span></div>
+        <div class="results-title" id="results-title">Quiz complete!</div>
+        <div class="results-subtitle" id="results-subtitle">You got 0 out of 0 correct.</div>
+        <div class="results-stats" id="results-stats"></div>
+        <div class="results-hint"><i class="fa-solid fa-circle-info"></i> You can revisit the quiz from Home anytime.</div>
+    </div>
+
+    <div class="quiz-footer-nav">
+        <button class="btn btn-outline" id="quiz-prev-btn">Previous</button>
+        <button class="btn btn-primary" id="quiz-next-btn" disabled>Next Question</button>
+    </div>
+</div>

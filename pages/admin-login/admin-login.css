@@ -418,6 +418,54 @@
     animation: shakeCard 0.4s ease;
 }
 
+@media (max-width: 768px) {
+    .admin-login-screen {
+        padding: 20px 18px 24px;
+    }
+
+    .admin-login-navbar {
+        margin-bottom: 16px;
+    }
+
+    .login-header h2 {
+        font-size: 22px;
+    }
+
+    .login-card {
+        padding: 20px 16px;
+    }
+
+    .form-group {
+        gap: 6px;
+    }
+
+    .input-container input,
+    .btn-submit,
+    .btn-back-link {
+        font-size: 14px;
+    }
+
+    .login-header p {
+        font-size: 12px;
+    }
+
+    .security-badge,
+    .ring-outer,
+    .ring-middle,
+    .ring-inner {
+        width: 75px;
+        height: 75px;
+    }
+
+    .desktop-illustration {
+        padding-top: 12px;
+    }
+
+    .illustration-svg {
+        max-width: 240px;
+    }
+}
+
 @keyframes shakeCard {
     0%, 100% { transform: translateX(0); }
     20%, 60% { transform: translateX(-8px); }

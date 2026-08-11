@@ -7,14 +7,26 @@
             <div class="user-name" id="home-name">Student</div>
             <div class="user-class" id="home-class">Loading...</div>
         </div>
-        <div class="bell-icon"><i class="fa-regular fa-bell"></i></div>
+        <div class="bell-wrapper">
+            <button class="bell-icon" id="home-bell" type="button" aria-label="Notifications">
+                <i class="fa-regular fa-bell"></i>
+                <span class="notif-badge hidden" id="home-notif-badge">0</span>
+            </button>
+            <div class="notif-panel hidden" id="home-notif-panel">
+                <div class="notif-panel-header">Notifications</div>
+                <div class="notif-panel-list" id="home-notif-list">
+                    <div class="notif-empty">Loading...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="search-engine">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" placeholder="Search lessons, subjects..." id="home-search">
-        <i class="fa-solid fa-microphone mic-icon"></i>
+        <input type="text" placeholder="Search lessons, subjects..." id="home-search" autocomplete="off">
+        <i class="fa-solid fa-microphone mic-icon" id="home-mic-btn"></i>
     </div>
+    <div class="search-results hidden" id="home-search-results"></div>
 
     <div class="progress-module">
         <h3>Continue Learning</h3>
@@ -41,6 +53,28 @@
             <div class="subject-card-skeleton"></div>
             <div class="subject-card-skeleton"></div>
             <div class="subject-card-skeleton"></div>
+        </div>
+        <div class="slider-dots" id="home-subjects-dots"></div>
+    </div>
+
+    <div class="subject-slider-section" style="margin-top: 16px;">
+        <div class="section-header">
+            <h3>Quick Quiz</h3>
+            <a href="#" class="see-all" id="home-quiz-link">See all</a>
+        </div>
+        <div class="progress-card quiz-center-card" id="home-quiz-card" style="cursor:pointer;">
+            <div class="quiz-card-left">
+                <div class="quiz-card-badge" id="home-quiz-icon"></div>
+                <div class="quiz-card-content">
+                    <div class="badge" id="home-quiz-subject">Loading...</div>
+                    <h4 id="home-quiz-title">Fetching quiz...</h4>
+                    <div class="quiz-chapter" id="home-quiz-chapter"></div>
+                    <div class="progress-info" id="home-quiz-info">Please wait...</div>
+                </div>
+            </div>
+            <div class="quiz-card-actions">
+                <div class="play-btn"><i class="fa-solid fa-brain"></i></div>
+            </div>
         </div>
     </div>
 
