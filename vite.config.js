@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
                 // Rollup emits it as a classic IIFE. Old Android WebViews ignore
                 // <script type="module"> entirely (no error, just a blank screen),
                 // so strip it here to keep the script a plain classic script.
+                // IMPORTANT: replace with `defer`, not just remove — Vite also
+                // injects this script tag into <head>, and ES modules are
+                // deferred by spec. Dropping type="module" without adding
+                // `defer` turns it into a blocking script that runs before
+                // <body> exists, breaking any top-level DOM access (blank
+                // white screen on every real device/browser hitting the URL).
                 // Build-only: the dev server still needs real ES modules for HMR.
                 name: 'strip-module-script-type',
                 apply: 'build',
@@ -41,7 +47,7 @@ export default defineConfig(({ mode }) => {
                     order: 'post',
                     handler(html) {
                         return html
-                            .replace(/\s+type="module"/g, '')
+                            .replace(/\s+type="module"/g, ' defer')
                             .replace(/\s+crossorigin(?=[\s>])/g, '');
                     }
                 }

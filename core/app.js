@@ -26,7 +26,13 @@ window.addEventListener('unhandledrejection', (e) => {
 const isNativeApp = !!(window.Capacitor || window.cordova ||
     navigator.userAgent.includes('wv') ||
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-if (isNativeApp) document.body.classList.add('native-app');
+// Guard against running before <body> exists (e.g. a blocking script placed
+// in <head>) so a timing quirk can never crash top-level script execution.
+function markNativeApp() {
+    if (isNativeApp) document.body.classList.add('native-app');
+}
+if (document.body) markNativeApp();
+else document.addEventListener('DOMContentLoaded', markNativeApp);
 
 export const state = { db: null, currentUser: null, currentRoute: 'splash' };
 
@@ -158,18 +164,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rootView = document.getElementById('root-view');
     rootView.innerHTML = '<div style="padding:20px;text-align:center;"><h2>Loading...</h2></div>';
 
-    const dbReady = await initDB();
-    if (!dbReady) {
-        rootView.innerHTML = `<div class="screen" style="justify-content:center;align-items:center;text-align:center;padding:40px;">
-            <div style="font-size:48px;margin-bottom:20px;">⚠️</div>
-            <h2 style="font-size:20px;font-weight:700;margin-bottom:12px;">Connection Error</h2>
-            <p style="font-size:14px;color:#666;line-height:1.5;">Failed to initialize the database.<br>Check your internet and refresh.</p>
-            <button onclick="location.reload()" style="margin-top:24px;padding:12px 32px;background:#2E7D32;color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;">Retry</button>
-        </div>`;
-        return;
+    // Try the real production backend (Supabase) first. This needs no local
+    // SQL.js/wasm at all, so app boot never depends on fetching a large wasm
+    // file from a third-party CDN over (possibly slow/blocked) mobile data.
+    let ready = await initDatabase(null);
+    if (!ready) {
+        // Supabase not configured or unreachable - fall back to local SQLite.
+        const dbReady = await initDB();
+        if (!dbReady) {
+            rootView.innerHTML = `<div class="screen" style="justify-content:center;align-items:center;text-align:center;padding:40px;">
+                <div style="font-size:48px;margin-bottom:20px;">⚠️</div>
+                <h2 style="font-size:20px;font-weight:700;margin-bottom:12px;">Connection Error</h2>
+                <p style="font-size:14px;color:#666;line-height:1.5;">Failed to initialize the database.<br>Check your internet and refresh.</p>
+                <button onclick="location.reload()" style="margin-top:24px;padding:12px 32px;background:#2E7D32;color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;">Retry</button>
+            </div>`;
+            return;
+        }
+        await initDatabase(state.db);
     }
-    
-    await initDatabase(state.db);
 
     // Expose db functions globally
     window.adhyayan = {
