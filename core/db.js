@@ -326,17 +326,21 @@ export async function getUsers() {
 
 export async function addUser(fullName, email, passwordHash, roleId, classNumber, isApproved = 0, googleOauthId = null) {
     if (dbType === 'supabase') {
-        const { error } = await supabaseClient
-            .from('users')
-            .insert([{
-                full_name: fullName,
-                email: email,
-                password_hash: passwordHash,
-                role_id: parseInt(roleId),
-                class_number: classNumber ? parseInt(classNumber) : null,
-                is_approved: isApproved,
-                google_oauth_id: googleOauthId || null
-            }]);
+        const row = {
+            full_name: fullName,
+            email: email,
+            password_hash: passwordHash,
+            role_id: parseInt(roleId),
+            class_number: classNumber ? parseInt(classNumber) : null,
+            is_approved: isApproved,
+            google_oauth_id: googleOauthId || null
+        };
+        let { error } = await supabaseClient.from('users').insert([row]);
+        if (error && isMissingColumnErrorGeneric(error)) {
+            // google_oauth_id migration not run yet on the live table - retry without it
+            const { google_oauth_id, ...rowWithoutGoogleId } = row;
+            ({ error } = await supabaseClient.from('users').insert([rowWithoutGoogleId]));
+        }
         if (error) throw error;
         return true;
     } else {
