@@ -41,6 +41,7 @@ export function init(navigateTo, state) {
     el('btn-sign-out')?.addEventListener('click', () => {
         state.currentUser   = null;
         state.selectedClass = null;
+        window.adhyayan?.clearSession?.();
         navigateTo('auth', { replace: true });
     });
 }

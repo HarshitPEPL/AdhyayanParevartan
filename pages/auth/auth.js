@@ -56,6 +56,7 @@ export function init(navigateTo, state) {
                 
                 state.currentUser = user;
                 state.selectedClass = user.class_number || selectedClass || 9;
+                window.adhyayan?.saveSession?.();
                 navigateTo(route, { replace: true });
             } catch (e) {
                 console.error("Login error:", e);
@@ -80,6 +81,7 @@ export function init(navigateTo, state) {
             // to register with Google) — fall back to the placeholder mock login.
             state.currentUser = { full_name: "Google User", email: "google@user.com", class_number: selectedClass, is_approved: 1, role_id: 3 };
             state.selectedClass = selectedClass;
+            window.adhyayan?.saveSession?.();
             navigateTo('home', { replace: true });
             return;
         }
@@ -107,6 +109,7 @@ export function init(navigateTo, state) {
 
             state.currentUser = user;
             state.selectedClass = user.class_number || selectedClass;
+            window.adhyayan?.saveSession?.();
             navigateTo('home', { replace: true });
         } catch (err) {
             console.error("Google sign-in failed:", err);

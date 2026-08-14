@@ -34,39 +34,61 @@ function markNativeApp() {
 if (document.body) markNativeApp();
 else document.addEventListener('DOMContentLoaded', markNativeApp);
 
-// Persist the logged-in user across page reloads (localStorage survives a
-// refresh, unlike a plain in-memory variable). password_hash is stripped
-// before persisting so plaintext-ish credentials don't sit in localStorage
-// any longer than the active login flow needs them.
-const SESSION_KEY = 'adhyayan_session_user';
+export const state = { db: null, currentUser: null, currentRoute: 'splash', selectedClass: null };
 
-function loadPersistedUser() {
+export function saveSession() {
+    if (!state.currentUser) {
+        localStorage.removeItem('adhyayan_current_user');
+        localStorage.removeItem('adhyayan_selected_class');
+        return;
+    }
+
     try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch (_) {
-        return null;
+        localStorage.setItem('adhyayan_current_user', JSON.stringify(state.currentUser));
+        if (state.selectedClass != null) {
+            localStorage.setItem('adhyayan_selected_class', String(state.selectedClass));
+        } else {
+            localStorage.removeItem('adhyayan_selected_class');
+        }
+    } catch (e) {
+        console.error('Failed to save user session:', e);
     }
 }
 
-let _currentUser = loadPersistedUser();
+export function restoreSession() {
+    try {
+        const rawUser = localStorage.getItem('adhyayan_current_user');
+        if (!rawUser) {
+            state.currentUser = null;
+            state.selectedClass = null;
+            return false;
+        }
 
-export const state = {
-    db: null,
-    currentRoute: 'splash',
-    get currentUser() { return _currentUser; },
-    set currentUser(user) {
-        _currentUser = user;
-        try {
-            if (user) {
-                const { password_hash, ...safeUser } = user;
-                localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
-            } else {
-                localStorage.removeItem(SESSION_KEY);
-            }
-        } catch (_) { /* localStorage unavailable, session just won't persist */ }
+        const user = JSON.parse(rawUser);
+        if (!user || !user.email) {
+            throw new Error('Invalid cached user');
+        }
+
+        state.currentUser = user;
+        const cachedClass = localStorage.getItem('adhyayan_selected_class');
+        state.selectedClass = cachedClass != null ? Number(cachedClass) : user.class_number || 9;
+        return true;
+    } catch (e) {
+        console.error('Failed to restore user session:', e);
+        state.currentUser = null;
+        state.selectedClass = null;
+        localStorage.removeItem('adhyayan_current_user');
+        localStorage.removeItem('adhyayan_selected_class');
+        return false;
     }
-};
+}
+
+export function clearSession() {
+    state.currentUser = null;
+    state.selectedClass = null;
+    localStorage.removeItem('adhyayan_current_user');
+    localStorage.removeItem('adhyayan_selected_class');
+}
 
 export async function initDB() {
     if (typeof window.initSqlJs !== 'function') {
@@ -215,9 +237,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         await initDatabase(state.db);
     }
 
+    restoreSession();
+
     // Expose db functions globally
     window.adhyayan = {
         state,
+        saveSession,
+        restoreSession,
+        clearSession,
         getUserByEmail, addUser, deleteUser, updateUserPassword, approveUser,
         getUsers, getSubjects, addSubject, deleteSubject, getSubjectsByClass,
         getMaterials, addMaterial, deleteMaterial, getMaterialsByClass,

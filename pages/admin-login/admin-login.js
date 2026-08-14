@@ -134,6 +134,8 @@ function setupLogin() {
             
             // Set session for admin to pass the route guard
             localState.currentUser = adminUser;
+            localState.selectedClass = localState.selectedClass || 9;
+            if (window.adhyayan?.saveSession) window.adhyayan.saveSession();
             
             localNavigateTo('admin', { replace: true });
         } else {

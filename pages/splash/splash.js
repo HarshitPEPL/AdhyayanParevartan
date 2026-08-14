@@ -6,18 +6,15 @@ export function init(navigateTo, state) {
     const MIN_DISPLAY = 1000;
     const MAX_DISPLAY = 5000;
 
-    // Session persists across reloads (see state.currentUser in core/app.js),
-    // so an already-logged-in user should skip straight past the login screen.
-    const nextRoute = () => {
-        if (!state.currentUser) return 'auth';
-        return state.currentUser.role_id === 1 ? 'admin' : 'home';
-    };
-
     const proceed = async () => {
         const elapsed = Date.now() - startTime;
 
+        const targetRoute = state.currentUser
+            ? (state.currentUser.role_id === 1 ? 'admin' : 'home')
+            : 'auth';
+
         if (elapsed >= MAX_DISPLAY) {
-            navigateTo(nextRoute(), { replace: true });
+            navigateTo(targetRoute, { replace: true });
             return;
         }
 
@@ -32,7 +29,7 @@ export function init(navigateTo, state) {
             await new Promise(r => setTimeout(r, 400));
         }
 
-        navigateTo(nextRoute(), { replace: true });
+        navigateTo(targetRoute, { replace: true });
     };
 
     requestAnimationFrame(() => {
