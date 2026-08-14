@@ -1,6 +1,6 @@
 // Uses window.adhyayan global (set by the bundled core/app.js after db init)
 import { sendEmail, isEmailConfigured, getEmailConfig, saveEmailConfig, clearEmailConfig, hasCustomEmailOverride } from '../../core/email.js';
-import { isGoogleAuthConfigured, getGoogleClientId, saveGoogleClientId, clearGoogleClientId } from '../../core/googleAuth.js';
+import { isGoogleAuthConfigured, getGoogleClientId, saveGoogleClientId, clearGoogleClientId, hasCustomGoogleOverride } from '../../core/googleAuth.js';
 import * as XLSX from 'xlsx';
 
 // Logic for admin
@@ -1227,13 +1227,20 @@ function setupGoogleManager() {
     const btnClearGoogle = document.getElementById('btn-clear-google');
 
     const updateGoogleStatusUI = () => {
-        if (isGoogleAuthConfigured()) {
+        if (hasCustomGoogleOverride()) {
             if (googleStatusBadge) {
-                googleStatusBadge.textContent = "Status: Real Google names/emails enabled 🚀";
+                googleStatusBadge.textContent = "Status: Using your custom Client ID 🚀";
                 googleStatusBadge.style.background = "rgba(27,128,57,0.1)";
                 googleStatusBadge.style.color = "#1B8039";
             }
             if (btnClearGoogle) btnClearGoogle.style.display = 'block';
+        } else if (isGoogleAuthConfigured()) {
+            if (googleStatusBadge) {
+                googleStatusBadge.textContent = "Status: Using built-in default Client ID 🚀";
+                googleStatusBadge.style.background = "rgba(27,128,57,0.1)";
+                googleStatusBadge.style.color = "#1B8039";
+            }
+            if (btnClearGoogle) btnClearGoogle.style.display = 'none';
         } else {
             if (googleStatusBadge) {
                 googleStatusBadge.textContent = "Status: Not configured (using placeholder name)";
@@ -1275,9 +1282,9 @@ function setupGoogleManager() {
 
     btnClearGoogle?.addEventListener('click', () => {
         clearGoogleClientId();
-        if (inputGoogleClientId) inputGoogleClientId.value = '';
+        if (inputGoogleClientId) inputGoogleClientId.value = getGoogleClientId();
         updateGoogleStatusUI();
-        alert("Google Sign-In disconnected. The Google login button will show a setup reminder until reconfigured.");
+        alert("Your custom Client ID was removed. Reverted to the built-in default Client ID — Google Sign-In is still enabled.");
         closeGoogleModal();
     });
 }

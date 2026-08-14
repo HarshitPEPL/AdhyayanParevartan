@@ -1,18 +1,20 @@
 // Real Google Sign-In via Google Identity Services (GIS), no backend required.
-// Unlike EmailJS (core/email.js), there is no safe built-in default here: an
-// OAuth Client ID is tied to a specific project's "Authorized JavaScript
-// origins" list in Google Cloud Console, so a hardcoded ID would only work
-// on the original developer's domain/port. Each deployment must configure
-// its own Client ID via the "Google Sign-In Setup" icon on the login screen
-// (saved to localStorage), see GOOGLE_SIGNIN_SETUP.md for step-by-step
-// instructions on creating one for free.
+// Built-in default Client ID (OAuth Client IDs are public identifiers meant
+// to be embedded in client-side code, like a Stripe publishable key — not a
+// secret) so Google Sign-In works out-of-the-box for every user/browser
+// without manual setup, as long as the app is served from one of the
+// "Authorized JavaScript origins" registered for this Client ID in Google
+// Cloud Console (https://parevartanadhayayan.in/). The "Google Sign-In
+// Setup" icon on the post-login admin panel still lets anyone override this
+// with their own Client ID via localStorage (e.g. for a different domain).
 
 const GIS_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const CLIENT_ID_KEY = 'adhyayan_google_client_id';
+const DEFAULT_CLIENT_ID = '193244009678-7l08mh25ro83e3s94lp3nj8s77piv0ig.apps.googleusercontent.com';
 
 export function getGoogleClientId() {
-    return (localStorage.getItem(CLIENT_ID_KEY) || '').trim();
+    return (localStorage.getItem(CLIENT_ID_KEY) || DEFAULT_CLIENT_ID).trim();
 }
 
 export function isGoogleAuthConfigured() {
@@ -21,6 +23,12 @@ export function isGoogleAuthConfigured() {
 
 export function saveGoogleClientId(clientId) {
     localStorage.setItem(CLIENT_ID_KEY, clientId.trim());
+}
+
+// True when the user has saved their own Client ID (overriding the built-in
+// default). Used purely for status-display purposes.
+export function hasCustomGoogleOverride() {
+    return !!localStorage.getItem(CLIENT_ID_KEY);
 }
 
 export function clearGoogleClientId() {
