@@ -34,7 +34,39 @@ function markNativeApp() {
 if (document.body) markNativeApp();
 else document.addEventListener('DOMContentLoaded', markNativeApp);
 
-export const state = { db: null, currentUser: null, currentRoute: 'splash' };
+// Persist the logged-in user across page reloads (localStorage survives a
+// refresh, unlike a plain in-memory variable). password_hash is stripped
+// before persisting so plaintext-ish credentials don't sit in localStorage
+// any longer than the active login flow needs them.
+const SESSION_KEY = 'adhyayan_session_user';
+
+function loadPersistedUser() {
+    try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+let _currentUser = loadPersistedUser();
+
+export const state = {
+    db: null,
+    currentRoute: 'splash',
+    get currentUser() { return _currentUser; },
+    set currentUser(user) {
+        _currentUser = user;
+        try {
+            if (user) {
+                const { password_hash, ...safeUser } = user;
+                localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
+            } else {
+                localStorage.removeItem(SESSION_KEY);
+            }
+        } catch (_) { /* localStorage unavailable, session just won't persist */ }
+    }
+};
 
 export async function initDB() {
     if (typeof window.initSqlJs !== 'function') {
