@@ -13,8 +13,20 @@ const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const CLIENT_ID_KEY = 'adhyayan_google_client_id';
 const DEFAULT_CLIENT_ID = '193244009678-7l08mh25ro83e3s94lp3nj8s77piv0ig.apps.googleusercontent.com';
 
+function isLocalDevelopmentOrigin() {
+    const host = (window.location?.hostname || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.');
+}
+
 export function getGoogleClientId() {
-    return (localStorage.getItem(CLIENT_ID_KEY) || DEFAULT_CLIENT_ID).trim();
+    const customClientId = localStorage.getItem(CLIENT_ID_KEY);
+    if (customClientId && customClientId.trim()) {
+        return customClientId.trim();
+    }
+    if (isLocalDevelopmentOrigin()) {
+        return '';
+    }
+    return DEFAULT_CLIENT_ID.trim();
 }
 
 export function isGoogleAuthConfigured() {
@@ -66,6 +78,9 @@ function loadGoogleIdentityServices() {
 export async function signInWithGoogle() {
     const clientId = getGoogleClientId();
     if (!clientId) {
+        if (isLocalDevelopmentOrigin()) {
+            throw new Error('Google Sign-In is unavailable on localhost. Add your OAuth Client ID in the admin Google setup panel or run the app on the production domain.');
+        }
         throw new Error('Google Sign-In is not configured. Add your OAuth Client ID via the Google icon on the login screen.');
     }
 

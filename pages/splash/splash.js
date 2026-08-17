@@ -9,8 +9,9 @@ export function init(navigateTo, state) {
     const proceed = async () => {
         const elapsed = Date.now() - startTime;
 
+        const isAdminUser = state.currentUser && [1, 2].includes(Number(state.currentUser.role_id));
         const targetRoute = state.currentUser
-            ? (state.currentUser.role_id === 1 ? 'admin' : 'home')
+            ? (isAdminUser ? 'admin' : 'home')
             : 'auth';
 
         if (elapsed >= MAX_DISPLAY) {

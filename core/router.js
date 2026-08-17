@@ -5,6 +5,7 @@ export const routes = {
     'auth': { showNav: false },
     'home': { showNav: true },
     'courses': { showNav: true },
+    'competitive-exams': { showNav: true },
     'classes': { showNav: false },
     'lesson': { showNav: false },
     'quiz': { showNav: false },
@@ -59,8 +60,10 @@ export async function navigateTo(routeId, options = {}) {
     const publicRoutes = ['splash', 'auth', 'admin-login'];
     if (!publicRoutes.includes(routeId)) {
         if (routeId === 'admin') {
-            // Guard admin panel: must be logged in as role_id 1 (Admin)
-            const isAdmin = state.currentUser && state.currentUser.role_id === 1;
+            // Guard admin panel: allow the main admin and teacher-level staff accounts;
+            // these are the accounts created by the superadmin from the admin tools.
+            const allowedAdminRoles = [1, 2];
+            const isAdmin = state.currentUser && allowedAdminRoles.includes(Number(state.currentUser.role_id));
             if (!isAdmin) {
                 console.warn("Unauthorized access to admin panel. Redirecting to admin-login.");
                 routeId = 'admin-login';

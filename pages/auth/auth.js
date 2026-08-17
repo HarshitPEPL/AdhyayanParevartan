@@ -7,7 +7,23 @@ export function init(navigateTo, state) {
     let selectedClass = null;
     const errorEl = document.getElementById('class-error');
     const googleWarningEl = document.getElementById('google-class-warning');
-    
+    const roleSelect = document.getElementById('auth-role');
+
+    const roleMap = {
+        student: 3,
+        teacher: 2,
+        admin: 1
+    };
+
+    const getSelectedRole = () => roleSelect ? roleSelect.value : '';
+    const getSelectedRoleLabel = () => {
+        const role = getSelectedRole();
+        if (role === 'student') return 'Student';
+        if (role === 'teacher') return 'Teacher';
+        if (role === 'admin') return 'Admin';
+        return '';
+    };
+
     document.querySelectorAll('.capsule').forEach(el => {
         el.addEventListener('click', (e) => {
             document.querySelectorAll('.capsule').forEach(c => {
@@ -27,33 +43,53 @@ export function init(navigateTo, state) {
     const validateAndNavigate = async (route) => {
         const emailInput = document.getElementById('auth-email');
         const passwordInput = document.getElementById('auth-password');
-        
+        const selectedRole = getSelectedRole();
+
+        if (!selectedRole) {
+            alert("Please select your role before logging in.");
+            if (roleSelect) roleSelect.focus();
+            return;
+        }
+
         if (emailInput && passwordInput) {
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-            
+
             if (!email || !password) {
                 alert("Please enter both email and password.");
                 return;
             }
-            
+
             try {
                 const user = await getUserByEmail(email);
                 if (!user) {
-                    alert("Account not found. Please sign up or contact your Admin to create your account.");
+                    alert("Account not found. Please sign up or contact your admin to create your account.");
                     return;
                 }
+
+                const expectedRoleId = roleMap[selectedRole];
+                if (user.role_id !== expectedRoleId) {
+                    alert(`This account is not registered as a ${getSelectedRoleLabel()}. Please select the correct role or use the correct credentials.`);
+                    return;
+                }
+
                 if (user.password_hash !== password) {
                     alert("Incorrect password. Please try again.");
                     return;
                 }
-                
+
                 // Security Check: Enforce admin creation/approval for student logins
                 if (user.role_id === 3 && !user.is_approved) {
                     alert("Access Denied: Your account is pending administrator approval. Please contact your admin to activate your email and password.");
                     return;
                 }
-                
+
+                if (selectedRole === 'admin') {
+                    alert("Admin access is restricted to the super admin portal. Please use the Admin Portal login flow.");
+                    navigateTo('admin-login', { replace: true });
+                    return;
+                }
+
                 state.currentUser = user;
                 state.selectedClass = user.class_number || selectedClass || 9;
                 window.adhyayan?.saveSession?.();
@@ -70,6 +106,17 @@ export function init(navigateTo, state) {
 
     document.getElementById('btn-continue')?.addEventListener('click', () => validateAndNavigate('home'));
     document.getElementById('btn-google')?.addEventListener('click', async (e) => {
+        const selectedRole = getSelectedRole();
+        if (!selectedRole) {
+            alert("Please select Student, Teacher, or Admin before continuing with Google.");
+            if (roleSelect) roleSelect.focus();
+            return;
+        }
+        if (selectedRole === 'admin') {
+            alert("Admin access is restricted to the super admin portal. Please use the Admin Portal login flow.");
+            navigateTo('admin-login', { replace: true });
+            return;
+        }
         if (!selectedClass) {
             if (googleWarningEl) googleWarningEl.style.display = 'block';
             return;
@@ -79,7 +126,7 @@ export function init(navigateTo, state) {
         if (!isGoogleAuthConfigured()) {
             // No live OAuth Client ID yet (added later once the app has a live domain
             // to register with Google) — fall back to the placeholder mock login.
-            state.currentUser = { full_name: "Google User", email: "google@user.com", class_number: selectedClass, is_approved: 1, role_id: 3 };
+            state.currentUser = { full_name: "Google User", email: "google@user.com", class_number: selectedClass, is_approved: 1, role_id: roleMap[selectedRole] };
             state.selectedClass = selectedClass;
             window.adhyayan?.saveSession?.();
             navigateTo('home', { replace: true });
@@ -98,8 +145,13 @@ export function init(navigateTo, state) {
             let user = await getUserByEmail(profile.email);
             if (!user) {
                 const randomPassword = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                await addUser(profile.name, profile.email, randomPassword, 3, selectedClass, 1, profile.sub);
+                await addUser(profile.name, profile.email, randomPassword, roleMap[selectedRole], selectedClass, 1, profile.sub);
                 user = await getUserByEmail(profile.email);
+            }
+
+            if (user.role_id !== roleMap[selectedRole]) {
+                alert(`This Google account is registered as a ${user.role_id === 3 ? 'Student' : user.role_id === 2 ? 'Teacher' : 'Admin'}, not as a ${getSelectedRoleLabel()}. Please select the correct role.`);
+                return;
             }
 
             if (user.role_id === 3 && !user.is_approved) {
@@ -113,7 +165,11 @@ export function init(navigateTo, state) {
             navigateTo('home', { replace: true });
         } catch (err) {
             console.error("Google sign-in failed:", err);
-            if (err?.message !== 'popup_closed') {
+            if (err?.message === 'popup_closed') {
+                // user cancelled the popup; no urgent message needed
+            } else if (String(err?.message || '').toLowerCase().includes('origin_mismatch') || String(err?.message || '').toLowerCase().includes('origin mismatch')) {
+                alert(`Google sign-in is blocked for this origin: ${window.location.origin}.\n\nAdd this exact URL in Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client ID > Authorized JavaScript origins, then try again.`);
+            } else {
                 alert("Google sign-in failed. Please try again.");
             }
         } finally {

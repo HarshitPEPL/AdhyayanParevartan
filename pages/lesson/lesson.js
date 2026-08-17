@@ -102,12 +102,18 @@ export function init(navigateTo, state) {
     }
 
     const classNum = state.selectedClass || (state.currentUser ? state.currentUser.class_number : 9) || 9;
+    const backRoute = state.lastLibraryRoute || 'courses';
 
     document.getElementById('lesson-subject').textContent = `${mat.subject_name.toUpperCase()} - CLASS ${classNum}`;
     document.getElementById('lesson-title').textContent = mat.title;
     document.getElementById('lesson-format').textContent = mat.format_name;
     document.getElementById('lesson-duration').textContent = mat.duration_lessons || 'N/A';
     document.getElementById('lesson-instructor').textContent = mat.instructor_name || 'Unknown Author';
+
+    const backButton = document.querySelector('.lesson-back-btn');
+    if (backButton) {
+        backButton.addEventListener('click', () => navigateTo(backRoute));
+    }
 
     const viewerContainer = document.getElementById('lesson-viewer-container');
     const ext = mat.file_url.split('.').pop().toLowerCase();
@@ -180,29 +186,59 @@ export function init(navigateTo, state) {
                 console.error("Error converting PDF data URL to blob URL", e);
             }
         }
-        wrapper.innerHTML = `<object data="${pdfUrl}" type="application/pdf" width="100%" height="100%" style="border: none;">
-            <p>Your browser does not support PDFs. <a href="${pdfUrl}">Download the PDF</a>.</p>
-        </object>`;
-        
-        // Add Fullscreen button for PDF
-        const fsBtn = document.createElement('button');
-        fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i> Fullscreen Read';
-        fsBtn.className = 'btn btn-primary';
-        fsBtn.style.cssText = 'position: absolute; bottom: 10px; right: 10px; z-index: 10; padding: 6px 12px; font-size: 0.8rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
-        fsBtn.onclick = () => {
-            const pdfViewer = wrapper.querySelector('object');
-            if (pdfViewer && pdfViewer.requestFullscreen) {
-                pdfViewer.requestFullscreen();
-            } else if (pdfViewer && pdfViewer.webkitRequestFullscreen) {
-                pdfViewer.webkitRequestFullscreen();
+
+        const isNativeAndroid = !!(window.Capacitor || window.cordova || navigator.userAgent.includes('wv') || /Android/i.test(navigator.userAgent));
+        const openPdfInBrowser = () => {
+            const targetUrl = pdfUrl || mat.file_url;
+            if (window.Capacitor?.Plugins?.Browser?.open) {
+                window.Capacitor.Plugins.Browser.open({ url: targetUrl });
             } else {
-                window.open(mat.file_url, '_blank');
+                window.open(targetUrl, '_blank', 'noopener,noreferrer');
             }
             reportProgress(100);
         };
-        wrapper.appendChild(fsBtn);
-        // Opening a reading material counts as partial progress until marked finished above.
-        reportProgress(40);
+
+        const pageShell = `
+            <div class="reader-page-shell">
+                <div class="reader-page-header">
+                    <span>${(mat.title || 'Adhyayan').substring(0, 28)}</span>
+                    <span>Page 1</span>
+                </div>
+            </div>
+        `;
+
+        if (isNativeAndroid) {
+            wrapper.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                    <i class="fa-solid fa-file-pdf" style="font-size:3rem; margin-bottom:16px; color:#f8d7da;"></i>
+                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">PDF ready to open</div>
+                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Android WebView cannot render PDFs inline here. Open it in the browser to read the file.</div>
+                    <button class="btn btn-primary" id="pdf-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open PDF</button>
+                </div>
+            `;
+            wrapper.querySelector('#pdf-open-external')?.addEventListener('click', openPdfInBrowser);
+            reportProgress(40);
+        } else {
+            const pdfViewerSrc = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdfUrl || mat.file_url)}`;
+            wrapper.innerHTML = `
+                <div class="reader-page-shell">
+                    <div class="reader-page-header">
+                        <span>${(mat.title || 'Adhyayan').substring(0, 28)}</span>
+                        <span>Page 1</span>
+                    </div>
+                    <iframe src="${pdfViewerSrc}" class="reader-iframe" allow="fullscreen" title="PDF Viewer"></iframe>
+                </div>
+            `;
+            const fsBtn = document.createElement('button');
+            fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i> Fullscreen';
+            fsBtn.className = 'btn btn-primary';
+            fsBtn.style.cssText = 'position: absolute; bottom: 16px; right: 18px; z-index: 10; padding: 7px 12px; font-size: 0.78rem; box-shadow: 0 8px 18px rgba(0,0,0,0.2); border-radius: 999px;';
+            fsBtn.onclick = () => {
+                openPdfInBrowser();
+            };
+            wrapper.appendChild(fsBtn);
+            reportProgress(40);
+        }
     } else {
         wrapper.innerHTML = `<div style="text-align:center; color: #fff;"><i class="fa-solid fa-file" style="font-size: 3rem; margin-bottom: 10px;"></i><br>Preview not available for this format.</div>`;
         reportProgress(100);

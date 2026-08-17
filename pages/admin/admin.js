@@ -7,6 +7,24 @@ import * as XLSX from 'xlsx';
 let localNavigateTo = null;
 let localState = null;
 
+window.logoutAdmin = function logoutAdmin() {
+    if (window.adhyayan?.clearSession) {
+        window.adhyayan.clearSession();
+    } else if (localState) {
+        localState.currentUser = null;
+        localState.selectedClass = null;
+    }
+
+    localStorage.removeItem('admin_id');
+    localStorage.removeItem('admin_password');
+
+    if (localNavigateTo) {
+        localNavigateTo('admin-login', { replace: true });
+    } else {
+        window.location.href = './index.html#admin-login';
+    }
+};
+
 // Custom confirmation using the application's premium modal
 function showConfirm(message, callback) {
     const modal = document.getElementById('alert-modal');
@@ -43,6 +61,14 @@ export function init(navigateTo, state) {
     localNavigateTo = navigateTo;
     localState = state;
 
+    const isSuperAdmin = Number(localState?.currentUser?.role_id) === 1;
+    document.querySelectorAll('.supabase-manager').forEach((el) => {
+        el.style.display = isSuperAdmin ? 'flex' : 'none';
+    });
+    document.querySelectorAll('.tab-competitive').forEach((el) => {
+        el.style.display = isSuperAdmin ? 'inline-flex' : 'none';
+    });
+
     // All DB operations use window.adhyayan.* (set by bundled core/app.js after db init)
 
     // Show Supabase connection status banner
@@ -67,6 +93,8 @@ export function init(navigateTo, state) {
     setupSubjectsCRUD();
     setupMaterialsCRUD();
     setupBulkMaterialUpload();
+    setupCompetitiveExamCRUD();
+    setupCompetitiveExamBulkUpload();
     setupQuizCRUD();
     setupNotificationsCRUD();
     setupHelpContentCRUD();
@@ -84,6 +112,7 @@ async function refreshAll() {
     await renderUsers();
     await renderSubjects();
     await renderMaterials();
+    await renderCompetitiveExams();
     await renderQuizzes();
     await renderNotifications();
     await initClassAndSubjectDropdowns();
@@ -653,11 +682,258 @@ window.deleteMaterial = function(materialId) {
     });
 };
 
+function resolveCompetitivePartValue(rawValue) {
+    if (rawValue === undefined || rawValue === null || rawValue === '') return null;
+    const normalized = String(rawValue).trim().toLowerCase();
+    if (!normalized || normalized === 'full' || normalized === 'full-course' || normalized === 'full course') {
+        return null;
+    }
+    const match = normalized.match(/part\s*(\d+)/i) || normalized.match(/^(\d+)$/);
+    if (!match) return null;
+    const partNumber = parseInt(match[1], 10);
+    return Number.isNaN(partNumber) ? null : partNumber;
+}
+
+function formatCompetitivePartLabel(chapterNumber) {
+    if (chapterNumber == null || chapterNumber === '' || chapterNumber === 'null' || chapterNumber === 'undefined') {
+        return 'Full Course';
+    }
+    const numericValue = Number(chapterNumber);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        return 'Full Course';
+    }
+    return `Part ${numericValue}`;
+}
+
+function setupCompetitiveExamCRUD() {
+    const form = document.getElementById('form-add-competitive');
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('competitive-title').value.trim();
+        const examName = document.getElementById('competitive-exam').value.trim();
+        const formatId = parseInt(document.getElementById('competitive-format').value, 10);
+        const instructor = document.getElementById('competitive-instructor').value.trim();
+        const duration = document.getElementById('competitive-duration').value.trim();
+        const chapterNumber = resolveCompetitivePartValue(document.getElementById('competitive-chapter-number').value);
+        const fileInput = document.getElementById('competitive-file');
+        let url = convertGoogleDriveLink(document.getElementById('competitive-url').value.trim());
+
+        const proceedWithSubmit = async (finalUrl) => {
+            try {
+                await window.adhyayan.addCompetitiveMaterial(examName, formatId, title, duration, instructor, finalUrl, chapterNumber);
+                form.reset();
+                if (fileInput) fileInput.value = '';
+                await renderCompetitiveExams();
+            } catch (error) {
+                console.error('Error adding competitive material:', error);
+                alert('Database Error: ' + error.message);
+            }
+        };
+
+        if (!title || !examName) {
+            alert('Please enter both the material title and the competitive exam name.');
+            return;
+        }
+
+        if (fileInput && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            if (window.adhyayan.dbType === 'supabase') {
+                const btnSubmit = document.getElementById('btn-add-competitive');
+                const origText = btnSubmit.innerText;
+                btnSubmit.innerText = 'Uploading to Cloud...';
+                btnSubmit.disabled = true;
+                try {
+                    const cloudUrl = await window.adhyayan.uploadMaterialFile(file);
+                    btnSubmit.innerText = origText;
+                    btnSubmit.disabled = false;
+                    await proceedWithSubmit(cloudUrl);
+                } catch (e) {
+                    btnSubmit.innerText = origText;
+                    btnSubmit.disabled = false;
+                    alert('Supabase Upload Failed: ' + e.message);
+                }
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => proceedWithSubmit(e.target.result);
+                reader.onerror = () => alert('Error reading file.');
+                reader.readAsDataURL(file);
+            }
+            return;
+        }
+
+        if (!url) {
+            url = 'https://www.w3schools.com/html/mov_bbb.mp4';
+        }
+        await proceedWithSubmit(url);
+    });
+}
+
+function setupCompetitiveExamBulkUpload() {
+    const btnDownloadTemplate = document.getElementById('btn-download-competitive-template');
+    const fileInput = document.getElementById('bulk-competitive-file');
+    const btnUpload = document.getElementById('btn-bulk-upload-competitive');
+    const statusEl = document.getElementById('bulk-competitive-status');
+    if (!btnUpload || !fileInput) return;
+
+    const showStatus = (html, kind) => {
+        if (!statusEl) return;
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = html;
+        statusEl.style.background = kind === 'error' ? '#FEF2F2' : kind === 'success' ? 'rgba(27,128,57,0.1)' : '#F3F4F6';
+        statusEl.style.color = kind === 'error' ? '#DC2626' : kind === 'success' ? '#1B8039' : '#4B5563';
+        statusEl.style.border = `1px solid ${kind === 'error' ? '#FCA5A5' : kind === 'success' ? 'rgba(27,128,57,0.3)' : '#E5E7EB'}`;
+    };
+
+    btnDownloadTemplate?.addEventListener('click', () => {
+        const headers = ['Exam Name', 'Title', 'Format', 'Instructor', 'Duration', 'Part', 'File URL'];
+        const sampleRow = ['JEE Main', 'Aptitude Practice Set', 'Video Content', 'Mr. Sharma', '20 mins', 'Part 1', 'https://drive.google.com/file/d/FILE_ID/view?usp=sharing'];
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
+        worksheet['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 22) }));
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Competitive Exams');
+        XLSX.writeFile(workbook, 'competitive_exam_bulk_upload_template.xlsx');
+    });
+
+    btnUpload.addEventListener('click', async () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+            showStatus('Please choose an Excel (.xlsx) or CSV file first.', 'error');
+            return;
+        }
+
+        const origText = btnUpload.innerText;
+        btnUpload.innerText = 'Reading file...';
+        btnUpload.disabled = true;
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[firstSheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+            if (!rows.length) {
+                showStatus('The file has no data rows. Please use the template and fill at least one row.', 'error');
+                return;
+            }
+
+            const normalizeKey = (k) => k.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const pick = (row, ...aliases) => {
+                for (const key of Object.keys(row)) {
+                    const nk = normalizeKey(key);
+                    if (aliases.includes(nk)) {
+                        const v = row[key];
+                        if (v !== undefined && v !== null && v !== '') return v;
+                    }
+                }
+                return '';
+            };
+
+            let successCount = 0;
+            const errors = [];
+            btnUpload.innerText = `Publishing 0/${rows.length}...`;
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const rowNum = i + 2;
+                const examName = pick(row, 'examname', 'competitiveexam', 'exam').toString().trim();
+                const title = pick(row, 'title', 'materialtitle', 'name').toString().trim();
+                const formatId = resolveFormatId(pick(row, 'format', 'type'));
+                const instructor = pick(row, 'instructor', 'teacher', 'author').toString().trim();
+                const duration = pick(row, 'duration', 'pages', 'length').toString().trim();
+                const chapterNumberRaw = pick(row, 'part', 'chapter', 'chapternumber', 'chapterno');
+                const chapterNumber = resolveCompetitivePartValue(chapterNumberRaw);
+                const fileUrl = convertGoogleDriveLink(pick(row, 'fileurl', 'url', 'link', 'drivelink', 'gdrivelink'));
+
+                if (!examName || !title || !fileUrl) {
+                    errors.push(`Row ${rowNum}: missing required Exam Name/Title/File URL — skipped.`);
+                    continue;
+                }
+
+                try {
+                    await window.adhyayan.addCompetitiveMaterial(examName, formatId, title, duration, instructor, fileUrl, chapterNumber);
+                    successCount++;
+                } catch (err) {
+                    errors.push(`Row ${rowNum} (${escapeHTML(title)}): ${err.message}`);
+                }
+
+                btnUpload.innerText = `Publishing ${i + 1}/${rows.length}...`;
+            }
+
+            await renderCompetitiveExams();
+            fileInput.value = '';
+
+            const summaryParts = [`✅ Published ${successCount} of ${rows.length} competitive materials.`];
+            if (errors.length) {
+                summaryParts.push(`<br><strong>${errors.length} row(s) skipped:</strong><br>` + errors.map(escapeHTML).join('<br>'));
+            }
+            showStatus(summaryParts.join(''), errors.length ? 'error' : 'success');
+        } catch (err) {
+            console.error('Bulk competitive upload failed:', err);
+            showStatus('Failed to read/process the file: ' + err.message, 'error');
+        } finally {
+            btnUpload.innerText = origText;
+            btnUpload.disabled = false;
+        }
+    });
+}
+
+async function renderCompetitiveExams() {
+    const tableBody = document.getElementById('admin-competitive-table');
+    if (!tableBody) return;
+    try {
+        const items = await window.adhyayan.getCompetitiveMaterials();
+        cachedCompetitiveMaterials = items;
+        const query = (document.getElementById('competitive-search') || { value: '' }).value.trim().toLowerCase();
+        const filtered = query ? cachedCompetitiveMaterials.filter(item => {
+            return String(item.material_id).includes(query) || (item.title || '').toLowerCase().includes(query) || (item.exam_name || '').toLowerCase().includes(query) || (item.format_name || '').toLowerCase().includes(query);
+        }) : cachedCompetitiveMaterials;
+
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        if (competitiveMaterialsPage > totalPages) competitiveMaterialsPage = totalPages;
+        const pageItems = paginateArray(filtered, competitiveMaterialsPage, PAGE_SIZE);
+
+        tableBody.innerHTML = pageItems.map(item => `
+            <tr>
+                <td>${item.material_id}</td>
+                <td>${escapeHTML(item.title)}</td>
+                <td>${escapeHTML(item.exam_name || 'General')}</td>
+                <td>${formatCompetitivePartLabel(item.chapter_number)}</td>
+                <td>${escapeHTML(item.format_name || '')}</td>
+                <td>
+                    <button class="btn btn-outline btn-delete" style="padding: 4px 8px; width: auto;" onclick="window.deleteCompetitiveMaterial(${item.material_id})">
+                        <i class="fa-solid fa-trash"></i> Remove
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        renderPaginationControls('competitive-pagination', filtered.length, competitiveMaterialsPage, PAGE_SIZE, (p) => { competitiveMaterialsPage = p; renderCompetitiveExams(); });
+    } catch (error) {
+        console.error('Error rendering competitive materials:', error);
+    }
+}
+
+window.deleteCompetitiveMaterial = function(materialId) {
+    showConfirm('Are you sure you want to delete this competitive exam material?', async () => {
+        try {
+            await window.adhyayan.deleteCompetitiveMaterial(materialId);
+            await renderCompetitiveExams();
+        } catch (error) {
+            console.error('Error deleting competitive material:', error);
+            alert('Database Error: ' + error.message);
+        }
+    });
+};
+
 let allSubjects = [];
 let allQuizzes = [];
 let cachedUsers = [];
 let cachedSubjects = [];
 let cachedMaterials = [];
+let cachedCompetitiveMaterials = [];
 let cachedQuizzes = [];
 
 // --- Pagination helpers (shared by Users / Subjects / Materials / Quizzes tables) ---
@@ -665,6 +941,7 @@ const PAGE_SIZE = 10;
 let usersPage = 1;
 let subjectsPage = 1;
 let materialsPage = 1;
+let competitiveMaterialsPage = 1;
 let quizzesPage = 1;
 
 function paginateArray(arr, page, pageSize) {
@@ -733,6 +1010,8 @@ function setupAdminSearch() {
     const subjectsClear = document.getElementById('subjects-clear-search');
     const materialsInput = document.getElementById('materials-search');
     const materialsClear = document.getElementById('materials-clear-search');
+    const competitiveInput = document.getElementById('competitive-search');
+    const competitiveClear = document.getElementById('competitive-clear-search');
     const quizzesInput = document.getElementById('quizzes-search');
     const quizzesClear = document.getElementById('quizzes-clear-search');
 
@@ -747,6 +1026,10 @@ function setupAdminSearch() {
     if (materialsInput) {
         materialsInput.addEventListener('input', debounce(() => { materialsPage = 1; renderMaterials(); }, 250));
         materialsClear && materialsClear.addEventListener('click', () => { materialsInput.value = ''; materialsPage = 1; renderMaterials(); });
+    }
+    if (competitiveInput) {
+        competitiveInput.addEventListener('input', debounce(() => { competitiveMaterialsPage = 1; renderCompetitiveExams(); }, 250));
+        competitiveClear && competitiveClear.addEventListener('click', () => { competitiveInput.value = ''; competitiveMaterialsPage = 1; renderCompetitiveExams(); });
     }
     if (quizzesInput) {
         quizzesInput.addEventListener('input', debounce(() => { quizzesPage = 1; renderQuizzes(); }, 250));

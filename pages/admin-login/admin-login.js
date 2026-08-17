@@ -102,7 +102,7 @@ function setupLogin() {
                 const emailToQuery = idInput.includes('@') ? idInput : 'adhyayan@parevartan.com';
                 const user = await window.adhyayan.getUserByEmail(emailToQuery);
                 
-                if (user && user.role_id === 1 && user.password_hash === passInput) {
+                if (user && [1, 2].includes(Number(user.role_id)) && user.password_hash === passInput) {
                     authenticated = true;
                     adminUser = user;
                 }

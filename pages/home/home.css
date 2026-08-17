@@ -41,6 +41,104 @@
     color: #333;
 }
 
+.competitive-section {
+    margin: 12px 0 18px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.section-header h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.see-all {
+    font-size: 13px;
+    color: #1B8039;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.competitive-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 560px) {
+    .competitive-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 561px) and (max-width: 900px) {
+    .competitive-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.competitive-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(17,24,39,0.06);
+    border-radius: 20px;
+    padding: 12px 14px;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+}
+
+.competitive-card.active {
+    background: linear-gradient(135deg, rgba(26, 128, 57, 0.08), rgba(52, 209, 111, 0.12));
+    border-color: rgba(27, 128, 57, 0.14);
+}
+
+.competitive-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1B8039, #27C984);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.competitive-icon.alt {
+    background: linear-gradient(135deg, #7C3AED, #C084FC);
+}
+
+.competitive-icon.accent {
+    background: linear-gradient(135deg, #F59E0B, #FCD34D);
+}
+
+.competitive-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.competitive-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.competitive-meta {
+    font-size: 11px;
+    color: #6B7280;
+    margin-top: 2px;
+}
+
 /* --- Notification bell + panel --- */
 .bell-wrapper {
     position: relative;

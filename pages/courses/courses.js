@@ -305,6 +305,7 @@ export async function init(navigateTo, state) {
         const mat = materials.find(m => m.material_id === id);
         if (mat) {
             state.activeMaterial = mat;
+            state.lastLibraryRoute = 'courses';
             navigateTo('lesson');
         }
     };

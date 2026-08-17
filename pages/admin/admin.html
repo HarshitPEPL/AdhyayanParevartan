@@ -1,7 +1,7 @@
 <div class="screen admin-screen" style="max-width: 900px; margin: 0 auto; width: 100%; border: none;">
     <div class="admin-header">
         <h2>Admin Control Panel</h2>
-        <button class="btn btn-outline" onclick="window.location.reload()" style="width: auto; padding: 8px 16px;">Exit Admin</button>
+        <button class="btn btn-outline" onclick="window.logoutAdmin && window.logoutAdmin()" style="width: auto; padding: 8px 16px;">Exit Admin</button>
     </div>
 
     <!-- Owner-only config icons (Database/Email/Google) - only shown here in the
@@ -73,6 +73,7 @@
         <button class="tab-btn active" data-tab="users">Users</button>
         <button class="tab-btn" data-tab="subjects">Subjects</button>
         <button class="tab-btn" data-tab="materials">Materials</button>
+        <button class="tab-btn tab-competitive" data-tab="competitive">Competitive Exams</button>
         <button class="tab-btn" data-tab="quizzes">Quizzes</button>
         <button class="tab-btn" data-tab="notifications">Notifications</button>
         <button class="tab-btn" data-tab="content">Help &amp; Support</button>
@@ -241,6 +242,95 @@
                     </tbody>
                 </table>
                 <div id="materials-pagination" class="pagination-controls"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPETITIVE EXAMS TAB -->
+    <div class="admin-tab-content" id="tab-competitive" style="display: none;">
+        <div class="admin-section">
+            <div class="admin-card">
+                <h4>Publish Competitive Exam Material</h4>
+                <form id="form-add-competitive" class="form-grid">
+                    <input type="text" id="competitive-title" placeholder="Material Title" class="admin-input" style="grid-column: span 2;" required>
+                    <input type="text" id="competitive-exam" placeholder="Competitive Exam Name" class="admin-input" style="grid-column: span 2;" required>
+                    <select id="competitive-format" class="admin-input" required>
+                        <option value="1">E-Book</option>
+                        <option value="2">Audio Book</option>
+                        <option value="3">Video Content</option>
+                    </select>
+                    <input type="text" id="competitive-instructor" placeholder="Instructor Name" class="admin-input">
+                    <input type="text" id="competitive-duration" placeholder="Page/Duration of the content" class="admin-input">
+                    <select id="competitive-chapter-number" class="admin-input">
+                        <option value="">Select Part</option>
+                        <option value="1">Part 1</option>
+                        <option value="2">Part 2</option>
+                        <option value="3">Part 3</option>
+                        <option value="4">Part 4</option>
+                        <option value="5">Part 5</option>
+                        <option value="6">Part 6</option>
+                        <option value="7">Part 7</option>
+                        <option value="8">Part 8</option>
+                        <option value="9">Part 9</option>
+                        <option value="10">Part 10</option>
+                        <option value="11">Part 11</option>
+                        <option value="12">Part 12</option>
+                        <option value="full-course">Full Course</option>
+                    </select>
+                    <label for="competitive-file" style="grid-column: span 2; font-size: 0.9em; margin-bottom: -10px;">Upload File (E-Book, Audio, Video):</label>
+                    <input type="file" id="competitive-file" class="admin-input" style="grid-column: span 2;" accept="video/*,audio/*,.pdf,.epub">
+                    <input type="text" id="competitive-url" placeholder="Or enter File URL manually (e.g., https://drive.google.com/file/d/.../view)" class="admin-input" style="grid-column: span 2;">
+                    <button type="submit" id="btn-add-competitive" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Publish Competitive Material</button>
+                </form>
+            </div>
+
+            <div class="admin-card">
+                <h4>📊 Bulk Upload Competitive Exams (Excel)</h4>
+                <p style="font-size: 12px; color: #666; margin: -4px 0 14px;">Upload one spreadsheet to publish multiple competitive study materials in one go.</p>
+
+                <div id="bulk-competitive-status" style="display:none; border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:14px; line-height:1.6;"></div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+                    <button type="button" id="btn-download-competitive-template" class="btn btn-outline" style="width:auto; padding:10px 16px; background:#F0F9FF; color:#0369A1; border-color:#0EA5E9;">⬇️ Download Excel Template</button>
+                </div>
+
+                <input type="file" id="bulk-competitive-file" accept=".xlsx,.xls,.csv" class="admin-input" style="margin-bottom:14px;">
+                <button type="button" id="btn-bulk-upload-competitive" class="btn btn-primary" style="width:100%;">🚀 Upload & Publish All</button>
+
+                <div style="background: #FFFACD; border: 1px solid #FFD700; border-radius: 8px; padding: 12px; margin-top: 14px;">
+                    <h5 style="margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #B8860B;">📋 Excel columns expected:</h5>
+                    <ol style="margin: 0; padding-left: 18px; font-size: 11px; color: #333; line-height: 1.6;">
+                        <li><strong>Exam Name</strong> — e.g. JEE Main / UPSC / NEET (required)</li>
+                        <li><strong>Title</strong> — material title (required)</li>
+                        <li><strong>Format</strong> — E-Book / Audio Book / Video Content</li>
+                        <li><strong>Instructor</strong> — optional</li>
+                        <li><strong>Duration</strong> — optional (pages/minutes)</li>
+                        <li><strong>Part</strong> — Part 1, Part 2, ... or Full Course</li>
+                        <li><strong>File URL</strong> — direct link or Google Drive link (required)</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h4>Competitive Exams Inventory</h4>
+                <div style="margin: 8px 0 12px; display:flex; gap:8px; align-items:center;">
+                    <input id="competitive-search" placeholder="Search by exam, title, format or ID" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #DDD;">
+                    <button id="competitive-clear-search" style="padding:8px 12px; border-radius:8px; border:1px solid #DDD; background:#FFF; cursor:pointer;">Clear</button>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Exam</th>
+                            <th>Part</th>
+                            <th>Format</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-competitive-table"></tbody>
+                </table>
+                <div id="competitive-pagination" class="pagination-controls"></div>
             </div>
         </div>
     </div>

@@ -177,6 +177,16 @@ export async function init(navigateTo, state) {
         console.error('Failed to load continue-learning material:', err);
     }
 
+    // --- Load competitive exam cards ---
+    try {
+        const competitiveExams = await window.adhyayan.getCompetitiveMaterials?.() || [];
+        await renderCompetitiveExams(competitiveExams, navigateTo);
+    } catch (err) {
+        console.error('Failed to load competitive exams:', err);
+        const grid = document.getElementById('competitive-grid');
+        if (grid) grid.innerHTML = '<div class="competitive-card active" style="opacity:0.7;"><div class="competitive-icon">!</div><div class="competitive-content"><div class="competitive-name">Unavailable</div><div class="competitive-meta">Competitive exams could not be loaded.</div></div></div>';
+    }
+
     // --- Load quiz suggestion ---
     try {
         const quizzes = await window.adhyayan.getQuizzesByClass(classNumber);
@@ -211,6 +221,11 @@ export async function init(navigateTo, state) {
     }
 
     // --- See all -> courses ---
+    document.getElementById('competitive-see-all')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigateTo('competitive-exams');
+    });
+
     document.getElementById('home-see-all')?.addEventListener('click', (e) => {
         e.preventDefault();
         navigateTo('courses');
@@ -224,6 +239,61 @@ export async function init(navigateTo, state) {
     // --- Build search index & wire up search ---
     buildSearchIndex(navigateTo, state, loadedSubjects, loadedMaterials, loadedQuizzes, classNumber);
     setupSearch(navigateTo, state);
+}
+
+async function renderCompetitiveExams(exams, navigateTo) {
+    const grid = document.getElementById('competitive-grid');
+    if (!grid) return;
+
+    const list = Array.isArray(exams) ? exams : [];
+    if (!list.length) {
+        grid.innerHTML = `
+            <div class="competitive-card active" style="opacity:0.7;">
+                <div class="competitive-icon">…</div>
+                <div class="competitive-content">
+                    <div class="competitive-name">No exams yet</div>
+                    <div class="competitive-meta">Check back soon for new competitive content.</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    const cards = list.slice(0, 6).map((exam, index) => {
+        const iconClass = index % 3 === 0 ? 'fa-graduation-cap' : index % 3 === 1 ? 'fa-book-open-reader' : 'fa-file-lines';
+        const extraClass = index % 3 === 0 ? 'active' : '';
+        return `
+            <div class="competitive-card ${extraClass}" data-id="${exam.material_id ?? index}" data-file="${escapeHTML(exam.file_url || '')}" data-title="${escapeHTML(exam.title || exam.exam_name || 'Competitive exam')}">
+                <div class="competitive-icon ${index % 3 === 1 ? 'alt' : index % 3 === 2 ? 'accent' : ''}"><i class="fa-solid ${iconClass}"></i></div>
+                <div class="competitive-content">
+                    <div class="competitive-name">${escapeHTML(exam.title || exam.exam_name || 'Competitive exam')}</div>
+                    <div class="competitive-meta">${escapeHTML(exam.exam_name || 'Competitive')} • ${escapeHTML(exam.duration_lessons || 'Study material')}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    grid.innerHTML = cards;
+    grid.querySelectorAll('.competitive-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const examId = Number(card.dataset.id);
+            const exam = list.find(item => Number(item.material_id) === examId);
+            if (!exam) return;
+
+            const material = {
+                material_id: exam.material_id,
+                title: exam.title || exam.exam_name || 'Competitive exam',
+                subject_name: exam.exam_name || 'Competitive Exam',
+                format_name: exam.format_name || 'Study Material',
+                duration_lessons: exam.duration_lessons || 'N/A',
+                instructor_name: exam.instructor_name || 'Competitive Exam',
+                file_url: exam.file_url || '',
+            };
+            state.activeMaterial = material;
+            state.lastLibraryRoute = 'courses';
+            navigateTo('lesson');
+        });
+    });
 }
 
 function buildSearchIndex(navigateTo, state, subjects, materials, quizzes, classNumber) {

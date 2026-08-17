@@ -4,6 +4,7 @@ import {
     getUserByEmail, addUser, deleteUser, updateUserPassword, approveUser,
     getUsers, getSubjects, addSubject, deleteSubject, getSubjectsByClass,
     getMaterials, addMaterial, deleteMaterial, getMaterialsByClass,
+    getCompetitiveMaterials, addCompetitiveMaterial,
     getQuizzes, addQuiz, deleteQuiz, getQuizzesByClass,
     addQuizAttempt, getQuizAttemptsByUser, getQuizLeaderboard,
     getNotifications, addNotification, deleteNotification,
@@ -34,7 +35,14 @@ function markNativeApp() {
 if (document.body) markNativeApp();
 else document.addEventListener('DOMContentLoaded', markNativeApp);
 
-export const state = { db: null, currentUser: null, currentRoute: 'splash', selectedClass: null };
+export const state = {
+    db: null,
+    currentUser: null,
+    currentRoute: 'splash',
+    selectedClass: null,
+    lastLibraryRoute: 'courses'
+};
+window.state = state;
 
 export function saveSession() {
     if (!state.currentUser) {
@@ -173,6 +181,17 @@ function ensureSchema(db) {
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
         FOREIGN KEY (quiz_id) REFERENCES quizzes(quiz_id) ON DELETE CASCADE
     )`);
+    safeRun(`CREATE TABLE IF NOT EXISTS competitive_exam_materials (
+        material_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title VARCHAR(255) NOT NULL,
+        exam_name VARCHAR(255) NOT NULL,
+        format_id INTEGER NOT NULL,
+        instructor_name VARCHAR(255),
+        duration_lessons VARCHAR(50),
+        chapter_number INTEGER,
+        file_url VARCHAR(512) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
     safeRun(`CREATE TABLE IF NOT EXISTS notifications (notification_id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 }
 
@@ -248,6 +267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         getUserByEmail, addUser, deleteUser, updateUserPassword, approveUser,
         getUsers, getSubjects, addSubject, deleteSubject, getSubjectsByClass,
         getMaterials, addMaterial, deleteMaterial, getMaterialsByClass,
+        getCompetitiveMaterials, addCompetitiveMaterial,
         getQuizzes, addQuiz, deleteQuiz, getQuizzesByClass,
         addQuizAttempt, getQuizAttemptsByUser, getQuizLeaderboard,
         getNotifications, addNotification, deleteNotification,

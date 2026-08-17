@@ -513,6 +513,100 @@ export async function deleteMaterial(materialId) {
     }
 }
 
+export async function getCompetitiveMaterials() {
+    if (dbType === 'supabase') {
+        const { data, error } = await supabaseClient
+            .from('competitive_exam_materials')
+            .select('*')
+            .order('material_id', { ascending: true });
+        if (error) {
+            if (isMissingTableError(error)) {
+                console.warn('Supabase `competitive_exam_materials` table is missing in the live database. The app is falling back to browser-local cache only. Run the migration in supabase_schema.sql or competitive_exam_schema_fix.sql to enable live cloud sync.');
+                return loadLocalCompetitiveMaterials();
+            }
+            throw error;
+        }
+        return (data || []).map(m => ({
+            material_id: m.material_id,
+            title: m.title,
+            exam_name: m.exam_name,
+            duration_lessons: m.duration_lessons,
+            instructor_name: m.instructor_name,
+            chapter_number: m.chapter_number ?? null,
+            file_url: m.file_url,
+            format_name: m.format_name || (m.format_id === 2 ? 'Audio Book' : m.format_id === 3 ? 'Video Content' : 'E-Book')
+        }));
+    } else {
+        const sql = `
+            SELECT m.material_id, m.title, m.exam_name, m.duration_lessons, m.instructor_name, m.chapter_number, m.file_url, f.format_name
+            FROM competitive_exam_materials m
+            JOIN content_formats f ON m.format_id = f.format_id
+            ORDER BY m.material_id ASC
+        `;
+        return queryAll(sqliteDb, sql);
+    }
+}
+
+export async function addCompetitiveMaterial(examName, formatId, title, durationLessons, instructorName, fileUrl = '/vids/math1.mp4', chapterNumber = null) {
+    if (dbType === 'supabase') {
+        const row = {
+            exam_name: examName,
+            format_id: parseInt(formatId),
+            title: title,
+            duration_lessons: durationLessons,
+            instructor_name: instructorName,
+            file_url: fileUrl,
+            chapter_number: chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null
+        };
+        const { error } = await supabaseClient.from('competitive_exam_materials').insert([row]);
+        if (error) {
+            if (isMissingTableError(error)) {
+                console.warn('Supabase `competitive_exam_materials` table is missing. Saving only to the local browser cache until the schema migration is applied in Supabase SQL Editor.');
+                const list = loadLocalCompetitiveMaterials();
+                const nextId = list.reduce((max, item) => Math.max(max, Number(item.material_id) || 0), 0) + 1;
+                list.push({
+                    material_id: nextId,
+                    title,
+                    exam_name: examName,
+                    duration_lessons: durationLessons,
+                    instructor_name: instructorName,
+                    chapter_number: row.chapter_number,
+                    file_url: fileUrl,
+                    format_name: formatId === 2 ? 'Audio Book' : formatId === 3 ? 'Video Content' : 'E-Book'
+                });
+                saveLocalCompetitiveMaterials(list);
+                return true;
+            }
+            throw error;
+        }
+        return true;
+    } else {
+        const sql = `INSERT INTO competitive_exam_materials (exam_name, format_id, title, duration_lessons, instructor_name, file_url, chapter_number) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        return executeSQL(sqliteDb, sql, [examName, formatId, title, durationLessons, instructorName, fileUrl, chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null]);
+    }
+}
+
+export async function deleteCompetitiveMaterial(materialId) {
+    if (dbType === 'supabase') {
+        const { error } = await supabaseClient
+            .from('competitive_exam_materials')
+            .delete()
+            .eq('material_id', parseInt(materialId));
+        if (error) {
+            if (isMissingTableError(error)) {
+                const list = loadLocalCompetitiveMaterials().filter(item => Number(item.material_id) !== Number(materialId));
+                saveLocalCompetitiveMaterials(list);
+                return true;
+            }
+            throw error;
+        }
+        return true;
+    } else {
+        const sql = `DELETE FROM competitive_exam_materials WHERE material_id = ?`;
+        return executeSQL(sqliteDb, sql, [materialId]);
+    }
+}
+
 export async function getMaterialsByClass(classNumber) {
     if (dbType === 'supabase') {
         const selectWithChapter = `
@@ -866,6 +960,22 @@ function loadLocalNotifications() {
 
 function saveLocalNotifications(list) {
     try { localStorage.setItem(NOTIFICATIONS_CACHE_KEY, JSON.stringify(list)); } catch (_) {}
+}
+
+const COMPETITIVE_EXAMS_CACHE_KEY = 'adhyayan_competitive_exams_cache_v1';
+
+function loadLocalCompetitiveMaterials() {
+    try {
+        const raw = localStorage.getItem(COMPETITIVE_EXAMS_CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function saveLocalCompetitiveMaterials(list) {
+    try { localStorage.setItem(COMPETITIVE_EXAMS_CACHE_KEY, JSON.stringify(list)); } catch (_) {}
 }
 
 function isMissingTableError(error) {
