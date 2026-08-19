@@ -237,6 +237,38 @@ export function init(navigateTo, state) {
     }
     viewerContainer.appendChild(wrapper);
 
+    const fullScreenToggle = document.getElementById('lesson-fullscreen-toggle');
+    if (fullScreenToggle) {
+        const toggleFullscreen = async () => {
+            const container = document.getElementById('lesson-viewer-container');
+            if (!container) return;
+
+            try {
+                if (!document.fullscreenElement) {
+                    if (container.requestFullscreen) {
+                        await container.requestFullscreen();
+                    } else if (container.webkitRequestFullscreen) {
+                        await container.webkitRequestFullscreen();
+                    }
+                } else if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    await document.webkitExitFullscreen();
+                }
+            } catch (err) {
+                console.error('Fullscreen toggle failed:', err);
+            }
+        };
+
+        fullScreenToggle.addEventListener('click', toggleFullscreen);
+        fullScreenToggle.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleFullscreen();
+            }
+        });
+    }
+
     const downloadBtn = document.getElementById('lesson-download-btn');
     if (downloadBtn) {
         downloadBtn.onclick = () => {

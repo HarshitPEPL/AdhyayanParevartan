@@ -1,3 +1,18 @@
+.screen.courses-screen.has-bottom-nav {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.header-module {
+    padding: 16px 16px 8px;
+}
+
+#competitive-exams-list {
+    width: 100%;
+    margin: 0;
+    padding: 0 16px 18px;
+}
+
 .competitive-exam-item {
     display: flex;
     align-items: center;
