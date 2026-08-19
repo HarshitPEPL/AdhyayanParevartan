@@ -211,9 +211,13 @@ export function init(navigateTo, state) {
     const signupClose = document.getElementById('signup-modal-close');
     const btnShowSignup = document.getElementById('btn-show-signup');
     const btnSubmitSignup = document.getElementById('btn-submit-signup');
+    const signupRoleSelect = document.getElementById('signup-role');
 
     btnShowSignup?.addEventListener('click', (e) => {
         e.preventDefault();
+        if (signupRoleSelect) {
+            signupRoleSelect.value = getSelectedRole() || 'student';
+        }
         if (signupModal) signupModal.classList.remove('hidden');
     });
 
@@ -235,9 +239,11 @@ export function init(navigateTo, state) {
         const name = document.getElementById('signup-name').value.trim();
         const email = document.getElementById('signup-email').value.trim();
         const password = document.getElementById('signup-password').value;
+        const signupRole = signupRoleSelect ? signupRoleSelect.value : (getSelectedRole() || 'student');
+        const signupRoleId = roleMap[signupRole] || 3;
 
-        if (!name || !email || !password) {
-            alert("Please fill out all fields.");
+        if (!name || !email || !password || !signupRole) {
+            alert("Please fill out all fields and select your role.");
             return;
         }
 
@@ -248,8 +254,7 @@ export function init(navigateTo, state) {
                 return;
             }
 
-            // Create new student user (role 3) in pending state (isApproved = 0)
-            await addUser(name, email, password, 3, selectedClass, 0);
+            await addUser(name, email, password, signupRoleId, selectedClass, 0);
 
             // Send a registration confirmation email (best-effort; app still works
             // without it since the on-screen toast already confirms registration)
