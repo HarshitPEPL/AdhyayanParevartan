@@ -252,7 +252,7 @@ export function init(navigateTo, state) {
             await addUser(name, email, password, 3, selectedClass, 0);
 
             // Send a registration confirmation email (best-effort; app still works
-            // without it since the on-screen alert already confirms registration)
+            // without it since the on-screen toast already confirms registration)
             sendEmail({
                 toEmail: email,
                 toName: name,
@@ -260,7 +260,14 @@ export function init(navigateTo, state) {
                 message: `Hi ${name},\n\nThank you for registering with Adhyayan Parevartan for Class ${selectedClass}.\n\nYour account has been created and is currently pending administrator approval. You will be able to log in once an administrator activates your account.\n\nIf you did not request this, please ignore this email.`
             }).catch(() => {});
 
-            alert("Registration requested successfully! Your account is created in 'Pending' status. Only after the administrator approves/creates your credentials can you log in.");
+            const successToast = document.getElementById('signup-success-toast');
+            const successToastMessage = document.getElementById('signup-success-toast-message');
+            if (successToast && successToastMessage) {
+                successToastMessage.textContent = `Your registration for ${name} is complete. It is currently in the admin approval stage.`;
+                successToast.classList.remove('hidden');
+                setTimeout(() => successToast.classList.add('hidden'), 8000);
+            }
+
             closeSignupModal();
         } catch (e) {
             console.error("Signup error:", e);
