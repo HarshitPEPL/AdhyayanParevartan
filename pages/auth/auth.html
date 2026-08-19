@@ -152,13 +152,13 @@
             <div class="form-group" style="margin-bottom: 15px;">
                 <input type="email" placeholder="Email Address" id="signup-email" style="width: 100%; padding: 14px 16px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
             </div>
-            <div class="form-group" style="margin-bottom: 15px;">
-                <select id="signup-role" style="width: 100%; padding: 14px 16px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 600; color: #111; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer;">
-                    <option value="">Select your role</option>
-                    <option value="student">Student</option>
+            <div class="form-group" style="margin-bottom: 15px; position: relative;">
+                <select id="signup-role" style="width: 100%; padding: 14px 42px 14px 16px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 600; color: #111; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer;">
+                    <option value="student" selected>Student</option>
                     <option value="teacher">Teacher</option>
                     <option value="admin">Admin</option>
                 </select>
+                <i class="fa-solid fa-chevron-down" style="position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: #444; font-size: 12px; pointer-events: none;"></i>
             </div>
             <div class="form-group" style="margin-bottom: 20px;">
                 <input type="password" placeholder="Password" id="signup-password" style="width: 100%; padding: 14px 16px; border-radius: 30px; border: 1px solid #111; background-color: #F9F9F9; font-size: 14px; outline: none; font-weight: 500;">
