@@ -1,4 +1,4 @@
-package com.adhyayan.app;
+package com.adhyayank12.app;
 
 import com.getcapacitor.BridgeActivity;
 

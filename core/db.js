@@ -325,10 +325,27 @@ export async function getUsers() {
 }
 
 export async function addUser(fullName, email, passwordHash, roleId, classNumber, isApproved = 0, googleOauthId = null) {
+    const normalizedEmail = String(email || '').trim();
+    if (!normalizedEmail) {
+        throw new Error('Email is required.');
+    }
+
+    const normalizedEmailLookup = normalizedEmail.toLowerCase();
     if (dbType === 'supabase') {
+        const { data: existingUsers, error: lookupError } = await supabaseClient
+            .from('users')
+            .select('user_id, email')
+            .ilike('email', normalizedEmailLookup)
+            .limit(1);
+
+        if (lookupError) throw lookupError;
+        if (existingUsers && existingUsers.length > 0) {
+            throw new Error(`A user with email "${normalizedEmail}" already exists. Please use a different email or update the existing user.`);
+        }
+
         const row = {
             full_name: fullName,
-            email: email,
+            email: normalizedEmail,
             password_hash: passwordHash,
             role_id: parseInt(roleId),
             class_number: classNumber ? parseInt(classNumber) : null,
@@ -344,8 +361,14 @@ export async function addUser(fullName, email, passwordHash, roleId, classNumber
         if (error) throw error;
         return true;
     } else {
-        const sql = `INSERT INTO users (role_id, full_name, email, password_hash, class_number, is_approved, google_oauth_id) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-        return executeSQL(sqliteDb, sql, [roleId, fullName, email, passwordHash, classNumber, isApproved, googleOauthId]);
+        const sql = `SELECT user_id FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1`;
+        const existing = queryAll(sqliteDb, sql, [normalizedEmailLookup]);
+        if (existing && existing.length > 0) {
+            throw new Error(`A user with email "${normalizedEmail}" already exists. Please use a different email or update the existing user.`);
+        }
+
+        const insertSql = `INSERT INTO users (role_id, full_name, email, password_hash, class_number, is_approved, google_oauth_id) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        return executeSQL(sqliteDb, insertSql, [roleId, fullName, normalizedEmail, passwordHash, classNumber, isApproved, googleOauthId]);
     }
 }
 

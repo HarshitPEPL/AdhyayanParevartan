@@ -90,8 +90,17 @@ function renderYouTubePlayer(container, videoId, reportProgress) {
 // can only be shown via <iframe>, never via <video>/<audio> src.
 function getGoogleDriveEmbedUrl(url) {
     if (!url || !url.includes('drive.google.com')) return null;
-    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/[?&]usp=sharing.*?\b([a-zA-Z0-9_-]{10,})/);
     return idMatch ? `https://drive.google.com/file/d/${idMatch[1]}/preview` : null;
+}
+
+function getSafePdfUrl(fileUrl) {
+    if (!fileUrl) return '';
+    if (fileUrl.includes('drive.google.com')) {
+        const match = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || fileUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (match) return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+    }
+    return fileUrl;
 }
 
 export function init(navigateTo, state) {
@@ -170,7 +179,7 @@ export function init(navigateTo, state) {
             audioEl.addEventListener('ended', () => reportProgress(100));
         }
     } else if (ext === 'pdf' || (isDataUrl && mat.file_url.includes('pdf'))) {
-        let pdfUrl = mat.file_url;
+        let pdfUrl = getSafePdfUrl(mat.file_url);
         if (isDataUrl) {
             try {
                 const byteString = atob(mat.file_url.split(',')[1]);
@@ -198,15 +207,6 @@ export function init(navigateTo, state) {
             reportProgress(100);
         };
 
-        const pageShell = `
-            <div class="reader-page-shell">
-                <div class="reader-page-header">
-                    <span>${(mat.title || 'Adhyayan').substring(0, 28)}</span>
-                    <span>Page 1</span>
-                </div>
-            </div>
-        `;
-
         if (isNativeAndroid) {
             wrapper.innerHTML = `
                 <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
@@ -226,17 +226,9 @@ export function init(navigateTo, state) {
                         <span>${(mat.title || 'Adhyayan').substring(0, 28)}</span>
                         <span>Page 1</span>
                     </div>
-                    <iframe src="${pdfViewerSrc}" class="reader-iframe" allow="fullscreen" title="PDF Viewer"></iframe>
+                    <iframe src="${pdfViewerSrc}" class="reader-iframe" allowfullscreen title="PDF Viewer"></iframe>
                 </div>
             `;
-            const fsBtn = document.createElement('button');
-            fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i> Fullscreen';
-            fsBtn.className = 'btn btn-primary';
-            fsBtn.style.cssText = 'position: absolute; bottom: 16px; right: 18px; z-index: 10; padding: 7px 12px; font-size: 0.78rem; box-shadow: 0 8px 18px rgba(0,0,0,0.2); border-radius: 999px;';
-            fsBtn.onclick = () => {
-                openPdfInBrowser();
-            };
-            wrapper.appendChild(fsBtn);
             reportProgress(40);
         }
     } else {

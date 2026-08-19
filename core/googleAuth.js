@@ -18,6 +18,18 @@ function isLocalDevelopmentOrigin() {
     return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.');
 }
 
+export function getProductionGoogleOrigins() {
+    return [
+        'https://parevartanadhayayan.in',
+        'https://www.parevartanadhayayan.in',
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://localhost:8080',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:3000'
+    ];
+}
+
 export function getGoogleClientId() {
     const customClientId = localStorage.getItem(CLIENT_ID_KEY);
     if (customClientId && customClientId.trim()) {

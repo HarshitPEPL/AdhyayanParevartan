@@ -92,6 +92,23 @@
     border-radius: 20px;
     padding: 12px 14px;
     box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.competitive-card:hover,
+.competitive-card:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+    border-color: rgba(27, 128, 57, 0.22);
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(27,128,57,0.02));
+    outline: none;
+}
+
+.competitive-card:active {
+    transform: translateY(0);
 }
 
 .competitive-card.active {

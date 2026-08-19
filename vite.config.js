@@ -11,9 +11,9 @@ export default defineConfig(({ mode }) => {
             __SUPABASE_URL__: JSON.stringify(env.VITE_SUPABASE_URL || ''),
             __SUPABASE_ANON_KEY__: JSON.stringify(env.VITE_SUPABASE_ANON_KEY || '')
         },
-        // Relative asset URLs so the app loads correctly regardless of the
-        // scheme/root the Android WebView serves local files from.
-        base: './',
+        // Default to the production website root. If someone needs a sub-path or
+        // Android WebView build, set VITE_BASE_PATH=./ explicitly in the env.
+        base: env.VITE_BASE_PATH || '/',
         plugins: [
             viteStaticCopy({
                 targets: [
