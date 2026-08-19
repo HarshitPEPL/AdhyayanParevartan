@@ -5,13 +5,16 @@
 }
 
 .lesson-reader-shell {
-    margin: 16px 10px 0;
+    margin: 0;
     border: 2px solid rgba(239, 68, 68, 0.9);
     border-radius: 18px;
     overflow: hidden;
     background: #111827;
     box-shadow: 0 18px 35px rgba(15, 23, 42, 0.18);
     position: relative;
+    width: 100%;
+    max-width: 100%;
+    flex: 1;
 }
 
 .lesson-reader-shell::before {
@@ -48,25 +51,26 @@
 #lesson-viewer-container {
     background: linear-gradient(180deg, #e5e7eb 0%, #dfe7ee 100%);
     width: 100%;
-    min-height: clamp(260px, 48vh, 620px);
-    height: min(62vh, 700px);
+    min-height: clamp(320px, 68vh, 860px);
+    height: min(72vh, 860px);
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: stretch;
     position: relative;
     border: 0;
-    padding: 18px 18px 20px;
+    padding: 0;
     overflow: hidden;
 }
 
 .reader-page-shell {
-    width: min(96%, 760px);
-    height: min(62vh, 700px);
-    max-height: 78vh;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    max-width: none;
     background: #f8fafc;
     border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 18px;
-    box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18), 0 2px 12px rgba(15, 23, 42, 0.06);
+    border-radius: 0;
+    box-shadow: none;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -81,7 +85,7 @@
     height: calc(100% - 20px);
     background: linear-gradient(180deg, rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0.14));
     border-radius: 999px;
-    opacity: 0.55;
+    opacity: 0.3;
     pointer-events: none;
 }
 
@@ -199,18 +203,18 @@
     }
 
     .lesson-reader-shell {
-        margin-left: 8px;
-        margin-right: 8px;
+        margin: 0;
+        border-radius: 14px;
     }
 
     #lesson-viewer-container {
         min-height: 260px;
-        height: min(50vh, 420px);
-        padding: 10px;
+        height: min(56vh, 440px);
+        padding: 0;
     }
 
     .reader-page-shell {
         width: 100%;
-        height: min(50vh, 420px);
+        height: 100%;
     }
 }
