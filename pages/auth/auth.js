@@ -8,6 +8,7 @@ export function init(navigateTo, state) {
     const errorEl = document.getElementById('class-error');
     const googleWarningEl = document.getElementById('google-class-warning');
     const roleSelect = document.getElementById('auth-role');
+    const termsCheckbox = document.getElementById('auth-terms');
 
     const roleMap = {
         student: 3,
@@ -44,6 +45,12 @@ export function init(navigateTo, state) {
         const emailInput = document.getElementById('auth-email');
         const passwordInput = document.getElementById('auth-password');
         const selectedRole = getSelectedRole();
+
+        if (!termsCheckbox?.checked) {
+            alert("Please agree to the Terms and Conditions before logging in.");
+            termsCheckbox?.focus();
+            return;
+        }
 
         if (!selectedRole) {
             alert("Please select your role before logging in.");
@@ -107,6 +114,11 @@ export function init(navigateTo, state) {
     document.getElementById('btn-continue')?.addEventListener('click', () => validateAndNavigate('home'));
     document.getElementById('btn-google')?.addEventListener('click', async (e) => {
         const selectedRole = getSelectedRole();
+        if (!termsCheckbox?.checked) {
+            alert("Please agree to the Terms and Conditions before continuing.");
+            termsCheckbox?.focus();
+            return;
+        }
         if (!selectedRole) {
             alert("Please select Student, Teacher, or Admin before continuing with Google.");
             if (roleSelect) roleSelect.focus();
