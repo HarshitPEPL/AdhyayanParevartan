@@ -202,7 +202,8 @@ function seedData() {
     safeRun("INSERT INTO roles (role_name) VALUES ('Admin')");
     safeRun("INSERT INTO roles (role_name) VALUES ('Teacher')");
     safeRun("INSERT INTO roles (role_name) VALUES ('Student')");
-    safeRun("INSERT INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Rahul Kumar', 'rahul@example.com', 'student123', 9, 'CBSE', 12, 2340, 1)");
+    safeRun("INSERT INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Rahul Kumar', 'rahul@example.com', 'password123', 9, 'CBSE', 12, 2340, 1)");
+    safeRun("UPDATE users SET password_hash = 'password123', role_id = 3, class_number = 9, board = 'CBSE', is_approved = 1 WHERE email = 'rahul@example.com'");
     safeRun("INSERT INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Rahul', 'rahul@parevartan.com', 'Testing', 4, 'CBSE', 0, 0, 1)");
     safeRun("INSERT INTO content_formats (format_name) VALUES ('E-Book')");
     safeRun("INSERT INTO content_formats (format_name) VALUES ('Audio Book')");

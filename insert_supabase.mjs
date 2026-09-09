@@ -6,10 +6,12 @@ async function insertUser() {
     
     const body = {
         role_id: 3,
-        full_name: 'Rahul',
-        email: 'rahul@parevartan.com',
-        password_hash: 'Testing',
-        class_number: 4
+        full_name: 'Rahul Kumar',
+        email: 'rahul@example.com',
+        password_hash: 'password123',
+        class_number: 9,
+        board: 'CBSE',
+        is_approved: 1
     };
 
     try {

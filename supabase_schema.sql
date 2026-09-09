@@ -96,5 +96,16 @@ insert into content_formats (format_name) values ('E-Book') on conflict (format_
 insert into content_formats (format_name) values ('Audio Book') on conflict (format_name) do nothing;
 insert into content_formats (format_name) values ('Video Content') on conflict (format_name) do nothing;
 
+-- Google Play review account. Run this after the schema is created.
+insert into users (role_id, full_name, email, password_hash, class_number, board, is_approved)
+select role_id, 'Rahul Kumar', 'rahul@example.com', 'password123', 9, 'CBSE', 1
+from roles where role_name = 'Student'
+on conflict (email) do update set
+  role_id = excluded.role_id,
+  password_hash = excluded.password_hash,
+  class_number = excluded.class_number,
+  board = excluded.board,
+  is_approved = excluded.is_approved;
+
 -- Optional: create a storage bucket for uploaded files
 -- In Supabase Dashboard: Storage > New bucket > name: learning_materials
