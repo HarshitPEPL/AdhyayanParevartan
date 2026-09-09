@@ -1,0 +1,11 @@
+{
+  "name": "parevartanadhyayan-k12-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix ./AdhyayanParevartan-main run dev",
+    "build": "npm --prefix ./AdhyayanParevartan-main run build",
+    "preview": "npm --prefix ./AdhyayanParevartan-main run preview",
+    "cap:sync:android": "powershell -NoProfile -Command \"Set-Location './AdhyayanParevartan-main'; npx cap sync android\"",
+    "cap:open:android": "powershell -NoProfile -Command \"Set-Location './AdhyayanParevartan-main'; npx cap open android\""
+  }
+}
