@@ -269,7 +269,12 @@ export function init(navigateTo, state) {
     // browser or app may not be secure"), so any drive.google.com iframe shows
     // a broken "Can't access your Google Account" prompt on native Android —
     // open Drive links in the system browser there instead of iframing them.
-    const isNativeAndroid = !!(window.Capacitor || window.cordova || navigator.userAgent.includes('wv') || /Android/i.test(navigator.userAgent));
+    // NOTE: must check isNativePlatform() (not just `window.Capacitor`, which
+    // exists in every Capacitor-bundled build even when running as a plain
+    // website) and must NOT blanket-match `/Android/i` — that regex matches
+    // every Android phone's browser too, breaking the website's PDF viewer
+    // for all Android visitors, not just the native app.
+    const isNativeAndroid = !!(window.Capacitor?.isNativePlatform?.() || window.cordova || navigator.userAgent.includes('wv'));
     const openExternalLink = (url) => {
         // Statically imported above so the plugin is guaranteed to be registered
         // by the time this runs (relying on window.Capacitor.Plugins.Browser here
