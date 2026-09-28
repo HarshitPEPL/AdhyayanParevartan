@@ -222,7 +222,9 @@ export function init(navigateTo, state) {
 
         const isNativeAndroid = !!(window.Capacitor || window.cordova || navigator.userAgent.includes('wv') || /Android/i.test(navigator.userAgent));
         const openPdfInBrowser = () => {
-            const targetUrl = pdfUrl || mat.file_url;
+            // blob: URLs only exist in this page's memory — an external browser/tab
+            // can't resolve them, so fall back to the original self-contained data: URL.
+            const targetUrl = isDataUrl ? mat.file_url : (pdfUrl || mat.file_url);
             if (window.Capacitor?.Plugins?.Browser?.open) {
                 window.Capacitor.Plugins.Browser.open({ url: targetUrl });
             } else {
@@ -243,7 +245,15 @@ export function init(navigateTo, state) {
             wrapper.querySelector('#pdf-open-external')?.addEventListener('click', openPdfInBrowser);
             reportProgress(40);
         } else {
-            const pdfViewerSrc = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdfUrl || mat.file_url)}`;
+            const resolvedPdfSrc = pdfUrl || mat.file_url;
+            // Google's viewer fetches the URL from its own servers, so it can
+            // never reach a browser-local blob:/data: URL (uploads that weren't
+            // stored in cloud storage) — render those directly instead, letting
+            // the browser's built-in PDF renderer handle it.
+            const isRemotePdf = /^https?:\/\//i.test(resolvedPdfSrc);
+            const pdfViewerSrc = isRemotePdf
+                ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(resolvedPdfSrc)}`
+                : resolvedPdfSrc;
             wrapper.innerHTML = `
                 <div class="reader-page-shell">
                     <div class="reader-page-header">
