@@ -121,6 +121,10 @@ async function signInWithGoogleNative() {
     return new Promise((resolve, reject) => {
         let settled = false;
         const handles = [];
+        // Set as soon as the redirect lands, so `browserFinished` (which fires
+        // almost simultaneously when the Custom Tab closes on redirect) knows
+        // not to race it while the profile fetch below is still in flight.
+        let redirectReceived = false;
 
         const finish = (err, profile) => {
             if (settled) return;
@@ -132,6 +136,7 @@ async function signInWithGoogleNative() {
 
         CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
             if (!url?.startsWith(NATIVE_OAUTH_CUSTOM_SCHEME)) return;
+            redirectReceived = true;
             try {
                 const params = new URLSearchParams(url.split('#')[1] || '');
                 if (params.get('error')) {
@@ -157,8 +162,15 @@ async function signInWithGoogleNative() {
             }
         }).then((h) => handles.push(h));
 
-        // The user closing the Custom Tab without completing sign-in also counts as cancellation.
-        Browser.addListener('browserFinished', () => finish(new Error('popup_closed'))).then((h) => handles.push(h));
+        // The user closing the Custom Tab without completing sign-in also counts as
+        // cancellation — but closing it also happens (via the oauth2redirect bounce)
+        // on a SUCCESSFUL sign-in, firing at nearly the same time as appUrlOpen above.
+        // Wait briefly for appUrlOpen to claim the redirect before treating this as a cancel.
+        Browser.addListener('browserFinished', () => {
+            setTimeout(() => {
+                if (!redirectReceived) finish(new Error('popup_closed'));
+            }, 800);
+        }).then((h) => handles.push(h));
 
         Browser.open({ url: authUrl.toString() }).catch((err) => finish(err));
     });

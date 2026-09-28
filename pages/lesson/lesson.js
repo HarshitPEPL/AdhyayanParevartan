@@ -1,4 +1,5 @@
 // Logic for lesson
+import { Browser } from '@capacitor/browser';
 
 // Extracts a YouTube video ID from any common URL shape (watch?v=, youtu.be/,
 // embed/, shorts/), ignoring extra query params like `si`/`feature`/`t`.
@@ -85,6 +86,91 @@ function renderYouTubePlayer(container, videoId, reportProgress) {
     }).catch(() => showYouTubeFallback(container, videoId));
 }
 
+// Lazily loads Mozilla's PDF.js (only once) so PDFs can be rasterized onto a
+// <canvas> and shown right inside the app — Android's WebView has no built-in
+// PDF plugin, so a plain <iframe src="file.pdf"> just shows a blank page there.
+const PDFJS_VERSION = '4.7.76';
+let pdfjsLoadPromise = null;
+function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (pdfjsLoadPromise) return pdfjsLoadPromise;
+    pdfjsLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
+        script.onload = () => {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+            resolve(window.pdfjsLib);
+        };
+        script.onerror = () => reject(new Error('Failed to load PDF renderer.'));
+        document.head.appendChild(script);
+    });
+    return pdfjsLoadPromise;
+}
+
+// Renders a PDF page-by-page onto a <canvas>, inside the same reader shell
+// used elsewhere on this page. Returns true on success; on any failure (e.g.
+// the host blocks cross-origin fetches) it leaves `container` untouched so
+// the caller can fall back to an "open externally" screen instead.
+async function renderPdfInline(container, pdfUrl, title) {
+    try {
+        const pdfjsLib = await loadPdfJs();
+        const pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+
+        container.innerHTML = `
+            <div class="reader-page-shell">
+                <div class="reader-page-header">
+                    <span>${(title || 'Adhyayan').substring(0, 28)}</span>
+                    <span id="pdf-page-indicator">Page 1 / ${pdfDoc.numPages}</span>
+                </div>
+                <div class="pdf-canvas-scroll">
+                    <canvas id="pdf-render-canvas"></canvas>
+                </div>
+                ${pdfDoc.numPages > 1 ? `
+                <div class="pdf-page-nav">
+                    <button type="button" id="pdf-prev-page" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button type="button" id="pdf-next-page" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>` : ''}
+            </div>
+        `;
+
+        const canvas = container.querySelector('#pdf-render-canvas');
+        const ctx = canvas.getContext('2d');
+        const scrollEl = container.querySelector('.pdf-canvas-scroll');
+        const pageIndicator = container.querySelector('#pdf-page-indicator');
+        let currentPage = 1;
+        let renderTask = null;
+
+        const renderPage = async (num) => {
+            const page = await pdfDoc.getPage(num);
+            const unscaledViewport = page.getViewport({ scale: 1 });
+            const targetWidth = Math.max(scrollEl.clientWidth - 16, 100);
+            const scale = targetWidth / unscaledViewport.width;
+            const viewport = page.getViewport({ scale });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            renderTask?.cancel();
+            renderTask = page.render({ canvasContext: ctx, viewport });
+            await renderTask.promise;
+            pageIndicator.textContent = `Page ${num} / ${pdfDoc.numPages}`;
+            scrollEl.scrollTop = 0;
+        };
+
+        container.querySelector('#pdf-prev-page')?.addEventListener('click', () => {
+            if (currentPage > 1) renderPage(currentPage -= 1);
+        });
+        container.querySelector('#pdf-next-page')?.addEventListener('click', () => {
+            if (currentPage < pdfDoc.numPages) renderPage(currentPage += 1);
+        });
+
+        await renderPage(currentPage);
+        return true;
+    } catch (err) {
+        console.error('Inline PDF render failed, falling back to external open:', err);
+        return false;
+    }
+}
+
 // Converts any Google Drive share/view/preview link into Drive's embeddable
 // "/preview" URL. Drive links are HTML pages, not raw media files, so they
 // can only be shown via <iframe>, never via <video>/<audio> src.
@@ -111,6 +197,22 @@ function getSafePdfUrl(fileUrl) {
     }
     return fileUrl;
 }
+
+// Google Drive's file-serving endpoints never send Access-Control-Allow-Origin,
+// so PDF.js's in-browser fetch() can never read the bytes directly — route
+// Drive-hosted PDFs through our own CORS-enabled proxy (netlify/edge-functions/
+// drive-proxy.js) instead, which fetches the file server-side (unaffected by
+// CORS) and re-serves it with CORS open. Non-Drive URLs pass through unchanged.
+const DRIVE_PROXY_ENDPOINT = 'https://parevartanadhayayan.in/api/drive-proxy';
+function getInlineRenderablePdfSrc(fileUrl) {
+    if (!fileUrl) return '';
+    if (fileUrl.includes('drive.google.com')) {
+        const match = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || fileUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (match) return `${DRIVE_PROXY_ENDPOINT}?id=${match[1]}`;
+    }
+    return fileUrl;
+}
+
 
 export function init(navigateTo, state) {
     const mat = state.activeMaterial;
@@ -169,8 +271,11 @@ export function init(navigateTo, state) {
     // open Drive links in the system browser there instead of iframing them.
     const isNativeAndroid = !!(window.Capacitor || window.cordova || navigator.userAgent.includes('wv') || /Android/i.test(navigator.userAgent));
     const openExternalLink = (url) => {
-        if (window.Capacitor?.Plugins?.Browser?.open) {
-            window.Capacitor.Plugins.Browser.open({ url });
+        // Statically imported above so the plugin is guaranteed to be registered
+        // by the time this runs (relying on window.Capacitor.Plugins.Browser here
+        // silently fails if that plugin was never loaded elsewhere in this session).
+        if (window.Capacitor?.isNativePlatform?.()) {
+            Browser.open({ url }).catch(() => window.open(url, '_blank', 'noopener,noreferrer'));
         } else {
             window.open(url, '_blank', 'noopener,noreferrer');
         }
@@ -190,19 +295,32 @@ export function init(navigateTo, state) {
         renderYouTubePlayer(wrapper, youTubeVideoId, reportProgress);
     } else if (driveEmbedUrl) {
         if (isNativeAndroid) {
-            wrapper.innerHTML = `
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
-                    <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
-                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">Ready to open</div>
-                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Google Drive can't be viewed inside the app. Open it in your browser to read the file.</div>
-                    <button class="btn btn-primary" id="drive-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open in Google Drive</button>
-                </div>
-            `;
-            wrapper.querySelector('#drive-open-external')?.addEventListener('click', () => {
-                openExternalLink(mat.file_url);
-                reportProgress(100);
-            });
-            reportProgress(40);
+            const showDriveOpenFallback = () => {
+                wrapper.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                        <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
+                        <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">Ready to open</div>
+                        <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Google Drive can't be viewed inside the app. Open it in your browser to read the file.</div>
+                        <button class="btn btn-primary" id="drive-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open in Google Drive</button>
+                    </div>
+                `;
+                wrapper.querySelector('#drive-open-external')?.addEventListener('click', () => {
+                    openExternalLink(mat.file_url);
+                    reportProgress(100);
+                });
+                reportProgress(40);
+            };
+
+            if (mat.format_name === 'E-Book') {
+                // E-Books are PDFs — rasterize them with PDF.js instead of showing
+                // Drive's own page, which requires a sign-in check WebViews get blocked from.
+                wrapper.innerHTML = `<div style="color:#fff; font-size:0.85rem; opacity:0.75;">Loading…</div>`;
+                renderPdfInline(wrapper, getInlineRenderablePdfSrc(mat.file_url), mat.title).then((ok) => {
+                    if (ok) reportProgress(40); else showDriveOpenFallback();
+                });
+            } else {
+                showDriveOpenFallback();
+            }
         } else {
             // Google Drive links are HTML pages, not playable media files — embed
             // via iframe instead of a <video>/<audio> tag (which would fail to load it).
@@ -295,16 +413,23 @@ export function init(navigateTo, state) {
         };
 
         if (isNativeAndroid) {
-            wrapper.innerHTML = `
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
-                    <i class="fa-solid fa-file-pdf" style="font-size:3rem; margin-bottom:16px; color:#f8d7da;"></i>
-                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">PDF ready to open</div>
-                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Android WebView cannot render PDFs inline here. Open it in the browser to read the file.</div>
-                    <button class="btn btn-primary" id="pdf-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open PDF</button>
-                </div>
-            `;
-            wrapper.querySelector('#pdf-open-external')?.addEventListener('click', openPdfInBrowser);
-            reportProgress(40);
+            const showPdfOpenFallback = () => {
+                wrapper.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                        <i class="fa-solid fa-file-pdf" style="font-size:3rem; margin-bottom:16px; color:#f8d7da;"></i>
+                        <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">PDF ready to open</div>
+                        <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Couldn't render this PDF inline. Open it in the browser to read the file.</div>
+                        <button class="btn btn-primary" id="pdf-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open PDF</button>
+                    </div>
+                `;
+                wrapper.querySelector('#pdf-open-external')?.addEventListener('click', openPdfInBrowser);
+                reportProgress(40);
+            };
+
+            wrapper.innerHTML = `<div style="color:#fff; font-size:0.85rem; opacity:0.75;">Loading…</div>`;
+            renderPdfInline(wrapper, isDataUrl ? pdfUrl : getInlineRenderablePdfSrc(mat.file_url), mat.title).then((ok) => {
+                if (ok) reportProgress(40); else showPdfOpenFallback();
+            });
         } else {
             const resolvedPdfSrc = pdfUrl || mat.file_url;
             // Google's viewer fetches the URL from its own servers, so it can

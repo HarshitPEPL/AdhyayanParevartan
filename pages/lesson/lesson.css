@@ -135,6 +135,45 @@
     background: #fff;
 }
 
+.pdf-canvas-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    background: #525659;
+    padding: 12px 8px;
+}
+
+.pdf-canvas-scroll canvas {
+    max-width: 100%;
+    height: auto;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.pdf-page-nav {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: #eef2f7;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.pdf-page-nav button {
+    border: 0;
+    background: #1B8039;
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.pdf-page-nav button:hover {
+    background: #146b2e;
+}
+
 #lesson-viewer-container video,
 #lesson-viewer-container audio,
 #lesson-viewer-container iframe,
