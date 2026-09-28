@@ -163,6 +163,18 @@ export function init(navigateTo, state) {
     const youTubeVideoId = getYouTubeVideoId(mat.file_url);
     const driveEmbedUrl = getGoogleDriveEmbedUrl(mat.file_url);
     const driveFolderEmbedUrl = getGoogleDriveFolderEmbedUrl(mat.file_url);
+    // Google blocks its own sign-in flow inside embedded WebViews ("This
+    // browser or app may not be secure"), so any drive.google.com iframe shows
+    // a broken "Can't access your Google Account" prompt on native Android —
+    // open Drive links in the system browser there instead of iframing them.
+    const isNativeAndroid = !!(window.Capacitor || window.cordova || navigator.userAgent.includes('wv') || /Android/i.test(navigator.userAgent));
+    const openExternalLink = (url) => {
+        if (window.Capacitor?.Plugins?.Browser?.open) {
+            window.Capacitor.Plugins.Browser.open({ url });
+        } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    };
 
     const userId = state.currentUser?.user_id;
     function reportProgress(percent) {
@@ -177,24 +189,55 @@ export function init(navigateTo, state) {
     if (youTubeVideoId) {
         renderYouTubePlayer(wrapper, youTubeVideoId, reportProgress);
     } else if (driveEmbedUrl) {
-        // Google Drive links are HTML pages, not playable media files — embed
-        // via iframe instead of a <video>/<audio> tag (which would fail to load it).
-        wrapper.innerHTML = `<iframe src="${driveEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-        // No reliable playback-progress API for cross-origin embeds, so just mark it viewed.
-        reportProgress(100);
-    } else if (driveFolderEmbedUrl) {
-        // This material was linked to an entire Drive folder rather than a
-        // specific file — there's nothing to render directly, so show the
-        // folder contents so the user can find/open the right file themselves.
-        wrapper.innerHTML = `
-            <div style="display:flex; flex-direction:column; width:100%; height:100%;">
-                <div style="background:#fef3c7; color:#92400e; font-size:0.8rem; font-weight:600; padding:10px 14px; text-align:center;">
-                    This material links to a folder, not a single file. Browse below to find "${(mat.title || '').replace(/"/g, '&quot;')}".
+        if (isNativeAndroid) {
+            wrapper.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                    <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
+                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">Ready to open</div>
+                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Google Drive can't be viewed inside the app. Open it in your browser to read the file.</div>
+                    <button class="btn btn-primary" id="drive-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open in Google Drive</button>
                 </div>
-                <iframe src="${driveFolderEmbedUrl}" style="width:100%; height:100%; border:none; flex:1;" allow="autoplay"></iframe>
-            </div>
-        `;
-        reportProgress(30);
+            `;
+            wrapper.querySelector('#drive-open-external')?.addEventListener('click', () => {
+                openExternalLink(mat.file_url);
+                reportProgress(100);
+            });
+            reportProgress(40);
+        } else {
+            // Google Drive links are HTML pages, not playable media files — embed
+            // via iframe instead of a <video>/<audio> tag (which would fail to load it).
+            wrapper.innerHTML = `<iframe src="${driveEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            // No reliable playback-progress API for cross-origin embeds, so just mark it viewed.
+            reportProgress(100);
+        }
+    } else if (driveFolderEmbedUrl) {
+        if (isNativeAndroid) {
+            wrapper.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                    <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
+                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">This links to a Drive folder</div>
+                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Open the folder in your browser and find "${(mat.title || '').replace(/"/g, '&quot;')}".</div>
+                    <button class="btn btn-primary" id="drive-folder-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open Folder in Google Drive</button>
+                </div>
+            `;
+            wrapper.querySelector('#drive-folder-open-external')?.addEventListener('click', () => {
+                openExternalLink(mat.file_url);
+                reportProgress(30);
+            });
+        } else {
+            // This material was linked to an entire Drive folder rather than a
+            // specific file — there's nothing to render directly, so show the
+            // folder contents so the user can find/open the right file themselves.
+            wrapper.innerHTML = `
+                <div style="display:flex; flex-direction:column; width:100%; height:100%;">
+                    <div style="background:#fef3c7; color:#92400e; font-size:0.8rem; font-weight:600; padding:10px 14px; text-align:center;">
+                        This material links to a folder, not a single file. Browse below to find "${(mat.title || '').replace(/"/g, '&quot;')}".
+                    </div>
+                    <iframe src="${driveFolderEmbedUrl}" style="width:100%; height:100%; border:none; flex:1;" allow="autoplay"></iframe>
+                </div>
+            `;
+            reportProgress(30);
+        }
     } else if (ext === 'mp4' || ext === 'webm' || ext === 'ogg' || mat.format_name === 'Video Content' || (isDataUrl && mat.file_url.includes('video'))) {
         wrapper.innerHTML = `<video controls style="width: 100%; height: 100%; max-height: 100%;"><source src="${mat.file_url}">Your browser does not support the video tag.</video>`;
         const videoEl = wrapper.querySelector('video');
@@ -243,16 +286,11 @@ export function init(navigateTo, state) {
             }
         }
 
-        const isNativeAndroid = !!(window.Capacitor || window.cordova || navigator.userAgent.includes('wv') || /Android/i.test(navigator.userAgent));
         const openPdfInBrowser = () => {
             // blob: URLs only exist in this page's memory — an external browser/tab
             // can't resolve them, so fall back to the original self-contained data: URL.
             const targetUrl = isDataUrl ? mat.file_url : (pdfUrl || mat.file_url);
-            if (window.Capacitor?.Plugins?.Browser?.open) {
-                window.Capacitor.Plugins.Browser.open({ url: targetUrl });
-            } else {
-                window.open(targetUrl, '_blank', 'noopener,noreferrer');
-            }
+            openExternalLink(targetUrl);
             reportProgress(100);
         };
 
