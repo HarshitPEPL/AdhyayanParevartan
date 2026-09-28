@@ -448,9 +448,11 @@ function setupMaterialsCRUD() {
 // values used by the "Publish New Material" form's dropdown (1/2/3).
 function resolveFormatId(formatText) {
     const normalized = (formatText || '').toString().trim().toLowerCase();
-    if (normalized.includes('audio')) return 2;
-    if (normalized.includes('video')) return 3;
-    return 1; // Default to E-Book
+    if (!normalized) return null; // caller decides how to handle a missing/unrecognized column
+    if (normalized.includes('audio') || normalized.includes('mp3') || normalized.includes('podcast')) return 2;
+    if (normalized.includes('video') || normalized.includes('mp4') || normalized.includes('youtube')) return 3;
+    if (normalized.includes('book') || normalized.includes('pdf') || normalized.includes('ebook') || normalized.includes('e-book') || normalized.includes('text') || normalized.includes('note')) return 1;
+    return 1; // Unrecognized value text — fall back to E-Book
 }
 
 // Extracts a Google Drive file ID from any common share-link format and
@@ -575,7 +577,8 @@ function setupBulkMaterialUpload() {
                 const title = pick(row, 'title', 'materialtitle', 'booktitle', 'name').toString().trim();
                 const classNumber = parseInt(pick(row, 'class', 'classnumber', 'grade', 'std', 'standard'), 10);
                 const subjectName = pick(row, 'subject', 'subjectname').toString().trim();
-                const formatId = resolveFormatId(pick(row, 'format', 'type'));
+                const formatText = pick(row, 'format', 'type', 'booktype', 'contenttype', 'materialtype', 'mediatype', 'contentformat', 'category');
+                const formatId = resolveFormatId(formatText) ?? 1; // No recognizable format column — default to E-Book
                 const instructor = pick(row, 'instructor', 'teacher', 'author').toString().trim();
                 const duration = pick(row, 'duration', 'pages', 'length').toString().trim();
                 const chapterNumberRaw = pick(row, 'chapter', 'chapternumber', 'chapterno');
@@ -840,7 +843,8 @@ function setupCompetitiveExamBulkUpload() {
                 const rowNum = i + 2;
                 const examName = pick(row, 'examname', 'competitiveexam', 'exam').toString().trim();
                 const title = pick(row, 'title', 'materialtitle', 'name').toString().trim();
-                const formatId = resolveFormatId(pick(row, 'format', 'type'));
+                const formatText = pick(row, 'format', 'type', 'booktype', 'contenttype', 'materialtype', 'mediatype', 'contentformat', 'category');
+                const formatId = resolveFormatId(formatText) ?? 1; // No recognizable format column — default to E-Book
                 const instructor = pick(row, 'instructor', 'teacher', 'author').toString().trim();
                 const duration = pick(row, 'duration', 'pages', 'length').toString().trim();
                 const chapterNumberRaw = pick(row, 'part', 'chapter', 'chapternumber', 'chapterno');
