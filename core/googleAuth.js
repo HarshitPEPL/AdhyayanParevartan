@@ -13,7 +13,14 @@ const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const CLIENT_ID_KEY = 'adhyayan_google_client_id';
 const DEFAULT_CLIENT_ID = '193244009678-7l08mh25ro83e3s94lp3nj8s77piv0ig.apps.googleusercontent.com';
 
+// Capacitor's native WebView serves the app from "https://localhost" by
+// default, which would otherwise be misidentified as a local dev server below.
+function isNativePlatform() {
+    return !!(window.Capacitor?.isNativePlatform?.());
+}
+
 function isLocalDevelopmentOrigin() {
+    if (isNativePlatform()) return false;
     const host = (window.location?.hostname || '').toLowerCase();
     return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.');
 }
@@ -84,6 +91,31 @@ function loadGoogleIdentityServices() {
     return gisLoadPromise;
 }
 
+let socialLoginInitPromise = null;
+
+// Google blocks its OAuth popup inside embedded WebViews (same restriction
+// that broke Drive file previews), so native Android must use the real
+// Android Google account picker (Credential Manager) instead of GIS.
+async function signInWithGoogleNative() {
+    const { SocialLogin } = await import('@capgo/capacitor-social-login');
+    const clientId = getGoogleClientId();
+    if (!socialLoginInitPromise) {
+        socialLoginInitPromise = SocialLogin.initialize({ google: { webClientId: clientId } });
+    }
+    await socialLoginInitPromise;
+
+    const res = await SocialLogin.login({ provider: 'google', options: { scopes: ['email', 'profile'] } });
+    const profile = res.result?.profile;
+    if (!profile?.email) throw new Error('No email returned by Google.');
+
+    return {
+        name: profile.name || profile.givenName || 'Google User',
+        email: profile.email,
+        sub: profile.id,
+        picture: profile.imageUrl || null
+    };
+}
+
 // Opens the real Google account picker/consent popup (must be called from a
 // user-gesture handler, e.g. a button click) and returns the signed-in
 // user's actual Google profile: { name, email, sub, picture }.
@@ -94,6 +126,10 @@ export async function signInWithGoogle() {
             throw new Error('Google Sign-In is unavailable on localhost. Add your OAuth Client ID in the admin Google setup panel or run the app on the production domain.');
         }
         throw new Error('Google Sign-In is not configured. Add your OAuth Client ID via the Google icon on the login screen.');
+    }
+
+    if (isNativePlatform()) {
+        return signInWithGoogleNative();
     }
 
     const google = await loadGoogleIdentityServices();

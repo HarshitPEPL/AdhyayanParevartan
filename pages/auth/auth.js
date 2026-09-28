@@ -177,10 +177,13 @@ export function init(navigateTo, state) {
             navigateTo('home', { replace: true });
         } catch (err) {
             console.error("Google sign-in failed:", err);
+            const errText = String(err?.message || '').toLowerCase();
             if (err?.message === 'popup_closed') {
                 // user cancelled the popup; no urgent message needed
-            } else if (String(err?.message || '').toLowerCase().includes('origin_mismatch') || String(err?.message || '').toLowerCase().includes('origin mismatch')) {
+            } else if (errText.includes('origin_mismatch') || errText.includes('origin mismatch')) {
                 alert(`Google sign-in is blocked for this origin: ${window.location.origin}.\n\nAdd this exact URL in Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client ID > Authorized JavaScript origins, then try again.`);
+            } else if (errText.includes('28444') || errText.includes('developer console is not set up correctly')) {
+                alert("Google Sign-In isn't fully set up for the Android app yet.\n\nAn Android OAuth Client ID (package name + SHA-1 fingerprint) needs to be registered in Google Cloud Console before native sign-in will work.");
             } else {
                 alert("Google sign-in failed. Please try again.");
             }
