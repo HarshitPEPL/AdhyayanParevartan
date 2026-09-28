@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Signing in…</title>
+</head>
+<body>
+    <p>Redirecting back to the app…</p>
+    <script>
+        // Google's OAuth redirect (implicit flow) lands here with the token in
+        // the URL fragment; bounce it into the native app via its custom URI
+        // scheme so the Capacitor app can pick it up via appUrlOpen.
+        window.location.replace('com.adhyayank12.app://oauth2redirect' + window.location.hash);
+    </script>
+</body>
+</html>

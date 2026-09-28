@@ -1,15 +1,5 @@
 {
   "appId": "com.adhyayank12.app",
   "appName": "Adhyayan",
-  "webDir": "dist",
-  "plugins": {
-    "SocialLogin": {
-      "providers": {
-        "google": true,
-        "facebook": false,
-        "apple": false,
-        "twitter": false
-      }
-    }
-  }
+  "webDir": "dist"
 }

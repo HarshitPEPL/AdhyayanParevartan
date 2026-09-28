@@ -91,29 +91,77 @@ function loadGoogleIdentityServices() {
     return gisLoadPromise;
 }
 
-let socialLoginInitPromise = null;
+// Static bounce page (deployed at the site root) that immediately forwards
+// Google's redirect into the app via its custom URI scheme — this lets native
+// Android reuse the SAME Web OAuth Client ID, no separate Android OAuth
+// client/SHA-1 registration required.
+const NATIVE_OAUTH_REDIRECT_URI = 'https://parevartanadhayayan.in/oauth2redirect.html';
+const NATIVE_OAUTH_CUSTOM_SCHEME = 'com.adhyayank12.app://oauth2redirect';
 
 // Google blocks its OAuth popup inside embedded WebViews (same restriction
-// that broke Drive file previews), so native Android must use the real
-// Android Google account picker (Credential Manager) instead of GIS.
+// that broke Drive file previews), so native Android opens the auth URL in a
+// Custom Tab (real browser context, not a WebView) instead of using GIS.
 async function signInWithGoogleNative() {
-    const { SocialLogin } = await import('@capgo/capacitor-social-login');
+    const [{ Browser }, { App: CapacitorApp }] = await Promise.all([
+        import('@capacitor/browser'),
+        import('@capacitor/app')
+    ]);
+
     const clientId = getGoogleClientId();
-    if (!socialLoginInitPromise) {
-        socialLoginInitPromise = SocialLogin.initialize({ google: { webClientId: clientId } });
-    }
-    await socialLoginInitPromise;
+    const state = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    const res = await SocialLogin.login({ provider: 'google', options: { scopes: ['email', 'profile'] } });
-    const profile = res.result?.profile;
-    if (!profile?.email) throw new Error('No email returned by Google.');
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', NATIVE_OAUTH_REDIRECT_URI);
+    authUrl.searchParams.set('response_type', 'token');
+    authUrl.searchParams.set('scope', 'openid email profile');
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('prompt', 'select_account');
 
-    return {
-        name: profile.name || profile.givenName || 'Google User',
-        email: profile.email,
-        sub: profile.id,
-        picture: profile.imageUrl || null
-    };
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const handles = [];
+
+        const finish = (err, profile) => {
+            if (settled) return;
+            settled = true;
+            handles.forEach((h) => h?.remove());
+            Browser.close().catch(() => { /* already closed */ });
+            err ? reject(err) : resolve(profile);
+        };
+
+        CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+            if (!url?.startsWith(NATIVE_OAUTH_CUSTOM_SCHEME)) return;
+            try {
+                const params = new URLSearchParams(url.split('#')[1] || '');
+                if (params.get('error')) {
+                    throw new Error(params.get('error') === 'access_denied' ? 'popup_closed' : params.get('error'));
+                }
+                if (params.get('state') !== state) {
+                    throw new Error('Google sign-in state mismatch.');
+                }
+                const accessToken = params.get('access_token');
+                if (!accessToken) throw new Error('No access token returned by Google.');
+
+                const res = await fetch(USERINFO_ENDPOINT, { headers: { Authorization: `Bearer ${accessToken}` } });
+                if (!res.ok) throw new Error('Failed to fetch Google profile.');
+                const profile = await res.json();
+                finish(null, {
+                    name: profile.name || profile.given_name || 'Google User',
+                    email: profile.email,
+                    sub: profile.sub,
+                    picture: profile.picture || null
+                });
+            } catch (err) {
+                finish(err);
+            }
+        }).then((h) => handles.push(h));
+
+        // The user closing the Custom Tab without completing sign-in also counts as cancellation.
+        Browser.addListener('browserFinished', () => finish(new Error('popup_closed'))).then((h) => handles.push(h));
+
+        Browser.open({ url: authUrl.toString() }).catch((err) => finish(err));
+    });
 }
 
 // Opens the real Google account picker/consent popup (must be called from a

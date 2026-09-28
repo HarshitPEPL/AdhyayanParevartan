@@ -22,6 +22,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Catches the Google OAuth redirect bounced from oauth2redirect.html -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.adhyayank12.app" android:host="oauth2redirect" />
+            </intent-filter>
+
         </activity>
 
         <provider
