@@ -1875,3 +1875,714 @@ body.native-app #bottom-nav {
     color: #D32F2F;
 }
 
+/* ============================================================================
+   COMPREHENSIVE RESPONSIVE DESIGN FOR MOBILE TO 110" SCREENS (320px - 5120px+)
+   ============================================================================ */
+
+/* Extra Small Devices: 320px - 480px (small phones)
+   - Minimal padding and margins
+   - Stack everything vertically
+   - Larger touch targets (44px minimum) */
+@media (max-width: 480px) {
+    .screen {
+        padding: 12px;
+    }
+
+    .lesson-reader-shell,
+    .lesson-back-btn,
+    .btn,
+    button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    h1, h2 {
+        font-size: 18px;
+    }
+
+    h3 {
+        font-size: 16px;
+    }
+
+    .media-player {
+        min-height: 200px;
+        aspect-ratio: 16/9;
+    }
+
+    .quiz-center-header h2 {
+        font-size: 18px;
+    }
+
+    .data-table {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .data-table .col {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .data-table .col:last-child {
+        border-bottom: none;
+    }
+}
+
+/* Small Devices: 480px - 768px (tablets, large phones)
+   - Moderate padding
+   - Can start using 2-column grids
+   - Better typography sizing */
+@media (min-width: 481px) and (max-width: 768px) {
+    .screen {
+        padding: 16px;
+    }
+
+    .lesson-reader-shell {
+        max-width: 100%;
+    }
+
+    .media-player {
+        min-height: 250px;
+    }
+
+    .quiz-center-header h2 {
+        font-size: 20px;
+    }
+
+    .gamification-board {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .data-table {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .data-table .col {
+        flex: 0 0 calc(50% - 8px);
+    }
+
+    .question-frame {
+        font-size: 18px;
+        padding: 20px;
+    }
+}
+
+/* Medium Devices: 768px - 1024px (iPad, large tablets)
+   - Comfortable padding
+   - 2-column layouts start
+   - Better spacing between elements */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .screen {
+        padding: 24px;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+
+    #bottom-nav {
+        gap: 48px;
+    }
+
+    .nav-item {
+        min-width: 80px;
+        font-size: 14px;
+    }
+
+    .media-player {
+        min-height: 350px;
+        max-width: 100%;
+    }
+
+    .lesson-reader-shell {
+        max-width: 100%;
+    }
+
+    .quiz-center-header h2 {
+        font-size: 24px;
+    }
+
+    .gamification-board {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .data-table {
+        flex-direction: row;
+    }
+
+    .data-table .col {
+        flex: 1;
+    }
+
+    .question-frame {
+        font-size: 20px;
+    }
+}
+
+/* Large Devices: 1024px - 1440px (desktop, laptop)
+   - Generous padding and spacing
+   - Multi-column layouts
+   - Larger font sizes */
+@media (min-width: 1025px) and (max-width: 1440px) {
+    #desktop-wrapper {
+        display: flex;
+        max-width: 100%;
+    }
+
+    .screen {
+        padding: 32px;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+
+    #bottom-nav {
+        gap: 64px;
+        padding: 16px 32px;
+    }
+
+    .nav-item {
+        min-width: 100px;
+        font-size: 15px;
+    }
+
+    .media-player {
+        min-height: 400px;
+        max-width: 100%;
+    }
+
+    .lesson-reader-shell {
+        max-width: 100%;
+    }
+
+    .quiz-center-header h2 {
+        font-size: 28px;
+    }
+
+    .gamification-board {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .question-frame {
+        font-size: 22px;
+        padding: 28px;
+    }
+
+    .data-table {
+        flex-direction: row;
+        gap: 16px;
+    }
+
+    .data-table .col {
+        flex: 1;
+    }
+
+    .courses-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+}
+
+/* Extra Large Devices: 1440px - 1920px (large desktop, TV)
+   - Maximum content width constraints
+   - Very spacious layouts
+   - Larger media player */
+@media (min-width: 1441px) and (max-width: 1920px) {
+    #desktop-wrapper {
+        display: flex;
+        max-width: 100%;
+    }
+
+    .screen {
+        padding: 40px;
+        max-width: 100%;
+    }
+
+    #bottom-nav {
+        gap: 80px;
+        padding: 20px 40px;
+    }
+
+    .nav-item {
+        min-width: 110px;
+        font-size: 16px;
+    }
+
+    .media-player {
+        min-height: 480px;
+        max-width: 100%;
+    }
+
+    .lesson-reader-shell {
+        max-width: 100%;
+    }
+
+    .quiz-center-header h2 {
+        font-size: 32px;
+    }
+
+    .gamification-board {
+        grid-template-columns: repeat(6, 1fr);
+    }
+
+    .question-frame {
+        font-size: 24px;
+        padding: 32px;
+        max-width: 90%;
+        margin: 0 auto 32px;
+    }
+
+    .courses-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 32px;
+    }
+}
+
+/* Ultra Large Devices: 1920px - 2560px (4K monitors, large TVs)
+   - Content width constraints to prevent excessive line lengths
+   - Significant padding and spacing
+   - Extra large touch targets */
+@media (min-width: 1921px) and (max-width: 2560px) {
+    #desktop-wrapper {
+        display: flex;
+        max-width: 100%;
+    }
+
+    #app-container {
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    .screen {
+        padding: 48px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    #bottom-nav {
+        gap: 96px;
+        padding: 24px 48px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    .nav-item {
+        min-width: 120px;
+        font-size: 17px;
+    }
+
+    .media-player {
+        min-height: 600px;
+        max-width: 100%;
+    }
+
+    .lesson-reader-shell {
+        max-width: 100%;
+    }
+
+    h1, h2 {
+        font-size: 40px;
+    }
+
+    h3 {
+        font-size: 28px;
+    }
+
+    .quiz-center-header h2 {
+        font-size: 36px;
+    }
+
+    .question-frame {
+        font-size: 26px;
+        padding: 40px;
+        max-width: 80%;
+        margin: 0 auto 40px;
+    }
+
+    .courses-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 40px;
+    }
+
+    .btn, button {
+        font-size: 18px;
+        padding: 16px 32px;
+        min-height: 56px;
+    }
+}
+
+/* Massive Screens: 2560px and above (8K monitors, projection displays, 110" screens)
+   - Constrained content width to maintain readability
+   - Maximum padding and spacing
+   - Extremely large media players */
+@media (min-width: 2561px) {
+    #desktop-wrapper {
+        display: flex;
+        justify-content: center;
+        max-width: 100%;
+    }
+
+    #app-container {
+        max-width: 1800px;
+        width: 100%;
+    }
+
+    .screen {
+        padding: 56px;
+        max-width: 1800px;
+        margin: 0 auto;
+    }
+
+    #bottom-nav {
+        gap: 120px;
+        padding: 28px 56px;
+        max-width: 1800px;
+        margin: 0 auto;
+        justify-content: center;
+    }
+
+    .nav-item {
+        min-width: 140px;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .media-player {
+        min-height: 700px;
+        aspect-ratio: 16/9;
+        max-width: 100%;
+    }
+
+    .lesson-reader-shell {
+        max-width: 100%;
+    }
+
+    .lesson-reader-header {
+        font-size: 32px;
+        margin-bottom: 24px;
+    }
+
+    .lesson-brand {
+        font-size: 28px;
+    }
+
+    .lesson-reader-meta {
+        font-size: 20px;
+    }
+
+    h1 {
+        font-size: 48px;
+        line-height: 1.2;
+    }
+
+    h2 {
+        font-size: 44px;
+        line-height: 1.2;
+    }
+
+    h3 {
+        font-size: 32px;
+    }
+
+    .quiz-center-header h2 {
+        font-size: 40px;
+    }
+
+    .quiz-center-header .heading-label {
+        font-size: 14px;
+    }
+
+    .question-frame {
+        font-size: 28px;
+        padding: 48px;
+        max-width: 75%;
+        margin: 0 auto 48px;
+        line-height: 1.6;
+    }
+
+    .options-matrix {
+        gap: 24px;
+    }
+
+    .option-row {
+        padding: 20px 24px;
+        font-size: 20px;
+        min-height: 72px;
+        border-radius: 20px;
+    }
+
+    .stopwatch, .counter {
+        font-size: 18px;
+    }
+
+    .courses-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 48px;
+    }
+
+    .btn, button {
+        font-size: 20px;
+        padding: 20px 40px;
+        min-height: 64px;
+        border-radius: 16px;
+    }
+
+    .data-table {
+        flex-direction: row;
+        gap: 20px;
+        padding: 24px;
+    }
+
+    .data-table .col {
+        flex: 1;
+    }
+
+    .data-table .label {
+        font-size: 14px;
+    }
+
+    .data-table .val {
+        font-size: 18px;
+    }
+
+    .pref-row {
+        padding: 28px 0;
+        font-size: 18px;
+    }
+
+    .pref-row .pref-icon {
+        font-size: 24px;
+        width: 32px;
+    }
+
+    .gamification-board {
+        grid-template-columns: repeat(4, 1fr);
+        padding: 28px 0;
+    }
+
+    .metric-val {
+        font-size: 28px;
+    }
+
+    .metric-label {
+        font-size: 12px;
+    }
+}
+
+/* ============================================================================
+   FULLSCREEN MODE ENHANCEMENTS
+   ============================================================================ */
+.fullscreen-exit-btn,
+.lesson-back-overlay-btn {
+    position: fixed;
+    top: 20px;
+    z-index: 10001;
+    width: 50px;
+    height: 50px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.fullscreen-exit-btn {
+    right: 20px;
+}
+
+/* Overlay back button sits top-left of the reader, works in both fullscreen and normal view */
+.lesson-back-overlay-btn {
+    left: 20px;
+    top: 76px;
+}
+
+.fullscreen-exit-btn:hover,
+.fullscreen-exit-btn:focus,
+.lesson-back-overlay-btn:hover,
+.lesson-back-overlay-btn:focus {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+@media (min-width: 1441px) {
+    .fullscreen-exit-btn,
+    .lesson-back-overlay-btn {
+        width: 64px;
+        height: 64px;
+        font-size: 32px;
+        top: 32px;
+    }
+
+    .fullscreen-exit-btn {
+        right: 32px;
+    }
+
+    .lesson-back-overlay-btn {
+        left: 32px;
+        top: 96px;
+    }
+}
+
+@media (min-width: 2561px) {
+    .fullscreen-exit-btn,
+    .lesson-back-overlay-btn {
+        width: 80px;
+        height: 80px;
+        font-size: 40px;
+        top: 40px;
+    }
+
+    .fullscreen-exit-btn {
+        right: 40px;
+    }
+
+    .lesson-back-overlay-btn {
+        left: 40px;
+        top: 120px;
+    }
+}
+
+/* Once moved inside #lesson-viewer-container for fullscreen, anchor the
+   overlay buttons to that element (which fills the viewport while fullscreen)
+   instead of relying on `fixed` positioning escaping a transformed ancestor. */
+#lesson-viewer-container:fullscreen .fullscreen-exit-btn,
+#lesson-viewer-container:-webkit-full-screen .fullscreen-exit-btn,
+#lesson-viewer-container:fullscreen .lesson-back-overlay-btn,
+#lesson-viewer-container:-webkit-full-screen .lesson-back-overlay-btn {
+    position: absolute;
+}
+
+/* Fullscreen element styles */
+*:fullscreen {
+    background-color: #000;
+}
+
+/* Safari fullscreen */
+*:-webkit-full-screen {
+    background-color: #000;
+}
+
+/* ============================================================================
+   TOUCH TARGET ENHANCEMENTS (44px minimum for accessibility)
+   ============================================================================ */
+button,
+.btn,
+.nav-item,
+.option-row,
+a {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Increase touch target on large screens */
+@media (min-width: 1441px) {
+    button,
+    .btn,
+    .nav-item,
+    .option-row,
+    a {
+        min-height: 56px;
+        min-width: 56px;
+    }
+}
+
+@media (min-width: 2561px) {
+    button,
+    .btn,
+    .nav-item,
+    .option-row,
+    a {
+        min-height: 64px;
+        min-width: 64px;
+    }
+}
+
+/* ============================================================================
+   CONTENT WIDTH CONSTRAINTS FOR ULTRA LARGE DISPLAYS
+   ============================================================================ */
+@media (min-width: 1440px) {
+    .lesson-reader-shell {
+        width: 100%;
+    }
+
+    .metadata-registry {
+        width: 100%;
+    }
+
+    .asset-management {
+        width: 100%;
+    }
+}
+
+/* ============================================================================
+   MINOR UI IMPROVEMENTS
+   ============================================================================ */
+
+/* Better spacing for modals and overlays */
+.modal {
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+@media (min-width: 768px) {
+    .modal {
+        max-width: 600px;
+    }
+}
+
+@media (min-width: 1440px) {
+    .modal {
+        max-width: 800px;
+    }
+}
+
+@media (min-width: 2561px) {
+    .modal {
+        max-width: 1000px;
+    }
+}
+
+/* Better bottom nav positioning on all screens */
+#bottom-nav {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    background-color: var(--background);
+    border-top: 1px solid var(--border-color);
+}
+
+/* Sticky lesson back button for accessibility */
+.lesson-back-btn {
+    position: sticky;
+    bottom: 20px;
+    width: 100%;
+    z-index: 100;
+}
+
+/* Better video scaling for all aspect ratios */
+.media-player iframe,
+.media-player video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Improved spinner/loader visibility */
+.loader, .spinner {
+    position: relative;
+    z-index: 999;
+}
+

@@ -123,6 +123,8 @@ export async function initDB() {
                 state.db.run('ALTER TABLE users ADD COLUMN is_approved INTEGER DEFAULT 0;');
             } catch (_) { /* column exists */ }
             ensureSchema(state.db);
+            // Ensure test users exist even when restoring from saved database
+            seedData();
             saveDatabase();
             return true;
         } catch (e) {
@@ -199,16 +201,17 @@ function seedData() {
     const safeRun = (sql, params) => {
         try { state.db.run(sql, params); } catch (_) {}
     };
-    safeRun("INSERT INTO roles (role_name) VALUES ('Admin')");
-    safeRun("INSERT INTO roles (role_name) VALUES ('Teacher')");
-    safeRun("INSERT INTO roles (role_name) VALUES ('Student')");
-    safeRun("INSERT INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Rahul Kumar', 'rahul@example.com', 'password123', 9, 'CBSE', 12, 2340, 1)");
-    safeRun("UPDATE users SET password_hash = 'password123', role_id = 3, class_number = 9, board = 'CBSE', is_approved = 1 WHERE email = 'rahul@example.com'");
-    safeRun("INSERT INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Rahul', 'rahul@parevartan.com', 'Testing', 4, 'CBSE', 0, 0, 1)");
-    safeRun("INSERT INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Google Reviewer', 'google.reviewer@parevartan.com', 'TestReview@2024', 9, 'CBSE', 0, 0, 1)");
-    safeRun("INSERT INTO content_formats (format_name) VALUES ('E-Book')");
-    safeRun("INSERT INTO content_formats (format_name) VALUES ('Audio Book')");
-    safeRun("INSERT INTO content_formats (format_name) VALUES ('Video Content')");
+    // Insert or ignore roles to avoid duplicate errors
+    safeRun("INSERT OR IGNORE INTO roles (role_name) VALUES ('Admin')");
+    safeRun("INSERT OR IGNORE INTO roles (role_name) VALUES ('Teacher')");
+    safeRun("INSERT OR IGNORE INTO roles (role_name) VALUES ('Student')");
+    // Ensure test users exist with INSERT OR REPLACE to avoid duplicates
+    safeRun("INSERT OR REPLACE INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Rahul Kumar', 'rahul@example.com', 'password123', 9, 'CBSE', 12, 2340, 1)");
+    safeRun("INSERT OR REPLACE INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Rahul', 'rahul@parevartan.com', 'Testing', 4, 'CBSE', 0, 0, 1)");
+    safeRun("INSERT OR REPLACE INTO users (role_id, full_name, email, password_hash, class_number, board, streak_days, xp_points, is_approved) VALUES (3, 'Google Reviewer', 'google.reviewer@parevartan.com', 'TestReview@2024', 9, 'CBSE', 0, 0, 1)");
+    safeRun("INSERT OR IGNORE INTO content_formats (format_name) VALUES ('E-Book')");
+    safeRun("INSERT OR IGNORE INTO content_formats (format_name) VALUES ('Audio Book')");
+    safeRun("INSERT OR IGNORE INTO content_formats (format_name) VALUES ('Video Content')");
 
     const subjects = [
         [1,'Mathematics'],[1,'English'],[1,'Hindi'],[1,'EVS'],[2,'Mathematics'],[2,'English'],[2,'Hindi'],[2,'EVS'],
@@ -218,7 +221,8 @@ function seedData() {
         [9,'Mathematics'],[9,'Science'],[9,'English'],[9,'Social Studies'],[9,'Hindi'],[10,'Mathematics'],[10,'Science'],[10,'English'],[10,'Social Studies'],[10,'Hindi'],
         [11,'Mathematics'],[11,'Physics'],[11,'Chemistry'],[11,'Biology'],[11,'English'],[12,'Mathematics'],[12,'Physics'],[12,'Chemistry'],[12,'Biology'],[12,'English']
     ];
-    subjects.forEach(([cls, sub]) => safeRun('INSERT INTO subjects (subject_name, class_number) VALUES (?,?)', [sub, cls]));
+    // Use INSERT OR IGNORE to avoid duplicate subject errors
+    subjects.forEach(([cls, sub]) => safeRun('INSERT OR IGNORE INTO subjects (subject_name, class_number) VALUES (?,?)', [sub, cls]));
 
     // Sample materials
     try {
@@ -303,6 +307,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             navigateTo('lesson');
         });
     });
+
+    // Capacitor Back Button Handler - Prevent app exit on system back button
+    // Instead, navigate back through app history using the browser history stack
+    if (window.Capacitor) {
+        try {
+            const { App } = window.Capacitor.Plugins;
+            App.addListener('backButton', () => {
+                // Check if we can go back in browser history
+                // If history.back() doesn't work, user is at the first page and will exit app
+                // This is the default behavior we want
+                history.back();
+            });
+        } catch (err) {
+            console.warn('Failed to set up Capacitor back button handler:', err);
+        }
+    }
 
     // Start app
     navigateTo('splash', { replace: true });

@@ -124,6 +124,30 @@ export function init(navigateTo, state) {
         backButton.addEventListener('click', () => navigateTo(backRoute));
     }
 
+    // Top-left overlay back button: exits fullscreen first (if active) so the
+    // user always lands back in the normal view before navigating away.
+    const backOverlayBtn = document.getElementById('lesson-back-overlay-btn');
+    if (backOverlayBtn) {
+        const goBack = async () => {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                try {
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+                } catch (err) {
+                    console.error('Exit fullscreen failed:', err);
+                }
+            }
+            navigateTo(backRoute);
+        };
+        backOverlayBtn.addEventListener('click', goBack);
+        backOverlayBtn.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                goBack();
+            }
+        });
+    }
+
     const viewerContainer = document.getElementById('lesson-viewer-container');
     const ext = mat.file_url.split('.').pop().toLowerCase();
     const isDataUrl = mat.file_url.startsWith('data:');
@@ -238,6 +262,15 @@ export function init(navigateTo, state) {
     viewerContainer.appendChild(wrapper);
 
     const fullScreenToggle = document.getElementById('lesson-fullscreen-toggle');
+    const fullscreenExitBtn = document.getElementById('lesson-fullscreen-exit-btn');
+
+    // Elements outside the fullscreen element's subtree aren't painted while
+    // it's active, so the overlay buttons must move inside it to stay visible.
+    // Remember their original spot to restore it once fullscreen exits.
+    const overlayHomes = [backOverlayBtn, fullscreenExitBtn]
+        .filter(Boolean)
+        .map((el) => ({ el, parent: el.parentNode, next: el.nextSibling }));
+
     if (fullScreenToggle) {
         const toggleFullscreen = async () => {
             const container = document.getElementById('lesson-viewer-container');
@@ -260,6 +293,30 @@ export function init(navigateTo, state) {
             }
         };
 
+        // Handle fullscreenchange event to show/hide exit button
+        const handleFullscreenChange = () => {
+            const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement;
+            if (fullscreenEl) {
+                // Entered fullscreen: move overlay buttons inside so they render on top.
+                overlayHomes.forEach(({ el }) => fullscreenEl.appendChild(el));
+                if (fullscreenExitBtn) {
+                    fullscreenExitBtn.style.display = 'flex';
+                    fullscreenExitBtn.setAttribute('aria-hidden', 'false');
+                }
+            } else {
+                // Exited fullscreen: restore overlay buttons to their original spot.
+                overlayHomes.forEach(({ el, parent, next }) => parent.insertBefore(el, next));
+                if (fullscreenExitBtn) {
+                    fullscreenExitBtn.style.display = 'none';
+                    fullscreenExitBtn.setAttribute('aria-hidden', 'true');
+                }
+            }
+        };
+
+        // Listen for fullscreen changes
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
         fullScreenToggle.addEventListener('click', toggleFullscreen);
         fullScreenToggle.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
@@ -268,6 +325,29 @@ export function init(navigateTo, state) {
             }
         });
     }
+
+    // Exit fullscreen button handler
+    if (fullscreenExitBtn) {
+        fullscreenExitBtn.addEventListener('click', async () => {
+            try {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    await document.webkitExitFullscreen();
+                }
+            } catch (err) {
+                console.error('Exit fullscreen failed:', err);
+            }
+        });
+
+        fullscreenExitBtn.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                fullscreenExitBtn.click();
+            }
+        });
+    }
+
 
     const downloadBtn = document.getElementById('lesson-download-btn');
     if (downloadBtn) {
