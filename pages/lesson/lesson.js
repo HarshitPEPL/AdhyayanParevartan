@@ -94,6 +94,15 @@ function getGoogleDriveEmbedUrl(url) {
     return idMatch ? `https://drive.google.com/file/d/${idMatch[1]}/preview` : null;
 }
 
+// Some materials were seeded with a link to a whole Drive *folder* instead of
+// the individual file — there's no single document to preview in that case,
+// so fall back to an embeddable folder listing instead of showing nothing.
+function getGoogleDriveFolderEmbedUrl(url) {
+    if (!url || !url.includes('drive.google.com')) return null;
+    const folderMatch = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    return folderMatch ? `https://drive.google.com/embeddedfolderview?id=${folderMatch[1]}#list` : null;
+}
+
 function getSafePdfUrl(fileUrl) {
     if (!fileUrl) return '';
     if (fileUrl.includes('drive.google.com')) {
@@ -153,6 +162,7 @@ export function init(navigateTo, state) {
     const isDataUrl = mat.file_url.startsWith('data:');
     const youTubeVideoId = getYouTubeVideoId(mat.file_url);
     const driveEmbedUrl = getGoogleDriveEmbedUrl(mat.file_url);
+    const driveFolderEmbedUrl = getGoogleDriveFolderEmbedUrl(mat.file_url);
 
     const userId = state.currentUser?.user_id;
     function reportProgress(percent) {
@@ -172,6 +182,19 @@ export function init(navigateTo, state) {
         wrapper.innerHTML = `<iframe src="${driveEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         // No reliable playback-progress API for cross-origin embeds, so just mark it viewed.
         reportProgress(100);
+    } else if (driveFolderEmbedUrl) {
+        // This material was linked to an entire Drive folder rather than a
+        // specific file — there's nothing to render directly, so show the
+        // folder contents so the user can find/open the right file themselves.
+        wrapper.innerHTML = `
+            <div style="display:flex; flex-direction:column; width:100%; height:100%;">
+                <div style="background:#fef3c7; color:#92400e; font-size:0.8rem; font-weight:600; padding:10px 14px; text-align:center;">
+                    This material links to a folder, not a single file. Browse below to find "${(mat.title || '').replace(/"/g, '&quot;')}".
+                </div>
+                <iframe src="${driveFolderEmbedUrl}" style="width:100%; height:100%; border:none; flex:1;" allow="autoplay"></iframe>
+            </div>
+        `;
+        reportProgress(30);
     } else if (ext === 'mp4' || ext === 'webm' || ext === 'ogg' || mat.format_name === 'Video Content' || (isDataUrl && mat.file_url.includes('video'))) {
         wrapper.innerHTML = `<video controls style="width: 100%; height: 100%; max-height: 100%;"><source src="${mat.file_url}">Your browser does not support the video tag.</video>`;
         const videoEl = wrapper.querySelector('video');
@@ -266,7 +289,15 @@ export function init(navigateTo, state) {
             reportProgress(40);
         }
     } else {
-        wrapper.innerHTML = `<div style="text-align:center; color: #fff;"><i class="fa-solid fa-file" style="font-size: 3rem; margin-bottom: 10px;"></i><br>Preview not available for this format.</div>`;
+        // Placeholder/blank links ("Na", "N/A", "TBD", empty, or anything that
+        // isn't even a URL) mean no content was actually attached to this
+        // material — say so plainly instead of a generic "wrong format" message.
+        const looksLikeMissingLink = !mat.file_url
+            || /^(na|n\/a|tbd|pending|-)$/i.test(mat.file_url.trim())
+            || !/^(https?:|data:|\/)/i.test(mat.file_url.trim());
+        wrapper.innerHTML = looksLikeMissingLink
+            ? `<div style="text-align:center; color: #fff;"><i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; margin-bottom: 10px; color:#fbbf24;"></i><br>This material has no content link yet.<br><span style="font-size:0.8rem; opacity:0.75;">Please check back later or contact your teacher.</span></div>`
+            : `<div style="text-align:center; color: #fff;"><i class="fa-solid fa-file" style="font-size: 3rem; margin-bottom: 10px;"></i><br>Preview not available for this format.</div>`;
         reportProgress(100);
     }
     viewerContainer.appendChild(wrapper);
