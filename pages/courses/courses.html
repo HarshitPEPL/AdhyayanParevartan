@@ -1,40 +1,48 @@
 <div class="screen courses-screen has-bottom-nav">
 
-    <div class="library-header">
-        <div class="library-header-icon"><i class="fa-solid fa-graduation-cap"></i></div>
-        <div class="library-header-titles">
-            <h2>My Library</h2>
-            <div class="courses-class-label" id="courses-class-label">Loading your class...</div>
+    <!-- Frozen header: stays in place while only .courses-scroll-body below scrolls -->
+    <div class="courses-header-frozen">
+        <div class="library-header">
+            <div class="library-header-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+            <div class="library-header-titles">
+                <h2>My Library</h2>
+                <div class="courses-class-label" id="courses-class-label">Loading your class...</div>
+            </div>
+            <button type="button" class="library-header-filter-btn" id="courses-filter-icon" title="Filter">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
         </div>
-        <button type="button" class="library-header-filter-btn" id="courses-filter-icon" title="Filter">
-            <i class="fa-solid fa-sliders"></i>
-        </button>
+
+        <!-- Subject filter (dynamic) -->
+        <div class="subject-filter-row" id="subject-filter-slider">
+            <!-- Populated by courses.js -->
+            <div class="subject-pill active" data-subject="All">All Subjects</div>
+        </div>
+
+        <div class="library-search-row">
+            <div class="library-search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="courses-search-input" placeholder="Search courses..." aria-label="Search courses">
+            </div>
+            <button type="button" class="library-search-filter-btn" id="courses-search-filter-icon" title="Filter">
+                <i class="fa-solid fa-filter"></i>
+            </button>
+        </div>
+
+        <!-- Active content-type filter chip (set via the filter button) -->
+        <div class="active-filters-row hidden" id="active-filters-row"></div>
     </div>
 
-    <!-- Subject filter (dynamic) -->
-    <div class="subject-filter-row" id="subject-filter-slider">
-        <!-- Populated by courses.js -->
-        <div class="subject-pill active" data-subject="All">All Subjects</div>
-    </div>
-
-    <div class="library-search-row">
-        <div class="library-search-box">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="courses-search-input" placeholder="Search courses..." aria-label="Search courses">
+    <div class="courses-scroll-body" id="courses-scroll-body">
+        <div class="curriculum-list" id="student-materials-list">
+            <div class="loading-state">
+                <div class="loader-ring"></div>
+                <p>Loading your library...</p>
+            </div>
         </div>
-        <button type="button" class="library-search-filter-btn" id="courses-search-filter-icon" title="Filter">
-            <i class="fa-solid fa-filter"></i>
-        </button>
-    </div>
 
-    <!-- Active content-type filter chip (set via the filter button) -->
-    <div class="active-filters-row hidden" id="active-filters-row"></div>
-
-    <div class="curriculum-list" id="student-materials-list">
-        <div class="loading-state">
-            <div class="loader-ring"></div>
-            <p>Loading your library...</p>
-        </div>
+        <!-- Pagination (20 cards/page) - populated by courses.js -->
+        <div class="courses-pagination hidden" id="courses-pagination"></div>
     </div>
 
     <!-- Filter modal sheet (triggered by the sliders icon) -->

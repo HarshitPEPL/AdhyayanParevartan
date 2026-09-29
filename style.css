@@ -93,6 +93,12 @@ body.native-app #bottom-nav {
 /* Root View */
 #root-view {
     flex: 1;
+    /* Allows a page (e.g. courses.css's .courses-screen) to be capped to the
+       available height and own its own inner scroll region instead of always
+       growing with its content; pages that don't opt into this (no explicit
+       height set on their .screen) are unaffected and keep scrolling via
+       #app-container as before. */
+    min-height: 0;
     display: flex;
     flex-direction: column;
     position: relative;

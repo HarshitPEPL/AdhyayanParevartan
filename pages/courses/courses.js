@@ -39,11 +39,40 @@ const BANNER_PALETTE = [
     'linear-gradient(135deg, #FFE4C4 0%, #FDBA74 100%)',
 ];
 
+// Cards shown per pagination page.
+const PAGE_SIZE = 20;
+
 // Bumped every time init() runs, so an async fetch started by an earlier
 // (superseded) call to init() can detect it's stale and skip writing to the
 // DOM once a later call has already taken over - otherwise a slow/failed
 // request from a previous run can overwrite a newer, successful render.
 let coursesInitGeneration = 0;
+
+// Last known-good subjects/materials per class, kept at module scope so it
+// survives across remounts of this page (the module itself is only loaded
+// once by the router; init() just re-runs on it). This is what lets a
+// transient network blip - e.g. the very first fetch right after the app
+// boots, or a flaky mobile connection - fall back to what already loaded
+// successfully instead of showing a hard error every time the user tabs
+// away and back.
+const subjectsCache  = new Map(); // classNumber -> subjects[]
+const materialsCache = new Map(); // classNumber -> materials[]
+
+// Retries a request a couple of times (with a short delay) before giving up,
+// so a one-off blip on first load doesn't have to surface as a user-facing
+// error at all.
+async function withRetry(fn, attempts = 2, delayMs = 700) {
+    let lastErr;
+    for (let i = 0; i <= attempts; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastErr = err;
+            if (i < attempts) await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+    throw lastErr;
+}
 
 export async function init(navigateTo, state) {
     const myGeneration = ++coursesInitGeneration;
@@ -58,6 +87,8 @@ export async function init(navigateTo, state) {
     const activeFiltersRow = document.getElementById('active-filters-row');
     const searchInput   = document.getElementById('courses-search-input');
     const searchFilterIcon = document.getElementById('courses-search-filter-icon');
+    const paginationEl  = document.getElementById('courses-pagination');
+    const scrollBody     = document.getElementById('courses-scroll-body');
 
     // Progress lookup (material_id -> percent), populated once up front so
     // renderFiltered() can stay synchronous.
@@ -89,11 +120,30 @@ export async function init(navigateTo, state) {
     // Selections staged inside the modal until "Apply Filters" is pressed
     let pendingChapter = 'All';
     let pendingSubject = 'All';
+    // Declared here (rather than near its search-input listener below) because
+    // loadMaterials() -> renderFiltered() reads it and runs before this point
+    // in the function body; declaring it later left it in the temporal dead
+    // zone, throwing "Cannot access 'searchTerm' before initialization" and
+    // leaving the page stuck on "Loading your library..." forever.
+    let searchTerm = '';
+    let currentPage = 1;
 
     // --- Load subject filter pills (quick row + modal copy) ---
     try {
-        const subjects = await getSubjectsByClass(classNumber);
+        const subjects = await withRetry(() => getSubjectsByClass(classNumber));
         if (isStale()) return;
+        subjectsCache.set(classNumber, subjects);
+        renderSubjectPills(subjects);
+    } catch (err) {
+        if (isStale()) return;
+        console.error('Failed to load subjects for filter:', err);
+        // Fall back to whatever last loaded successfully for this class,
+        // rather than leaving the filter row empty on a transient failure.
+        const cached = subjectsCache.get(classNumber);
+        if (cached) renderSubjectPills(cached);
+    }
+
+    function renderSubjectPills(subjects) {
         const pillsHTML = [`<div class="subject-pill active" data-subject="All">All Subjects</div>`];
         subjects.forEach(s => {
             const icon = SUBJECT_ICONS[s.subject_name] || 'fa-book';
@@ -110,6 +160,7 @@ export async function init(navigateTo, state) {
                 pill.addEventListener('click', () => {
                     activeSubject = pendingSubject = pill.dataset.subject;
                     activeChapter = pendingChapter = 'All';
+                    currentPage = 1;
                     syncSubjectPills();
                     renderActiveFilterChip();
                     renderFiltered();
@@ -129,24 +180,44 @@ export async function init(navigateTo, state) {
                 });
             });
         }
-    } catch (err) {
-        if (isStale()) return;
-        console.error('Failed to load subjects for filter:', err);
     }
 
     // --- Load materials ---
-    try {
-        const fetchedMaterials = await getMaterialsByClass(classNumber);
-        if (isStale()) return;
-        materials = fetchedMaterials;
-        renderFiltered();
-    } catch (err) {
-        if (isStale()) return;
-        console.error('Error fetching materials:', err);
-        if (container) {
-            container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-wifi-slash"></i><p>Failed to load library. Check your connection.</p></div>`;
+    async function loadMaterials() {
+        try {
+            const fetchedMaterials = await withRetry(() => getMaterialsByClass(classNumber));
+            if (isStale()) return;
+            materials = fetchedMaterials;
+            materialsCache.set(classNumber, fetchedMaterials);
+            renderFiltered();
+        } catch (err) {
+            if (isStale()) return;
+            console.error('Error fetching materials:', err);
+            // A transient failure on remount shouldn't wipe out a library that
+            // already loaded successfully earlier in this session.
+            const cached = materialsCache.get(classNumber);
+            if (cached) {
+                materials = cached;
+                renderFiltered();
+                return;
+            }
+            if (container) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-wifi-slash"></i>
+                        <p>Failed to load library. Check your connection.</p>
+                        <button type="button" id="courses-retry-btn" class="course-card-btn" style="width:auto;padding:9px 24px;">Retry</button>
+                    </div>
+                `;
+                document.getElementById('courses-retry-btn')?.addEventListener('click', () => {
+                    if (isStale()) return;
+                    container.innerHTML = `<div class="loading-state"><div class="loader-ring"></div><p>Loading...</p></div>`;
+                    loadMaterials();
+                });
+            }
         }
     }
+    await loadMaterials();
 
     // Prefer the real chapter_number column when materials have it set; otherwise
     // fall back to deriving an order from first-appearance (sorted by material_id,
@@ -228,15 +299,16 @@ export async function init(navigateTo, state) {
     filterClose?.addEventListener('click', closeFilterModal);
     filterOverlay?.addEventListener('click', closeFilterModal);
 
-    let searchTerm = '';
     searchInput?.addEventListener('input', () => {
         searchTerm = searchInput.value.trim().toLowerCase();
+        currentPage = 1;
         renderFiltered();
     });
 
     filterApplyBtn?.addEventListener('click', () => {
         activeSubject = pendingSubject;
         activeChapter = pendingChapter;
+        currentPage = 1;
         syncSubjectPills();
         renderActiveFilterChip();
         renderFiltered();
@@ -248,6 +320,7 @@ export async function init(navigateTo, state) {
         pendingChapter = 'All';
         activeSubject  = 'All';
         activeChapter  = 'All';
+        currentPage = 1;
         syncSubjectPills();
         if (modalSubjectRow) {
             modalSubjectRow.querySelectorAll('.subject-pill').forEach(p => p.classList.toggle('active', p.dataset.subject === 'All'));
@@ -289,6 +362,7 @@ export async function init(navigateTo, state) {
         `;
         document.getElementById('clear-chapter-filter')?.addEventListener('click', () => {
             activeChapter = pendingChapter = 'All';
+            currentPage = 1;
             renderChapterChips();
             renderActiveFilterChip();
             renderFiltered();
@@ -318,12 +392,21 @@ export async function init(navigateTo, state) {
                     <span>Try selecting a different subject or chapter.</span>
                 </div>
             `;
+            renderPagination(0, 1);
             return;
         }
 
-        container.innerHTML = filtered.map((mat, i) => {
+        // Clamp in case a filter change shrank the result set below the
+        // previously active page (e.g. jumping from page 3 down to 1 page).
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        const pageStart = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+        container.innerHTML = pageItems.map((mat, i) => {
             const fmt = FORMAT_ICONS[mat.format_name] || { icon: 'fa-file', color: '#888' };
-            const banner = BANNER_PALETTE[i % BANNER_PALETTE.length];
+            const banner = BANNER_PALETTE[(pageStart + i) % BANNER_PALETTE.length];
             const percent = progressByMaterial.get(Number(mat.material_id)) || 0;
 
             // Prefer the admin-uploaded cover image; fall back to the gradient + format icon.
@@ -356,6 +439,36 @@ export async function init(navigateTo, state) {
                 </div>
             `;
         }).join('');
+
+        renderPagination(totalPages, currentPage);
+    }
+
+    // --- Pagination controls (Prev/Next + "Page X of Y") ---
+    function renderPagination(totalPages, page) {
+        if (!paginationEl) return;
+        if (totalPages <= 1) {
+            paginationEl.classList.add('hidden');
+            paginationEl.innerHTML = '';
+            return;
+        }
+        paginationEl.classList.remove('hidden');
+        paginationEl.innerHTML = `
+            <button type="button" class="courses-pagination-btn" id="courses-page-prev" ${page <= 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i> Prev
+            </button>
+            <span class="courses-pagination-info">Page ${page} of ${totalPages}</span>
+            <button type="button" class="courses-pagination-btn" id="courses-page-next" ${page >= totalPages ? 'disabled' : ''}>
+                Next <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        `;
+        document.getElementById('courses-page-prev')?.addEventListener('click', () => goToPage(currentPage - 1));
+        document.getElementById('courses-page-next')?.addEventListener('click', () => goToPage(currentPage + 1));
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderFiltered();
+        scrollBody?.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     // --- Global click handler for items ---

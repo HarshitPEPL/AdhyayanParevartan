@@ -1,5 +1,20 @@
 .courses-screen {
+    /* Bounded to the viewport so .courses-scroll-body (not the whole screen)
+       owns the scrolling - this is what lets the header stay frozen in place. */
+    height: 100%;
+    overflow: hidden;
+    padding-bottom: 0;
+}
+
+.courses-header-frozen {
+    flex-shrink: 0;
+}
+
+.courses-scroll-body {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 20px;
 }
 
@@ -423,6 +438,51 @@
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
+}
+
+/* Pagination (20 cards/page, Prev/Next + page indicator) */
+.courses-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.courses-pagination.hidden {
+    display: none;
+}
+
+.courses-pagination-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border-radius: 20px;
+    border: 1.5px solid #E0E0E0;
+    background: #FFF;
+    color: #333;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.courses-pagination-btn:hover:not(:disabled) {
+    border-color: var(--primary-green);
+    color: var(--primary-green);
+}
+
+.courses-pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.courses-pagination-info {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    white-space: nowrap;
 }
 
 /* Empty state */
