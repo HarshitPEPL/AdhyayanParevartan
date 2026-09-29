@@ -510,3 +510,54 @@
         height: 90px;
     }
 }
+
+/* Wider screens (tablet/desktop/ultra-wide) — scale the grid up in the same
+   tiers the rest of the app uses, instead of stretching 2 giant columns. */
+@media (min-width: 700px) {
+    .curriculum-list {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+}
+
+@media (min-width: 1025px) {
+    .curriculum-list {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+    }
+
+    .course-card-banner {
+        height: 110px;
+    }
+}
+
+@media (min-width: 1921px) {
+    .curriculum-list {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 20px;
+    }
+
+    .course-card-banner {
+        height: 130px;
+    }
+}
+
+/* The shared bottom-sheet filter modal spans edge-to-edge by default; cap and
+   center it on wider screens so it doesn't stretch across the whole viewport.
+   Uses width + margin:auto (not transform) since the slideUp keyframe already
+   animates `transform` on this element — a transform-based centering trick
+   would get clobbered by that animation. */
+@media (min-width: 700px) {
+    #courses-filter-sheet {
+        width: 480px;
+        max-width: calc(100vw - 48px);
+        margin: 0 auto;
+        border-radius: 24px;
+        bottom: 24px;
+    }
+
+    #courses-filter-overlay {
+        backdrop-filter: blur(4px);
+    }
+}
+
