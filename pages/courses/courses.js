@@ -39,7 +39,16 @@ const BANNER_PALETTE = [
     'linear-gradient(135deg, #FFE4C4 0%, #FDBA74 100%)',
 ];
 
+// Bumped every time init() runs, so an async fetch started by an earlier
+// (superseded) call to init() can detect it's stale and skip writing to the
+// DOM once a later call has already taken over - otherwise a slow/failed
+// request from a previous run can overwrite a newer, successful render.
+let coursesInitGeneration = 0;
+
 export async function init(navigateTo, state) {
+    const myGeneration = ++coursesInitGeneration;
+    const isStale = () => myGeneration !== coursesInitGeneration;
+
     const { getMaterialsByClass, getSubjectsByClass, getAllMaterialProgress } = window.adhyayan;
     const classNumber = parseInt(state.currentUser?.class_number || state.selectedClass || 9, 10);
     const userId = state.currentUser?.user_id;
@@ -84,6 +93,7 @@ export async function init(navigateTo, state) {
     // --- Load subject filter pills (quick row + modal copy) ---
     try {
         const subjects = await getSubjectsByClass(classNumber);
+        if (isStale()) return;
         const pillsHTML = [`<div class="subject-pill active" data-subject="All">All Subjects</div>`];
         subjects.forEach(s => {
             const icon = SUBJECT_ICONS[s.subject_name] || 'fa-book';
@@ -120,14 +130,18 @@ export async function init(navigateTo, state) {
             });
         }
     } catch (err) {
+        if (isStale()) return;
         console.error('Failed to load subjects for filter:', err);
     }
 
     // --- Load materials ---
     try {
-        materials = await getMaterialsByClass(classNumber);
+        const fetchedMaterials = await getMaterialsByClass(classNumber);
+        if (isStale()) return;
+        materials = fetchedMaterials;
         renderFiltered();
     } catch (err) {
+        if (isStale()) return;
         console.error('Error fetching materials:', err);
         if (container) {
             container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-wifi-slash"></i><p>Failed to load library. Check your connection.</p></div>`;
