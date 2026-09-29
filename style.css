@@ -66,8 +66,11 @@ html, body {
     flex-direction: column;
     position: relative;
     background-color: var(--background);
-    overflow-y: auto;
-    overflow-x: hidden;
+    /* Does not scroll itself — #root-view scrolls instead, so #bottom-nav
+       (a sibling flex item after it) stays fixed at the bottom without
+       needing position:sticky (which doesn't stick reliably as a flex
+       item inside a scrolling flex-column container). */
+    overflow: hidden;
 }
 
 /* Simulated status bar is no longer shown — every environment (real device
@@ -93,12 +96,12 @@ body.native-app #bottom-nav {
 /* Root View */
 #root-view {
     flex: 1;
-    /* Allows a page (e.g. courses.css's .courses-screen) to be capped to the
-       available height and own its own inner scroll region instead of always
-       growing with its content; pages that don't opt into this (no explicit
-       height set on their .screen) are unaffected and keep scrolling via
-       #app-container as before. */
+    /* Bounds this to the space left after #bottom-nav so it (not
+       #app-container) is what scrolls; pages that want their own inner
+       scroll region (e.g. courses.css's .courses-screen) still work since
+       they fill this box completely and manage overflow themselves. */
     min-height: 0;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -112,8 +115,7 @@ body.native-app #bottom-nav {
     padding: 12px 0;
     background-color: var(--background);
     border-top: 1px solid var(--surface-dark);
-    position: sticky;
-    bottom: 0;
+    flex-shrink: 0;
     z-index: 100;
 }
 
