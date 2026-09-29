@@ -21,6 +21,13 @@ function isNativePlatform() {
 
 function isLocalDevelopmentOrigin() {
     if (isNativePlatform()) return false;
+    // These exact origin:port combos are already registered as Authorized
+    // JavaScript origins for DEFAULT_CLIENT_ID in Google Cloud Console, so
+    // real Google Sign-In (the actual account picker/consent popup) works
+    // fine there — only block origins that AREN'T registered (e.g. LAN IPs
+    // used by `vite --host` for on-device testing, or an unlisted port),
+    // where Google would otherwise reject the popup with "origin_mismatch".
+    if (getProductionGoogleOrigins().includes(window.location.origin)) return false;
     const host = (window.location?.hostname || '').toLowerCase();
     return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.');
 }

@@ -107,64 +107,64 @@ function loadPdfJs() {
     return pdfjsLoadPromise;
 }
 
-// Renders a PDF page-by-page onto a <canvas>, inside the same reader shell
-// used elsewhere on this page. Returns true on success; on any failure (e.g.
-// the host blocks cross-origin fetches) it leaves `container` untouched so
-// the caller can fall back to an "open externally" screen instead.
-async function renderPdfInline(container, pdfUrl, title) {
+// Renders a PDF page-by-page onto a <canvas>, inside the shared reader shell
+// used elsewhere on this page. On success returns a controller object the
+// caller uses to wire up the shared page/zoom toolbar; on any failure (e.g.
+// the host blocks cross-origin fetches) it returns false so the caller can
+// fall back to an "open externally" screen (or, on web, the Drive iframe).
+async function renderPdfInline(container, pdfUrl) {
     try {
         const pdfjsLib = await loadPdfJs();
         const pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
 
         container.innerHTML = `
-            <div class="reader-page-shell">
-                <div class="reader-page-header">
-                    <span>${(title || 'Adhyayan').substring(0, 28)}</span>
-                    <span id="pdf-page-indicator">Page 1 / ${pdfDoc.numPages}</span>
-                </div>
-                <div class="pdf-canvas-scroll">
-                    <canvas id="pdf-render-canvas"></canvas>
-                </div>
-                ${pdfDoc.numPages > 1 ? `
-                <div class="pdf-page-nav">
-                    <button type="button" id="pdf-prev-page" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></button>
-                    <button type="button" id="pdf-next-page" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></button>
-                </div>` : ''}
+            <div class="pdf-canvas-scroll">
+                <canvas id="pdf-render-canvas"></canvas>
             </div>
         `;
 
         const canvas = container.querySelector('#pdf-render-canvas');
         const ctx = canvas.getContext('2d');
         const scrollEl = container.querySelector('.pdf-canvas-scroll');
-        const pageIndicator = container.querySelector('#pdf-page-indicator');
         let currentPage = 1;
+        let zoomFactor = 1;
         let renderTask = null;
 
         const renderPage = async (num) => {
             const page = await pdfDoc.getPage(num);
             const unscaledViewport = page.getViewport({ scale: 1 });
             const targetWidth = Math.max(scrollEl.clientWidth - 16, 100);
-            const scale = targetWidth / unscaledViewport.width;
-            const viewport = page.getViewport({ scale });
+            const fitScale = targetWidth / unscaledViewport.width;
+            const viewport = page.getViewport({ scale: fitScale * zoomFactor });
             canvas.width = viewport.width;
             canvas.height = viewport.height;
 
             renderTask?.cancel();
             renderTask = page.render({ canvasContext: ctx, viewport });
             await renderTask.promise;
-            pageIndicator.textContent = `Page ${num} / ${pdfDoc.numPages}`;
             scrollEl.scrollTop = 0;
         };
 
-        container.querySelector('#pdf-prev-page')?.addEventListener('click', () => {
-            if (currentPage > 1) renderPage(currentPage -= 1);
-        });
-        container.querySelector('#pdf-next-page')?.addEventListener('click', () => {
-            if (currentPage < pdfDoc.numPages) renderPage(currentPage += 1);
-        });
-
         await renderPage(currentPage);
-        return true;
+
+        return {
+            numPages: pdfDoc.numPages,
+            getCurrentPage: () => currentPage,
+            getZoom: () => zoomFactor,
+            goToPage: async (num) => {
+                const target = Math.min(Math.max(1, num), pdfDoc.numPages);
+                if (target !== currentPage) {
+                    currentPage = target;
+                    await renderPage(currentPage);
+                }
+                return currentPage;
+            },
+            setZoom: async (factor) => {
+                zoomFactor = Math.min(Math.max(0.5, factor), 3);
+                await renderPage(currentPage);
+                return zoomFactor;
+            }
+        };
     } catch (err) {
         console.error('Inline PDF render failed, falling back to external open:', err);
         return false;
@@ -224,16 +224,16 @@ export function init(navigateTo, state) {
     const classNum = state.selectedClass || (state.currentUser ? state.currentUser.class_number : 9) || 9;
     const backRoute = state.lastLibraryRoute || 'courses';
 
-    document.getElementById('lesson-subject').textContent = `${mat.subject_name.toUpperCase()} - CLASS ${classNum}`;
+    document.getElementById('lesson-title-inline').textContent = mat.title;
+    document.getElementById('lesson-subject-inline').textContent = `Class ${classNum} - ${mat.subject_name}`;
     document.getElementById('lesson-title').textContent = mat.title;
+    document.getElementById('lesson-meta-title').textContent = mat.title;
+    document.getElementById('lesson-meta-class').textContent = classNum;
+    document.getElementById('lesson-meta-subject').textContent = mat.subject_name;
     document.getElementById('lesson-format').textContent = mat.format_name;
     document.getElementById('lesson-duration').textContent = mat.duration_lessons || 'N/A';
     document.getElementById('lesson-instructor').textContent = mat.instructor_name || 'Unknown Author';
-
-    const backButton = document.querySelector('.lesson-back-btn');
-    if (backButton) {
-        backButton.addEventListener('click', () => navigateTo(backRoute));
-    }
+    document.getElementById('lesson-chapter').textContent = mat.chapter_number ? `Chapter ${mat.chapter_number}` : '-';
 
     // Top-left overlay back button: exits fullscreen first (if active) so the
     // user always lands back in the normal view before navigating away.
@@ -256,6 +256,115 @@ export function init(navigateTo, state) {
                 event.preventDefault();
                 goBack();
             }
+        });
+    }
+
+    // --- Shared PDF page/zoom toolbar (topbar badge + bottom bar) --------
+    // Hidden by default; only wired up + shown once a PDF actually renders
+    // inline via PDF.js, since video/audio/Drive embeds have no page/zoom concept.
+    const readerPageBadge = document.getElementById('reader-page-badge');
+    const readerBottombar = document.getElementById('reader-bottombar');
+    const zoomGroups = document.querySelectorAll('.reader-zoom-group');
+    const fitButtons = document.querySelectorAll('.reader-icon-fit');
+    const prevPageBtn = document.getElementById('pdf-prev-page');
+    const nextPageBtn = document.getElementById('pdf-next-page');
+    const pageSelect = document.getElementById('pdf-page-select');
+    const pageSelectWrap = document.querySelector('.reader-page-select-wrap');
+
+    function setPdfControlsVisible(visible) {
+        if (readerPageBadge) readerPageBadge.style.display = visible ? '' : 'none';
+        zoomGroups.forEach((g) => { g.style.display = visible ? '' : 'none'; });
+        fitButtons.forEach((b) => { b.style.display = visible ? '' : 'none'; });
+        if (readerBottombar) readerBottombar.style.display = visible ? 'flex' : 'none';
+    }
+    setPdfControlsVisible(false);
+
+    function updatePdfPageUi(controller) {
+        const current = controller.getCurrentPage();
+        if (readerPageBadge) readerPageBadge.textContent = `Page ${current}/${controller.numPages}`;
+        if (pageSelect) pageSelect.value = String(current);
+        if (prevPageBtn) prevPageBtn.disabled = current <= 1;
+        if (nextPageBtn) nextPageBtn.disabled = current >= controller.numPages;
+    }
+
+    function updatePdfZoomUi(controller) {
+        const pct = Math.round(controller.getZoom() * 100);
+        document.querySelectorAll('.reader-zoom-level').forEach((el) => { el.textContent = `${pct}%`; });
+    }
+
+    function wirePdfControls(controller) {
+        setPdfControlsVisible(true);
+        const hasMultiplePages = controller.numPages > 1;
+        if (prevPageBtn) prevPageBtn.style.display = hasMultiplePages ? '' : 'none';
+        if (nextPageBtn) nextPageBtn.style.display = hasMultiplePages ? '' : 'none';
+        if (pageSelectWrap) pageSelectWrap.style.display = hasMultiplePages ? '' : 'none';
+        if (pageSelect) {
+            pageSelect.innerHTML = Array.from({ length: controller.numPages }, (_, i) =>
+                `<option value="${i + 1}">${i + 1} / ${controller.numPages}</option>`
+            ).join('');
+        }
+
+        updatePdfPageUi(controller);
+        updatePdfZoomUi(controller);
+
+        prevPageBtn?.addEventListener('click', async () => {
+            await controller.goToPage(controller.getCurrentPage() - 1);
+            updatePdfPageUi(controller);
+        });
+        nextPageBtn?.addEventListener('click', async () => {
+            await controller.goToPage(controller.getCurrentPage() + 1);
+            updatePdfPageUi(controller);
+        });
+        pageSelect?.addEventListener('change', async (event) => {
+            await controller.goToPage(parseInt(event.target.value, 10));
+            updatePdfPageUi(controller);
+        });
+        document.querySelectorAll('.reader-zoom-in').forEach((btn) => btn.addEventListener('click', async () => {
+            await controller.setZoom(controller.getZoom() + 0.1);
+            updatePdfZoomUi(controller);
+        }));
+        document.querySelectorAll('.reader-zoom-out').forEach((btn) => btn.addEventListener('click', async () => {
+            await controller.setZoom(controller.getZoom() - 0.1);
+            updatePdfZoomUi(controller);
+        }));
+        fitButtons.forEach((btn) => btn.addEventListener('click', async () => {
+            await controller.setZoom(1);
+            updatePdfZoomUi(controller);
+        }));
+    }
+
+    // --- Settings ("gear") popover menu: houses the less-frequent actions
+    // (download / open externally) so the toolbar itself stays uncluttered.
+    function wireSettingsMenu(onDownload, onOpenExternal) {
+        document.querySelectorAll('.reader-settings-wrap').forEach((wrap) => {
+            const trigger = wrap.querySelector('.reader-icon-settings');
+            if (!trigger) return;
+            trigger.addEventListener('click', (event) => {
+                event.stopPropagation();
+                document.querySelectorAll('.reader-settings-menu').forEach((m) => m.remove());
+                const menu = document.createElement('div');
+                menu.className = 'reader-settings-menu';
+                menu.innerHTML = `
+                    <button type="button" data-action="download"><i class="fa-solid fa-cloud-arrow-down"></i> Download Material</button>
+                    ${onOpenExternal ? '<button type="button" data-action="external"><i class="fa-solid fa-up-right-from-square"></i> Open Externally</button>' : ''}
+                `;
+                menu.querySelector('[data-action="download"]')?.addEventListener('click', () => {
+                    menu.remove();
+                    onDownload?.();
+                });
+                menu.querySelector('[data-action="external"]')?.addEventListener('click', () => {
+                    menu.remove();
+                    onOpenExternal?.();
+                });
+                wrap.appendChild(menu);
+                const closeMenu = (e) => {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeMenu), 0);
+            });
         });
     }
 
@@ -299,36 +408,29 @@ export function init(navigateTo, state) {
     if (youTubeVideoId) {
         renderYouTubePlayer(wrapper, youTubeVideoId, reportProgress);
     } else if (driveEmbedUrl) {
-        if (isNativeAndroid) {
-            const showDriveOpenFallback = () => {
-                wrapper.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
-                        <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
-                        <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">Ready to open</div>
-                        <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Google Drive can't be viewed inside the app. Open it in your browser to read the file.</div>
-                        <button class="btn btn-primary" id="drive-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open in Google Drive</button>
-                    </div>
-                `;
-                wrapper.querySelector('#drive-open-external')?.addEventListener('click', () => {
-                    openExternalLink(mat.file_url);
-                    reportProgress(100);
-                });
-                reportProgress(40);
-            };
-
-            if (mat.format_name === 'E-Book') {
-                // E-Books are PDFs — rasterize them with PDF.js instead of showing
-                // Drive's own page, which requires a sign-in check WebViews get blocked from.
-                wrapper.innerHTML = `<div style="color:#fff; font-size:0.85rem; opacity:0.75;">Loading…</div>`;
-                renderPdfInline(wrapper, getInlineRenderablePdfSrc(mat.file_url), mat.title).then((ok) => {
-                    if (ok) reportProgress(40); else showDriveOpenFallback();
-                });
-            } else {
-                showDriveOpenFallback();
-            }
+        if (isNativeAndroid && mat.format_name !== 'E-Book') {
+            // Non-E-Book Drive content (video/audio) genuinely hits Google's
+            // embedded sign-in wall in native WebViews — open externally.
+            wrapper.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                    <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
+                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">Ready to open</div>
+                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Google Drive can't be viewed inside the app. Open it in your browser to read the file.</div>
+                    <button class="btn btn-primary" id="drive-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open in Google Drive</button>
+                </div>
+            `;
+            wrapper.querySelector('#drive-open-external')?.addEventListener('click', () => {
+                openExternalLink(mat.file_url);
+                reportProgress(100);
+            });
+            reportProgress(40);
         } else {
             // Google Drive links are HTML pages, not playable media files — embed
             // via iframe instead of a <video>/<audio> tag (which would fail to load it).
+            // E-Book PDFs render fine this way in the native WebView too (Drive's
+            // sign-in wall only triggers for video/audio pages, not the PDF preview),
+            // so avoid the PDF.js/CORS-proxy pipeline here — it depends on a
+            // server-side Google service account that may not be configured.
             wrapper.innerHTML = `<iframe src="${driveEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
             // No reliable playback-progress API for cross-origin embeds, so just mark it viewed.
             reportProgress(100);
@@ -417,45 +519,46 @@ export function init(navigateTo, state) {
             reportProgress(100);
         };
 
-        if (isNativeAndroid) {
-            const showPdfOpenFallback = () => {
-                wrapper.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
-                        <i class="fa-solid fa-file-pdf" style="font-size:3rem; margin-bottom:16px; color:#f8d7da;"></i>
-                        <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">PDF ready to open</div>
-                        <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Couldn't render this PDF inline. Open it in the browser to read the file.</div>
-                        <button class="btn btn-primary" id="pdf-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open PDF</button>
-                    </div>
-                `;
-                wrapper.querySelector('#pdf-open-external')?.addEventListener('click', openPdfInBrowser);
-                reportProgress(40);
-            };
+        const showPdfOpenFallback = () => {
+            wrapper.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                    <i class="fa-solid fa-file-pdf" style="font-size:3rem; margin-bottom:16px; color:#f8d7da;"></i>
+                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">PDF ready to open</div>
+                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Couldn't render this PDF inline. Open it in the browser to read the file.</div>
+                    <button class="btn btn-primary" id="pdf-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open PDF</button>
+                </div>
+            `;
+            wrapper.querySelector('#pdf-open-external')?.addEventListener('click', openPdfInBrowser);
+            reportProgress(40);
+        };
 
-            wrapper.innerHTML = `<div style="color:#fff; font-size:0.85rem; opacity:0.75;">Loading…</div>`;
-            renderPdfInline(wrapper, isDataUrl ? pdfUrl : getInlineRenderablePdfSrc(mat.file_url), mat.title).then((ok) => {
-                if (ok) reportProgress(40); else showPdfOpenFallback();
-            });
-        } else {
+        // Try the custom PDF.js/canvas UI first everywhere (matches the
+        // reader's shared page/zoom toolbar); only degrade to a fallback when
+        // it genuinely can't render (blocked cross-origin fetch, etc.).
+        const inlineSrc = isDataUrl ? pdfUrl : getInlineRenderablePdfSrc(mat.file_url);
+        wrapper.innerHTML = `<div style="color:#374151; font-size:0.85rem;">Loading…</div>`;
+
+        renderPdfInline(wrapper, inlineSrc).then((controller) => {
+            if (controller) {
+                wirePdfControls(controller);
+                reportProgress(40);
+                return;
+            }
+            if (isNativeAndroid) {
+                // No web-only iframe fallback available inside the native WebView.
+                showPdfOpenFallback();
+                return;
+            }
+            // Web fallback: Google's own viewer still renders the PDF, just
+            // without our custom page/zoom toolbar (it has its own chrome).
             const resolvedPdfSrc = pdfUrl || mat.file_url;
-            // Google's viewer fetches the URL from its own servers, so it can
-            // never reach a browser-local blob:/data: URL (uploads that weren't
-            // stored in cloud storage) — render those directly instead, letting
-            // the browser's built-in PDF renderer handle it.
             const isRemotePdf = /^https?:\/\//i.test(resolvedPdfSrc);
             const pdfViewerSrc = isRemotePdf
                 ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(resolvedPdfSrc)}`
                 : resolvedPdfSrc;
-            wrapper.innerHTML = `
-                <div class="reader-page-shell">
-                    <div class="reader-page-header">
-                        <span>${(mat.title || 'Adhyayan').substring(0, 28)}</span>
-                        <span>Page 1</span>
-                    </div>
-                    <iframe src="${pdfViewerSrc}" class="reader-iframe" allowfullscreen title="PDF Viewer"></iframe>
-                </div>
-            `;
+            wrapper.innerHTML = `<iframe src="${pdfViewerSrc}" class="reader-iframe" allowfullscreen title="PDF Viewer"></iframe>`;
             reportProgress(40);
-        }
+        });
     } else {
         // Placeholder/blank links ("Na", "N/A", "TBD", empty, or anything that
         // isn't even a URL) mean no content was actually attached to this
@@ -470,7 +573,7 @@ export function init(navigateTo, state) {
     }
     viewerContainer.appendChild(wrapper);
 
-    const fullScreenToggle = document.getElementById('lesson-fullscreen-toggle');
+    const fullScreenToggles = document.querySelectorAll('.reader-icon-fullscreen');
     const fullscreenExitBtn = document.getElementById('lesson-fullscreen-exit-btn');
 
     // Elements outside the fullscreen element's subtree aren't painted while
@@ -480,7 +583,7 @@ export function init(navigateTo, state) {
         .filter(Boolean)
         .map((el) => ({ el, parent: el.parentNode, next: el.nextSibling }));
 
-    if (fullScreenToggle) {
+    if (fullScreenToggles.length) {
         const toggleFullscreen = async () => {
             const container = document.getElementById('lesson-viewer-container');
             if (!container) return;
@@ -526,12 +629,14 @@ export function init(navigateTo, state) {
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
-        fullScreenToggle.addEventListener('click', toggleFullscreen);
-        fullScreenToggle.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                toggleFullscreen();
-            }
+        fullScreenToggles.forEach((toggle) => {
+            toggle.addEventListener('click', toggleFullscreen);
+            toggle.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleFullscreen();
+                }
+            });
         });
     }
 
@@ -559,28 +664,32 @@ export function init(navigateTo, state) {
 
 
     const downloadBtn = document.getElementById('lesson-download-btn');
-    if (downloadBtn) {
-        downloadBtn.onclick = () => {
-            window.adhyayan?.recordDownload?.(userId, mat);
+    const triggerDownload = () => {
+        window.adhyayan?.recordDownload?.(userId, mat);
 
-            if (isDataUrl) {
-                // Programmatic download for Data URLs
-                const a = document.createElement('a');
-                a.href = mat.file_url;
-                // Try to guess extension for filename
-                let dlExt = 'file';
-                if (mat.file_url.includes('pdf')) dlExt = 'pdf';
-                else if (mat.file_url.includes('audio')) dlExt = 'mp3';
-                else if (mat.file_url.includes('video')) dlExt = 'mp4';
-                
-                a.download = `Adhyayan_${mat.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${dlExt}`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                reportProgress(100);
-            } else {
-                window.open(mat.file_url, '_blank');
-            }
-        };
+        if (isDataUrl) {
+            // Programmatic download for Data URLs
+            const a = document.createElement('a');
+            a.href = mat.file_url;
+            // Try to guess extension for filename
+            let dlExt = 'file';
+            if (mat.file_url.includes('pdf')) dlExt = 'pdf';
+            else if (mat.file_url.includes('audio')) dlExt = 'mp3';
+            else if (mat.file_url.includes('video')) dlExt = 'mp4';
+
+            a.download = `Adhyayan_${mat.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${dlExt}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            reportProgress(100);
+        } else {
+            window.open(mat.file_url, '_blank');
+        }
+    };
+    if (downloadBtn) {
+        downloadBtn.onclick = triggerDownload;
     }
+
+    // Gear icon menu (topbar + bottom toolbar): download / open externally.
+    wireSettingsMenu(triggerDownload, isDataUrl ? null : () => openExternalLink(mat.file_url));
 }
