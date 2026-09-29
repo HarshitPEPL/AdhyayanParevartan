@@ -188,6 +188,9 @@
                     <label for="material-file" style="grid-column: span 2; font-size: 0.9em; margin-bottom: -10px;">Upload File (E-Book, Audio, Video):</label>
                     <input type="file" id="material-file" class="admin-input" style="grid-column: span 2;" accept="video/*,audio/*,.pdf,.epub">
                     <input type="text" id="material-url" placeholder="Or enter File URL manually (e.g., /vids/math1.mp4)" class="admin-input" style="grid-column: span 2;">
+                    <label for="material-thumbnail" style="grid-column: span 2; font-size: 0.9em; margin-bottom: -10px;">Thumbnail Image (shown as the book/video cover in the library):</label>
+                    <input type="file" id="material-thumbnail" class="admin-input" style="grid-column: span 2;" accept="image/*">
+                    <input type="text" id="material-thumbnail-url" placeholder="Or enter Thumbnail Image URL manually" class="admin-input" style="grid-column: span 2;">
                     <button type="submit" id="btn-add-material" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Publish Material</button>
                 </form>
             </div>
@@ -230,6 +233,7 @@
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Thumbnail</th>
                             <th>Title</th>
                             <th>Subject ID</th>
                             <th>Chapter</th>

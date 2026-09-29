@@ -3,8 +3,37 @@
     padding-bottom: 20px;
 }
 
-.courses-screen .header-module {
-    padding-bottom: 4px;
+/* Library header (icon badge + title/subtitle + filter button) */
+.library-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.library-header-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: var(--primary-green);
+    color: #FFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.library-header-titles {
+    flex: 1;
+    min-width: 0;
+}
+
+.library-header-titles h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111;
+    line-height: 1.2;
 }
 
 .courses-class-label {
@@ -12,6 +41,89 @@
     color: var(--text-secondary);
     font-weight: 500;
     margin-top: 2px;
+}
+
+.library-header-filter-btn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary-green);
+    color: #FFF;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.library-header-filter-btn.active {
+    box-shadow: 0 0 0 3px rgba(46,125,50,0.25);
+}
+
+/* Search row (search box + secondary filter button) */
+.library-search-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.library-search-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #FFF;
+    border: 1.5px solid #E8E8E8;
+    border-radius: 14px;
+    padding: 10px 14px;
+    min-width: 0;
+}
+
+.library-search-box i {
+    color: #999;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.library-search-box input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13px;
+    color: #111;
+    font-family: inherit;
+}
+
+.library-search-box input::placeholder {
+    color: #AAA;
+}
+
+.library-search-filter-btn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #F2F2F2;
+    border: 1.5px solid #E8E8E8;
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.library-search-filter-btn.active {
+    background: var(--primary-green);
+    border-color: var(--primary-green);
+    color: #FFF;
 }
 
 /* Subject filter row */
@@ -123,25 +235,6 @@
     overflow-y: auto;
 }
 
-#courses-filter-icon {
-    cursor: pointer;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: #FAFAFA;
-    border: 1.5px solid #E0E0E0;
-    transition: all 0.2s ease;
-}
-
-#courses-filter-icon.active {
-    background: var(--primary-green);
-    border-color: var(--primary-green);
-    color: #FFF;
-}
-
 #courses-filter-sheet .filter-group {
     margin-bottom: 20px;
 }
@@ -191,51 +284,67 @@
     cursor: pointer;
 }
 
-/* Material cards */
+/* Material cards (grid) */
 .curriculum-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
 }
 
-.curriculum-item {
+.course-card {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
     background: #FFF;
     border: 1px solid #F0F0F0;
-    border-radius: 16px;
-    padding: 14px;
+    border-radius: 18px;
+    overflow: hidden;
     cursor: pointer;
     transition: all 0.18s ease;
     box-shadow: 0 1px 6px rgba(0,0,0,0.04);
 }
 
-.curriculum-item:hover,
-.curriculum-item:active {
+.course-card:hover,
+.course-card:active {
     border-color: var(--primary-green);
     box-shadow: 0 4px 16px rgba(46,125,50,0.12);
     transform: translateY(-1px);
 }
 
-.item-icon-wrap {
+.course-card-banner {
+    height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.course-card-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.course-card-banner-icon {
     width: 44px;
     height: 44px;
-    border-radius: 12px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    color: #FFF;
     font-size: 20px;
-    flex-shrink: 0;
 }
 
-.item-details {
+.course-card-body {
     flex: 1;
-    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
 }
 
-.item-details h4 {
-    font-size: 14px;
+.course-card-body h4 {
+    font-size: 13px;
     font-weight: 700;
     color: #111;
     margin-bottom: 3px;
@@ -244,36 +353,76 @@
     text-overflow: ellipsis;
 }
 
-.item-details p {
-    font-size: 12px;
+.course-card-meta {
+    font-size: 11px;
     color: #888;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.format-badge {
-    display: inline-block;
-    font-size: 10px;
+.course-card-format-row {
+    font-size: 11px;
+    margin-bottom: 8px;
+}
+
+.course-card-format {
     font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 10px;
-    margin-right: 6px;
-    letter-spacing: 0.3px;
+    margin-right: 4px;
 }
 
-.duration-badge {
-    display: inline-block;
+.course-card-duration {
+    color: #888;
+    font-weight: 500;
+}
+
+.course-card-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.progress-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #EFEFEF;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--primary-green);
+}
+
+.progress-label {
     font-size: 10px;
     font-weight: 600;
-    color: #888;
-    padding: 2px 0;
+    color: var(--primary-green);
+    white-space: nowrap;
 }
 
-.duration-badge i { margin-right: 3px; }
+.course-card-not-started {
+    font-size: 11px;
+    font-weight: 600;
+    color: #AAA;
+    margin-bottom: 10px;
+}
 
-.item-action {
-    color: #CCC;
-    font-size: 14px;
-    flex-shrink: 0;
+.course-card-btn {
+    margin-top: auto;
+    width: 100%;
+    background: var(--primary-green);
+    color: #FFF;
+    border: none;
+    border-radius: 20px;
+    padding: 9px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
 }
 
 /* Empty state */
@@ -343,23 +492,21 @@
         font-size: 11px;
     }
 
-    .curriculum-item {
-        flex-direction: column;
-        align-items: stretch;
+    .curriculum-list {
         gap: 10px;
     }
 
-    .item-icon-wrap {
-        width: 40px;
-        height: 40px;
-        font-size: 18px;
+    .course-card-banner {
+        height: 70px;
+    }
+}
+
+@media (max-width: 380px) {
+    .curriculum-list {
+        grid-template-columns: 1fr;
     }
 
-    .item-details h4 {
-        white-space: normal;
-    }
-
-    .item-action {
-        align-self: flex-start;
+    .course-card-banner {
+        height: 90px;
     }
 }

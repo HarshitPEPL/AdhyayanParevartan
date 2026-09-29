@@ -457,6 +457,7 @@ export async function getMaterials() {
                 duration_lessons,
                 instructor_name,
                 chapter_number,
+                thumbnail_url,
                 subjects (
                     subject_name
                 ),
@@ -466,7 +467,7 @@ export async function getMaterials() {
             `;
         let { data, error } = await supabaseClient.from('learning_materials').select(selectWithChapter);
         if (error && isMissingColumnErrorGeneric(error)) {
-            // chapter_number migration not run yet - fall back without it
+            // chapter_number/thumbnail_url migration not run yet - fall back without them
             ({ data, error } = await supabaseClient.from('learning_materials').select(`
                 material_id,
                 title,
@@ -483,6 +484,7 @@ export async function getMaterials() {
             duration_lessons: m.duration_lessons,
             instructor_name: m.instructor_name,
             chapter_number: m.chapter_number ?? null,
+            thumbnail_url: m.thumbnail_url ?? null,
             subject_name: m.subjects?.subject_name || 'General',
             format_name: m.content_formats?.format_name || 'Video Content'
         }));
@@ -497,7 +499,7 @@ export async function getMaterials() {
     }
 }
 
-export async function addMaterial(subjectId, formatId, title, durationLessons, instructorName, fileUrl = '/vids/math1.mp4', chapterNumber = null) {
+export async function addMaterial(subjectId, formatId, title, durationLessons, instructorName, fileUrl = '/vids/math1.mp4', chapterNumber = null, thumbnailUrl = null) {
     if (dbType === 'supabase') {
         const row = {
             subject_id: parseInt(subjectId),
@@ -506,13 +508,14 @@ export async function addMaterial(subjectId, formatId, title, durationLessons, i
             duration_lessons: durationLessons,
             instructor_name: instructorName,
             file_url: fileUrl,
-            chapter_number: chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null
+            chapter_number: chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null,
+            thumbnail_url: thumbnailUrl || null
         };
         let { error } = await supabaseClient.from('learning_materials').insert([row]);
         if (error && isMissingColumnErrorGeneric(error)) {
-            // chapter_number migration not run yet - retry without it
-            const { chapter_number, ...rowWithoutChapter } = row;
-            ({ error } = await supabaseClient.from('learning_materials').insert([rowWithoutChapter]));
+            // chapter_number/thumbnail_url migration not run yet - retry without them
+            const { chapter_number, thumbnail_url, ...rowWithoutNewCols } = row;
+            ({ error } = await supabaseClient.from('learning_materials').insert([rowWithoutNewCols]));
         }
         if (error) throw error;
         return true;
@@ -639,6 +642,7 @@ export async function getMaterialsByClass(classNumber) {
                 instructor_name,
                 file_url,
                 chapter_number,
+                thumbnail_url,
                 subjects!inner (
                     subject_name,
                     class_number
@@ -653,7 +657,7 @@ export async function getMaterialsByClass(classNumber) {
             .eq('subjects.class_number', parseInt(classNumber));
 
         if (error && isMissingColumnErrorGeneric(error)) {
-            // chapter_number migration not run yet - fall back without it
+            // chapter_number/thumbnail_url migration not run yet - fall back without them
             ({ data, error } = await supabaseClient
                 .from('learning_materials')
                 .select(`
@@ -676,6 +680,7 @@ export async function getMaterialsByClass(classNumber) {
             instructor_name: m.instructor_name,
             file_url: m.file_url,
             chapter_number: m.chapter_number ?? null,
+            thumbnail_url: m.thumbnail_url ?? null,
             subject_name: m.subjects?.subject_name || 'General',
             format_name: m.content_formats?.format_name || 'Video Content'
         }));

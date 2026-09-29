@@ -26,13 +26,38 @@ const SUBJECT_ICONS = {
     'Computer Science': 'fa-laptop-code',
 };
 
+// Cycled by card index to give the grid the same colorful, varied look as
+// the reference design (no per-subject meaning, just visual variety).
+const BANNER_PALETTE = [
+    'linear-gradient(135deg, #FDE68A 0%, #FBBF24 100%)',
+    'linear-gradient(135deg, #BAE6FD 0%, #38BDF8 100%)',
+    'linear-gradient(135deg, #BBF7D0 0%, #4ADE80 100%)',
+    'linear-gradient(135deg, #E9D5FF 0%, #C084FC 100%)',
+    'linear-gradient(135deg, #FBCFE8 0%, #F472B6 100%)',
+    'linear-gradient(135deg, #A5F3FC 0%, #22D3EE 100%)',
+    'linear-gradient(135deg, #FED7AA 0%, #FB923C 100%)',
+    'linear-gradient(135deg, #FFE4C4 0%, #FDBA74 100%)',
+];
+
 export async function init(navigateTo, state) {
-    const { getMaterialsByClass, getSubjectsByClass } = window.adhyayan;
+    const { getMaterialsByClass, getSubjectsByClass, getAllMaterialProgress } = window.adhyayan;
     const classNumber = parseInt(state.currentUser?.class_number || state.selectedClass || 9, 10);
+    const userId = state.currentUser?.user_id;
     const container   = document.getElementById('student-materials-list');
     const subjectSlider = document.getElementById('subject-filter-slider');
     const classLabel    = document.getElementById('courses-class-label');
     const activeFiltersRow = document.getElementById('active-filters-row');
+    const searchInput   = document.getElementById('courses-search-input');
+    const searchFilterIcon = document.getElementById('courses-search-filter-icon');
+
+    // Progress lookup (material_id -> percent), populated once up front so
+    // renderFiltered() can stay synchronous.
+    let progressByMaterial = new Map();
+    try {
+        (getAllMaterialProgress?.(userId) || []).forEach(p => progressByMaterial.set(Number(p.material_id), p.percent));
+    } catch (err) {
+        console.error('Failed to load progress for library cards:', err);
+    }
 
     // Filter modal elements (opened via the top-right sliders icon)
     const filterIcon      = document.getElementById('courses-filter-icon');
@@ -185,8 +210,15 @@ export async function init(navigateTo, state) {
     }
 
     filterIcon?.addEventListener('click', openFilterModal);
+    searchFilterIcon?.addEventListener('click', openFilterModal);
     filterClose?.addEventListener('click', closeFilterModal);
     filterOverlay?.addEventListener('click', closeFilterModal);
+
+    let searchTerm = '';
+    searchInput?.addEventListener('input', () => {
+        searchTerm = searchInput.value.trim().toLowerCase();
+        renderFiltered();
+    });
 
     filterApplyBtn?.addEventListener('click', () => {
         activeSubject = pendingSubject;
@@ -260,6 +292,9 @@ export async function init(navigateTo, state) {
         if (activeChapter !== 'All') {
             filtered = filtered.filter(m => m.title === activeChapter);
         }
+        if (searchTerm) {
+            filtered = filtered.filter(m => m.title?.toLowerCase().includes(searchTerm));
+        }
 
         if (filtered.length === 0) {
             container.innerHTML = `
@@ -272,28 +307,37 @@ export async function init(navigateTo, state) {
             return;
         }
 
-        container.innerHTML = filtered.map(mat => {
-            const fmt   = FORMAT_ICONS[mat.format_name] || { icon: 'fa-file', color: '#888' };
-            const subIcon = SUBJECT_ICONS[mat.subject_name] || 'fa-book';
+        container.innerHTML = filtered.map((mat, i) => {
+            const fmt = FORMAT_ICONS[mat.format_name] || { icon: 'fa-file', color: '#888' };
+            const banner = BANNER_PALETTE[i % BANNER_PALETTE.length];
+            const percent = progressByMaterial.get(Number(mat.material_id)) || 0;
+
+            // Prefer the admin-uploaded cover image; fall back to the gradient + format icon.
+            const bannerHTML = mat.thumbnail_url
+                ? `<img src="${escapeHTML(mat.thumbnail_url)}" alt="" loading="lazy">`
+                : `<div class="course-card-banner-icon"><i class="fa-solid ${fmt.icon}"></i></div>`;
+
+            const progressHTML = percent > 0 ? `
+                <div class="course-card-progress">
+                    <div class="progress-track"><div class="progress-fill" style="width:${percent}%;"></div></div>
+                    <span class="progress-label">${percent}% Complete</span>
+                </div>
+            ` : `<div class="course-card-not-started">Not Started</div>`;
+
             return `
-                <div class="curriculum-item" onclick="window.viewMaterial(${mat.material_id})">
-                    <div class="item-icon-wrap" style="background:${fmt.color}18;">
-                        <i class="fa-solid ${fmt.icon}" style="color:${fmt.color};"></i>
+                <div class="course-card" onclick="window.viewMaterial(${mat.material_id})">
+                    <div class="course-card-banner" style="${mat.thumbnail_url ? '' : `background:${banner};`}">
+                        ${bannerHTML}
                     </div>
-                    <div class="item-details">
+                    <div class="course-card-body">
                         <h4>${escapeHTML(mat.title)}</h4>
-                        <p>
-                            <i class="fa-solid ${subIcon}" style="font-size:10px;margin-right:4px;"></i>
-                            ${escapeHTML(mat.subject_name)}
-                            ${mat.instructor_name ? ' &bull; ' + escapeHTML(mat.instructor_name) : ''}
-                        </p>
-                        <span class="format-badge" style="background:${fmt.color}18;color:${fmt.color};">
-                            ${escapeHTML(mat.format_name)}
-                        </span>
-                        ${mat.duration_lessons ? `<span class="duration-badge"><i class="fa-regular fa-clock"></i> ${escapeHTML(mat.duration_lessons)}</span>` : ''}
-                    </div>
-                    <div class="item-action">
-                        <i class="fa-solid fa-chevron-right"></i>
+                        <p class="course-card-meta">${escapeHTML(mat.subject_name)} &bull; NCERT</p>
+                        <div class="course-card-format-row">
+                            <span class="course-card-format" style="color:${fmt.color};">${escapeHTML(mat.format_name)}</span>
+                            ${mat.duration_lessons ? `<span class="course-card-duration">&bull; ${escapeHTML(mat.duration_lessons)}</span>` : ''}
+                        </div>
+                        ${progressHTML}
+                        <button type="button" class="course-card-btn">${percent > 0 ? 'Continue' : 'Start'}</button>
                     </div>
                 </div>
             `;

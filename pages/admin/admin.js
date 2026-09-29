@@ -374,13 +374,40 @@ function setupMaterialsCRUD() {
         
         let url = convertGoogleDriveLink(document.getElementById('material-url').value);
         const fileInput = document.getElementById('material-file');
-        
+
+        // Resolves the cover-image URL from either the file picker (uploaded to
+        // Supabase Storage, or read as base64 for the local sqlite fallback) or
+        // the manual "Thumbnail Image URL" text field. Returns null if neither is set.
+        const resolveThumbnailUrl = async () => {
+            const thumbFileInput = document.getElementById('material-thumbnail');
+            const thumbFile = thumbFileInput && thumbFileInput.files.length > 0 ? thumbFileInput.files[0] : null;
+
+            if (thumbFile) {
+                if (window.adhyayan.dbType === 'supabase') {
+                    return await window.adhyayan.uploadMaterialFile(thumbFile);
+                }
+                return await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => { alert('Error reading thumbnail image.'); resolve(null); };
+                    reader.readAsDataURL(thumbFile);
+                });
+            }
+
+            const manualThumbUrl = (document.getElementById('material-thumbnail-url')?.value || '').trim();
+            return manualThumbUrl ? convertGoogleDriveLink(manualThumbUrl) : null;
+        };
+
         const proceedWithSubmit = async (finalUrl) => {
             try {
-                await window.adhyayan.addMaterial(subjectId, formatId, title, duration, instructor, finalUrl, chapterNumber);
+                const thumbnailUrl = await resolveThumbnailUrl();
+                await window.adhyayan.addMaterial(subjectId, formatId, title, duration, instructor, finalUrl, chapterNumber, thumbnailUrl);
                 form.reset();
                 if (document.getElementById('material-file')) {
                     document.getElementById('material-file').value = '';
+                }
+                if (document.getElementById('material-thumbnail')) {
+                    document.getElementById('material-thumbnail').value = '';
                 }
                 await renderMaterials();
             } catch (error) {
@@ -655,6 +682,7 @@ async function renderMaterials() {
         tableBody.innerHTML = pageItems.map(mat => `
             <tr>
                 <td>${mat.material_id}</td>
+                <td>${mat.thumbnail_url ? `<img src="${escapeHTML(mat.thumbnail_url)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:6px;">` : `<span style="color:#BBB;font-size:11px;">None</span>`}</td>
                 <td>${escapeHTML(mat.title)}</td>
                 <td>${escapeHTML(mat.subject_name || 'Unknown')}</td>
                 <td>${mat.chapter_number ? 'Chapter ' + mat.chapter_number : '—'}</td>
