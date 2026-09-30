@@ -1,97 +1,162 @@
 <div class="screen home-screen has-bottom-nav">
+    <div class="home-shell">
 
-    <div class="profile-row">
-        <div class="avatar" id="home-avatar">?</div>
-        <div class="user-info">
-            <div class="user-greeting" id="home-greeting">Welcome back,</div>
-            <div class="user-name" id="home-name">Student</div>
-            <div class="user-class" id="home-class">Loading...</div>
-        </div>
-        <div class="bell-wrapper">
-            <button class="bell-icon" id="home-bell" type="button" aria-label="Notifications">
-                <i class="fa-regular fa-bell"></i>
-                <span class="notif-badge hidden" id="home-notif-badge">0</span>
-            </button>
-            <div class="notif-panel hidden" id="home-notif-panel">
-                <div class="notif-panel-header">Notifications</div>
-                <div class="notif-panel-list" id="home-notif-list">
-                    <div class="notif-empty">Loading...</div>
+        <div class="home-topbar">
+            <div class="home-brand">
+                <span class="home-brand-badge"><i class="fa-solid fa-graduation-cap"></i></span>
+                <div class="home-brand-text">
+                    <div class="home-brand-name">K12 Learn</div>
+                    <div class="home-brand-tagline">Learn &bull; Grow &bull; Achieve</div>
+                </div>
+            </div>
+
+            <div class="avatar" id="home-avatar">?</div>
+            <div class="user-info">
+                <div class="user-greeting" id="home-greeting">Welcome back,</div>
+                <div class="user-name" id="home-name">Student</div>
+                <div class="user-class" id="home-class">Loading...</div>
+            </div>
+
+            <div class="search-engine" id="home-search-wrap">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" placeholder="Search lessons, subjects, or anything..." id="home-search" autocomplete="off">
+                <i class="fa-solid fa-microphone mic-icon" id="home-mic-btn"></i>
+            </div>
+
+            <div class="bell-wrapper">
+                <button class="bell-icon" id="home-bell" type="button" aria-label="Notifications">
+                    <i class="fa-regular fa-bell"></i>
+                    <span class="notif-badge hidden" id="home-notif-badge">0</span>
+                </button>
+                <div class="notif-panel hidden" id="home-notif-panel">
+                    <div class="notif-panel-header">Notifications</div>
+                    <div class="notif-panel-list" id="home-notif-list">
+                        <div class="notif-empty">Loading...</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="search-engine">
-        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" placeholder="Search lessons, subjects..." id="home-search" autocomplete="off">
-        <i class="fa-solid fa-microphone mic-icon" id="home-mic-btn"></i>
-    </div>
-    <div class="search-results hidden" id="home-search-results"></div>
+        <div class="search-results hidden" id="home-search-results"></div>
 
-    <div class="competitive-section">
-        <div class="section-header">
-            <h3>Competitive Exams</h3>
-            <a href="#" class="see-all" id="competitive-see-all">See all</a>
-        </div>
-        <div class="competitive-grid" id="competitive-grid">
-            <div class="competitive-card active" style="opacity: 0.7;">
-                <div class="competitive-icon">…</div>
-                <div class="competitive-content">
-                    <div class="competitive-name">Loading exams</div>
-                    <div class="competitive-meta">Please wait</div>
+        <div class="home-body">
+            <div class="home-main">
+
+                <div class="home-hero">
+                    <div class="home-hero-text">
+                        <h2 class="home-hero-greeting" id="home-hero-greeting">Good morning! 👋</h2>
+                        <p class="home-hero-sub">Small steps every day lead to big dreams!</p>
+
+                        <div class="progress-card home-hero-continue" id="home-continue-card">
+                            <div class="card-left">
+                                <div class="badge" id="home-continue-subject">Loading...</div>
+                                <h4 id="home-continue-title">Fetching your last lesson</h4>
+                                <div class="progress-info" id="home-continue-info">Please wait...</div>
+                                <div class="progress-bar"><div class="fill" id="home-continue-bar" style="width: 0%;"></div></div>
+                            </div>
+                            <div class="card-right" id="resume-lesson">
+                                <div class="play-btn"><i class="fa-solid fa-play"></i></div>
+                                <div class="percent" id="home-continue-pct">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="home-hero-art" aria-hidden="true"><i class="fa-solid fa-book-open-reader"></i></div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="progress-module">
-        <h3>Continue Learning</h3>
-        <div class="progress-card" id="home-continue-card">
-            <div class="card-left">
-                <div class="badge" id="home-continue-subject">Loading...</div>
-                <h4 id="home-continue-title">Fetching your last lesson</h4>
-                <div class="progress-info" id="home-continue-info">Please wait...</div>
-                <div class="progress-bar"><div class="fill" id="home-continue-bar" style="width: 0%;"></div></div>
-            </div>
-            <div class="card-right" id="resume-lesson">
-                <div class="play-btn"><i class="fa-solid fa-play"></i></div>
-                <div class="percent" id="home-continue-pct">0%</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="subject-slider-section">
-        <div class="section-header">
-            <h3>Your Subjects</h3>
-            <a href="#" class="see-all" id="home-see-all">See All</a>
-        </div>
-        <div class="horizontal-slider" id="home-subjects-slider">
-            <div class="subject-card-skeleton"></div>
-            <div class="subject-card-skeleton"></div>
-            <div class="subject-card-skeleton"></div>
-        </div>
-        <div class="slider-dots" id="home-subjects-dots"></div>
-    </div>
-
-    <div class="subject-slider-section" style="margin-top: 16px;">
-        <div class="section-header">
-            <h3>Quick Quiz</h3>
-            <a href="#" class="see-all" id="home-quiz-link">See all</a>
-        </div>
-        <div class="progress-card quiz-center-card" id="home-quiz-card" style="cursor:pointer;">
-            <div class="quiz-card-left">
-                <div class="quiz-card-badge" id="home-quiz-icon"></div>
-                <div class="quiz-card-content">
-                    <div class="badge" id="home-quiz-subject">Loading...</div>
-                    <h4 id="home-quiz-title">Fetching quiz...</h4>
-                    <div class="quiz-chapter" id="home-quiz-chapter"></div>
-                    <div class="progress-info" id="home-quiz-info">Please wait...</div>
+                <div class="home-quick-actions">
+                    <button type="button" class="quick-action-btn" id="home-quick-learning">
+                        <span class="quick-action-icon quick-action-icon-yellow"><i class="fa-solid fa-star"></i></span>
+                        <span>Today's Learning</span>
+                    </button>
+                    <button type="button" class="quick-action-btn" id="home-quick-quiz">
+                        <span class="quick-action-icon quick-action-icon-purple"><i class="fa-solid fa-bolt"></i></span>
+                        <span>Quiz</span>
+                    </button>
+                    <button type="button" class="quick-action-btn" id="home-quick-progress">
+                        <span class="quick-action-icon quick-action-icon-green"><i class="fa-solid fa-chart-line"></i></span>
+                        <span>Progress</span>
+                    </button>
                 </div>
-            </div>
-            <div class="quiz-card-actions">
-                <div class="play-btn"><i class="fa-solid fa-brain"></i></div>
-            </div>
-        </div>
-    </div>
 
+                <div class="subject-slider-section">
+                    <div class="section-header">
+                        <h3>Your Subjects</h3>
+                        <a href="#" class="see-all" id="home-see-all">See All</a>
+                    </div>
+                    <div class="horizontal-slider" id="home-subjects-slider">
+                        <div class="subject-card-skeleton"></div>
+                        <div class="subject-card-skeleton"></div>
+                        <div class="subject-card-skeleton"></div>
+                    </div>
+                    <div class="slider-dots" id="home-subjects-dots"></div>
+                </div>
+
+                <div class="competitive-section">
+                    <div class="section-header">
+                        <h3>Competitive Exams</h3>
+                        <a href="#" class="see-all" id="competitive-see-all">See all</a>
+                    </div>
+                    <div class="competitive-grid" id="competitive-grid">
+                        <div class="competitive-card active" style="opacity: 0.7;">
+                            <div class="competitive-icon">…</div>
+                            <div class="competitive-content">
+                                <div class="competitive-name">Loading exams</div>
+                                <div class="competitive-meta">Please wait</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subject-slider-section" style="margin-top: 16px;">
+                    <div class="section-header">
+                        <h3>Quick Quiz</h3>
+                        <a href="#" class="see-all" id="home-quiz-link">See all</a>
+                    </div>
+                    <div class="progress-card quiz-center-card" id="home-quiz-card" style="cursor:pointer;">
+                        <div class="quiz-card-left">
+                            <div class="quiz-card-badge" id="home-quiz-icon"></div>
+                            <div class="quiz-card-content">
+                                <div class="badge" id="home-quiz-subject">Loading...</div>
+                                <h4 id="home-quiz-title">Fetching quiz...</h4>
+                                <div class="quiz-chapter" id="home-quiz-chapter"></div>
+                                <div class="progress-info" id="home-quiz-info">Please wait...</div>
+                            </div>
+                        </div>
+                        <div class="quiz-card-actions">
+                            <div class="play-btn"><i class="fa-solid fa-brain"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <aside class="home-sidebar">
+                <div class="home-progress-widget">
+                    <div class="home-progress-widget-title">Your Progress</div>
+                    <div class="home-progress-ring" id="home-progress-ring" style="--pct: 0;">
+                        <span class="home-progress-pct" id="home-progress-pct">0%</span>
+                    </div>
+                    <div class="home-progress-widget-sub">Overall Completion</div>
+                    <div class="home-progress-widget-detail" id="home-progress-sub">0 of 0 subjects</div>
+                    <ul class="home-progress-stats">
+                        <li><span class="stat-dot stat-dot-green"></span>Lessons Completed<b id="home-stat-lessons">0</b></li>
+                        <li><span class="stat-dot stat-dot-purple"></span>Quizzes Attempted<b id="home-stat-quizzes">0</b></li>
+                        <li><span class="stat-dot stat-dot-yellow"></span>Learning Streak<b id="home-stat-streak">0 days</b></li>
+                    </ul>
+                </div>
+
+                <div class="home-encourage-card">
+                    <i class="fa-solid fa-trophy"></i>
+                    <div class="home-encourage-title">You're Making Progress!</div>
+                    <div class="home-encourage-sub">Every lesson brings you closer to your goals.</div>
+                </div>
+
+                <div class="home-quote-card">
+                    <i class="fa-solid fa-quote-left"></i>
+                    <p>Education is not the filling of a pail, but the lighting of a fire.</p>
+                </div>
+            </aside>
+        </div>
+
+    </div>
 </div>

@@ -71,6 +71,71 @@ function pickBestQuiz(quizzes) {
     })[0];
 }
 
+// Consecutive calendar days (ending today or yesterday) with at least one
+// quiz attempt — mirrors the same calculation on the Profile page's DAY STREAK.
+function computeStreak(attempts) {
+    if (!attempts || attempts.length === 0) return 0;
+
+    const dayKey = d => {
+        const dt = new Date(d);
+        return `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+    };
+    const days = new Set(attempts.map(a => dayKey(a.taken_at)));
+
+    const cursor = new Date();
+    if (!days.has(dayKey(cursor))) {
+        cursor.setDate(cursor.getDate() - 1);
+        if (!days.has(dayKey(cursor))) return 0;
+    }
+
+    let streak = 0;
+    while (days.has(dayKey(cursor))) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+}
+
+// Populates the wide-screen sidebar "Your Progress" card (hidden on mobile
+// via home.css) with real completion/quiz/streak stats for the logged-in student.
+async function renderSidebarProgress(user, subjects, materials) {
+    const el = id => document.getElementById(id);
+    const ring = el('home-progress-ring');
+    if (!ring) return;
+
+    const userId = user?.user_id;
+    const materialProgress = userId ? (window.adhyayan.getAllMaterialProgress?.(userId) || []) : [];
+    const completedMaterials = materialProgress.filter(p => p.percent >= 100);
+
+    const totalLessons = materials.length;
+    const completedLessons = completedMaterials.length;
+    const overallPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+    const subjectsWithProgress = new Set(
+        completedMaterials
+            .map(p => materials.find(m => m.material_id === p.material_id)?.subject_name)
+            .filter(Boolean)
+    );
+
+    ring.style.setProperty('--pct', String(overallPct));
+    if (el('home-progress-pct')) el('home-progress-pct').textContent = `${overallPct}%`;
+    if (el('home-progress-sub')) {
+        el('home-progress-sub').textContent = `${subjectsWithProgress.size} of ${subjects.length} subjects`;
+    }
+    if (el('home-stat-lessons')) el('home-stat-lessons').textContent = String(completedLessons);
+
+    try {
+        const attempts = userId ? await window.adhyayan.getQuizAttemptsByUser(userId) : [];
+        if (el('home-stat-quizzes')) el('home-stat-quizzes').textContent = String(attempts.length);
+        if (el('home-stat-streak')) {
+            const streak = computeStreak(attempts);
+            el('home-stat-streak').textContent = `${streak} day${streak === 1 ? '' : 's'}`;
+        }
+    } catch (err) {
+        console.error('Failed to load quiz attempts for sidebar stats:', err);
+    }
+}
+
 export async function init(navigateTo, state) {
     const user = state.currentUser;
 
@@ -90,12 +155,24 @@ export async function init(navigateTo, state) {
             const board = user.board || 'CBSE';
             el('home-class').textContent = `Class ${cls}  •  ${board}`;
         }
+        // Wide-screen hero heading (mobile hides this and shows the compact
+        // avatar/greeting row above instead — see home.css breakpoints).
+        if (el('home-hero-greeting')) {
+            el('home-hero-greeting').textContent = `${greeting} ${nameParts[0] || 'Student'} 👋`;
+        }
     }
 
     // Wire up the notification bell right away (before any awaited data loads)
     // so it's clickable immediately once this page finishes rendering — this
     // lets other pages (e.g. Profile) reliably auto-open it right after navigating here.
     setupNotifications(state);
+
+    // --- Quick-action shortcuts (mobile card row + desktop hero row) ---
+    document.getElementById('home-quick-learning')?.addEventListener('click', () => {
+        document.getElementById('resume-lesson')?.click();
+    });
+    document.getElementById('home-quick-quiz')?.addEventListener('click', () => navigateTo('quiz-center'));
+    document.getElementById('home-quick-progress')?.addEventListener('click', () => navigateTo('progress'));
 
     // --- Load subjects for user's class ---
     const classNumber = user?.class_number || state.selectedClass || 9;
@@ -219,6 +296,9 @@ export async function init(navigateTo, state) {
     } catch (err) {
         console.error('Failed to load quiz card:', err);
     }
+
+    // --- Sidebar "Your Progress" widget (wide screens only, see home.css) ---
+    renderSidebarProgress(user, loadedSubjects, loadedMaterials);
 
     // --- See all -> courses ---
     document.getElementById('competitive-see-all')?.addEventListener('click', (e) => {
