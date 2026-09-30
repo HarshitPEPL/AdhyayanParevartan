@@ -188,8 +188,8 @@ export async function init(navigateTo, state) {
                 const icon  = SUBJECT_ICONS[sub.subject_name] || 'fa-book';
                 const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
                 return `
-                    <div class="subject-card" onclick="window.navigateTo('courses')" style="cursor:pointer;">
-                        <div class="icon-circle" style="background:${color}15; color:${color};">
+                    <div class="subject-card" onclick="window.navigateTo('courses')" style="cursor:pointer; border-top: 3px solid ${color};">
+                        <div class="icon-circle" style="background: linear-gradient(135deg, ${color}, ${color}CC); color:#fff;">
                             <i class="fa-solid ${icon}"></i>
                         </div>
                         <div class="title">${sub.subject_name}</div>
