@@ -71,6 +71,72 @@ function pickBestQuiz(quizzes) {
     })[0];
 }
 
+// Consecutive calendar days (ending today or yesterday) with at least one
+// quiz attempt — mirrors the same calculation on the Profile page.
+function computeStreak(attempts) {
+    if (!attempts || attempts.length === 0) return 0;
+
+    const dayKey = d => {
+        const dt = new Date(d);
+        return `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+    };
+    const days = new Set(attempts.map(a => dayKey(a.taken_at)));
+
+    const cursor = new Date();
+    if (!days.has(dayKey(cursor))) {
+        cursor.setDate(cursor.getDate() - 1);
+        if (!days.has(dayKey(cursor))) return 0;
+    }
+
+    let streak = 0;
+    while (days.has(dayKey(cursor))) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+}
+
+// Populates the fire-streak pill next to the avatar and the motivational
+// card further down the page, both purely for engagement/gamification.
+async function renderStreakAndMotivation(user) {
+    const el = id => document.getElementById(id);
+    const pill = el('home-streak-pill');
+    const card = el('home-motivation-card');
+    if (!user?.user_id || (!pill && !card)) return;
+
+    try {
+        const attempts = await window.adhyayan.getQuizAttemptsByUser(user.user_id);
+        const streak = computeStreak(attempts);
+
+        if (pill) {
+            if (streak > 0) {
+                el('home-streak-count').textContent = String(streak);
+                pill.classList.remove('hidden');
+            } else {
+                pill.classList.add('hidden');
+            }
+        }
+
+        if (card) {
+            const title = el('home-motivation-title');
+            const sub = el('home-motivation-sub');
+            if (streak >= 3) {
+                if (title) title.textContent = `🔥 ${streak}-day streak! You're on fire!`;
+                if (sub) sub.textContent = 'Keep it going — a little every day adds up to a lot.';
+            } else if (streak > 0) {
+                if (title) title.textContent = `Great start, ${streak} day${streak === 1 ? '' : 's'} strong!`;
+                if (sub) sub.textContent = 'Come back tomorrow to keep your streak alive.';
+            } else {
+                if (title) title.textContent = "You're doing great!";
+                if (sub) sub.textContent = 'Finish a lesson or quiz today to start a streak.';
+            }
+            card.classList.remove('hidden');
+        }
+    } catch (err) {
+        console.error('Failed to load streak/motivation stats:', err);
+    }
+}
+
 export async function init(navigateTo, state) {
     const user = state.currentUser;
 
@@ -96,6 +162,7 @@ export async function init(navigateTo, state) {
     // so it's clickable immediately once this page finishes rendering — this
     // lets other pages (e.g. Profile) reliably auto-open it right after navigating here.
     setupNotifications(state);
+    renderStreakAndMotivation(user);
 
     // --- Load subjects for user's class ---
     const classNumber = user?.class_number || state.selectedClass || 9;
