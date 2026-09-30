@@ -31,8 +31,8 @@ export function init(navigateTo, state) {
         document.getElementById('home-bell')?.click();
     });
 
-    // Downloaded Lessons → real per-device download history
-    el('pref-downloads')?.addEventListener('click', () => navigateTo('downloads'));
+    // Wishlist → real per-device saved lessons
+    el('pref-wishlist')?.addEventListener('click', () => navigateTo('wishlist'));
 
     // Help & Support → admin-editable content page
     el('pref-help')?.addEventListener('click', () => navigateTo('help-support'));

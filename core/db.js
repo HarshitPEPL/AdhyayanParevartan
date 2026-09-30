@@ -1138,12 +1138,12 @@ export function getAllMaterialProgress(userId) {
     return entries.sort((a, b) => b.updated_at - a.updated_at);
 }
 
-// 6b. DOWNLOADED LESSONS (client-side; per-device download history)
-const DOWNLOADS_CACHE_KEY = 'adhyayan_downloads_v1';
+// 6b. WISHLIST (client-side; per-device saved lessons)
+const WISHLIST_CACHE_KEY = 'adhyayan_wishlist_v1';
 
-function loadDownloadsStore() {
+function loadWishlistStore() {
     try {
-        const raw = localStorage.getItem(DOWNLOADS_CACHE_KEY);
+        const raw = localStorage.getItem(WISHLIST_CACHE_KEY);
         const parsed = raw ? JSON.parse(raw) : {};
         return (parsed && typeof parsed === 'object') ? parsed : {};
     } catch (_) {
@@ -1151,32 +1151,39 @@ function loadDownloadsStore() {
     }
 }
 
-function saveDownloadsStore(store) {
-    try { localStorage.setItem(DOWNLOADS_CACHE_KEY, JSON.stringify(store)); } catch (_) {}
+function saveWishlistStore(store) {
+    try { localStorage.setItem(WISHLIST_CACHE_KEY, JSON.stringify(store)); } catch (_) {}
 }
 
-export function recordDownload(userId, material) {
+export function addToWishlist(userId, material) {
     if (!material || material.material_id == null) return;
-    const store = loadDownloadsStore();
+    const store = loadWishlistStore();
     const key = String(userId || 'guest');
-    const existing = (store[key] || []).filter(d => Number(d.material_id) !== Number(material.material_id));
+    // Keep the full material record (not just a few fields) so opening a
+    // wishlisted item later can render the lesson page exactly like the library did.
+    const existing = (store[key] || []).filter(w => Number(w.material_id) !== Number(material.material_id));
 
-    existing.unshift({
-        material_id: material.material_id,
-        title: material.title,
-        subject_name: material.subject_name,
-        format_name: material.format_name,
-        file_url: material.file_url,
-        downloaded_at: new Date().toISOString()
-    });
+    existing.unshift({ ...material, wishlisted_at: new Date().toISOString() });
 
-    store[key] = existing.slice(0, 100); // cap history per user
-    saveDownloadsStore(store);
+    store[key] = existing.slice(0, 200); // cap history per user
+    saveWishlistStore(store);
 }
 
-export function getDownloads(userId) {
-    const store = loadDownloadsStore();
+export function removeFromWishlist(userId, materialId) {
+    const store = loadWishlistStore();
+    const key = String(userId || 'guest');
+    store[key] = (store[key] || []).filter(w => Number(w.material_id) !== Number(materialId));
+    saveWishlistStore(store);
+}
+
+export function getWishlist(userId) {
+    const store = loadWishlistStore();
     return store[String(userId || 'guest')] || [];
+}
+
+export function isInWishlist(userId, materialId) {
+    if (materialId == null) return false;
+    return getWishlist(userId).some(w => Number(w.material_id) === Number(materialId));
 }
 
 // 6c. SITE CONTENT (admin-editable pages, e.g. Help & Support)

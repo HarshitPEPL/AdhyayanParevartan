@@ -13,7 +13,7 @@ export const routes = {
     'progress': { showNav: true },
     'profile': { showNav: true },
     'help-support': { showNav: false },
-    'downloads': { showNav: false },
+    'wishlist': { showNav: false },
     'admin-login': { showNav: false },
     'admin': { showNav: false }
 };

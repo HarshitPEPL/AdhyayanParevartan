@@ -334,23 +334,24 @@ export function init(navigateTo, state) {
     }
 
     // --- Settings ("gear") popover menu: houses the less-frequent actions
-    // (download / open externally) so the toolbar itself stays uncluttered.
-    function wireSettingsMenu(onDownload, onOpenExternal) {
+    // (wishlist / open externally) so the toolbar itself stays uncluttered.
+    function wireSettingsMenu(onToggleWishlist, onOpenExternal, getIsWishlisted) {
         document.querySelectorAll('.reader-settings-wrap').forEach((wrap) => {
             const trigger = wrap.querySelector('.reader-icon-settings');
             if (!trigger) return;
             trigger.addEventListener('click', (event) => {
                 event.stopPropagation();
                 document.querySelectorAll('.reader-settings-menu').forEach((m) => m.remove());
+                const isWishlisted = !!getIsWishlisted?.();
                 const menu = document.createElement('div');
                 menu.className = 'reader-settings-menu';
                 menu.innerHTML = `
-                    <button type="button" data-action="download"><i class="fa-solid fa-cloud-arrow-down"></i> Download Material</button>
+                    <button type="button" data-action="wishlist"><i class="fa-${isWishlisted ? 'solid' : 'regular'} fa-heart"></i> ${isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}</button>
                     ${onOpenExternal ? '<button type="button" data-action="external"><i class="fa-solid fa-up-right-from-square"></i> Open Externally</button>' : ''}
                 `;
-                menu.querySelector('[data-action="download"]')?.addEventListener('click', () => {
+                menu.querySelector('[data-action="wishlist"]')?.addEventListener('click', () => {
                     menu.remove();
-                    onDownload?.();
+                    onToggleWishlist?.();
                 });
                 menu.querySelector('[data-action="external"]')?.addEventListener('click', () => {
                     menu.remove();
@@ -367,6 +368,7 @@ export function init(navigateTo, state) {
             });
         });
     }
+
 
     const viewerContainer = document.getElementById('lesson-viewer-container');
     const ext = mat.file_url.split('.').pop().toLowerCase();
@@ -663,33 +665,32 @@ export function init(navigateTo, state) {
     }
 
 
-    const downloadBtn = document.getElementById('lesson-download-btn');
-    const triggerDownload = () => {
-        window.adhyayan?.recordDownload?.(userId, mat);
+    const wishlistBtn = document.getElementById('lesson-wishlist-btn');
+    const wishlistIcon = document.getElementById('lesson-wishlist-icon');
+    const wishlistText = document.getElementById('lesson-wishlist-text');
+    const isWishlisted = () => !!window.adhyayan?.isInWishlist?.(userId, mat.material_id);
 
-        if (isDataUrl) {
-            // Programmatic download for Data URLs
-            const a = document.createElement('a');
-            a.href = mat.file_url;
-            // Try to guess extension for filename
-            let dlExt = 'file';
-            if (mat.file_url.includes('pdf')) dlExt = 'pdf';
-            else if (mat.file_url.includes('audio')) dlExt = 'mp3';
-            else if (mat.file_url.includes('video')) dlExt = 'mp4';
-
-            a.download = `Adhyayan_${mat.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${dlExt}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            reportProgress(100);
-        } else {
-            window.open(mat.file_url, '_blank');
-        }
+    const refreshWishlistUi = () => {
+        const wishlisted = isWishlisted();
+        if (wishlistIcon) wishlistIcon.className = `fa-${wishlisted ? 'solid' : 'regular'} fa-heart`;
+        if (wishlistText) wishlistText.textContent = wishlisted ? 'Remove from Wishlist' : 'Add to Wishlist';
+        wishlistBtn?.classList.toggle('active', wishlisted);
     };
-    if (downloadBtn) {
-        downloadBtn.onclick = triggerDownload;
+
+    const toggleWishlist = () => {
+        if (isWishlisted()) {
+            window.adhyayan?.removeFromWishlist?.(userId, mat.material_id);
+        } else {
+            window.adhyayan?.addToWishlist?.(userId, mat);
+        }
+        refreshWishlistUi();
+    };
+
+    refreshWishlistUi();
+    if (wishlistBtn) {
+        wishlistBtn.onclick = toggleWishlist;
     }
 
-    // Gear icon menu (topbar + bottom toolbar): download / open externally.
-    wireSettingsMenu(triggerDownload, isDataUrl ? null : () => openExternalLink(mat.file_url));
+    // Gear icon menu (topbar + bottom toolbar): wishlist / open externally.
+    wireSettingsMenu(toggleWishlist, isDataUrl ? null : () => openExternalLink(mat.file_url), isWishlisted);
 }

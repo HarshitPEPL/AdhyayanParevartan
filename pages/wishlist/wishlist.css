@@ -1,17 +1,17 @@
-.downloads-screen {
+.wishlist-screen {
     padding: 20px;
     overflow-y: auto;
     align-items: stretch;
 }
 
-.downloads-topbar {
+.wishlist-topbar {
     display: flex;
     align-items: center;
     gap: 14px;
     margin-bottom: 20px;
 }
 
-.downloads-back-btn {
+.wishlist-back-btn {
     width: 38px;
     height: 38px;
     border-radius: 12px;
@@ -26,14 +26,14 @@
     flex-shrink: 0;
 }
 
-.downloads-topbar h2 {
+.wishlist-topbar h2 {
     font-size: 19px;
     font-weight: 800;
     color: var(--text-primary, #222);
     margin: 0;
 }
 
-.download-item {
+.wishlist-item {
     display: flex;
     align-items: center;
     gap: 14px;
@@ -47,17 +47,17 @@
     transition: background 0.15s ease;
 }
 
-.download-item:hover,
-.download-item:active {
+.wishlist-item:hover,
+.wishlist-item:active {
     background: #F8F8F8;
 }
 
-.download-icon {
+.wishlist-icon {
     width: 40px;
     height: 40px;
     border-radius: 12px;
-    background: rgba(27,128,57,0.1);
-    color: var(--primary-green, #1B8039);
+    background: rgba(225,29,72,0.1);
+    color: #e11d48;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -65,12 +65,12 @@
     flex-shrink: 0;
 }
 
-.download-info {
+.wishlist-info {
     flex: 1;
     min-width: 0;
 }
 
-.download-title {
+.wishlist-title {
     font-size: 14px;
     font-weight: 700;
     color: #222;
@@ -79,19 +79,38 @@
     text-overflow: ellipsis;
 }
 
-.download-meta {
+.wishlist-meta {
     font-size: 12px;
     color: #888;
     margin-top: 2px;
 }
 
-.download-time {
+.wishlist-time {
     font-size: 11px;
     color: #AAA;
     margin-top: 2px;
 }
 
-.downloads-empty {
+.wishlist-remove-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 0;
+    background: #FBEAEE;
+    color: #e11d48;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.wishlist-remove-btn:hover {
+    background: #f6d3da;
+}
+
+.wishlist-empty {
     padding: 40px 20px;
     text-align: center;
     color: #999;

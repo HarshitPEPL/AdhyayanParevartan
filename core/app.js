@@ -9,7 +9,7 @@ import {
     addQuizAttempt, getQuizAttemptsByUser, getQuizLeaderboard,
     getNotifications, addNotification, deleteNotification,
     setMaterialProgress, getRecentMaterialProgress, getAllMaterialProgress,
-    recordDownload, getDownloads,
+    addToWishlist, removeFromWishlist, getWishlist, isInWishlist,
     getSiteContent, saveSiteContent,
     updateUserClass,
     uploadMaterialFile, dbType
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         addQuizAttempt, getQuizAttemptsByUser, getQuizLeaderboard,
         getNotifications, addNotification, deleteNotification,
         setMaterialProgress, getRecentMaterialProgress, getAllMaterialProgress,
-        recordDownload, getDownloads,
+        addToWishlist, removeFromWishlist, getWishlist, isInWishlist,
         getSiteContent, saveSiteContent,
         updateUserClass,
         uploadMaterialFile,
