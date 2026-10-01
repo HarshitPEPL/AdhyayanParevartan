@@ -1,0 +1,109 @@
+<div class="screen home-screen has-bottom-nav">
+
+    <div class="profile-row">
+        <div class="avatar" id="home-avatar">?</div>
+        <div class="user-info">
+            <div class="user-greeting" id="home-greeting">Welcome back,</div>
+            <div class="user-name" id="home-name">Student</div>
+            <div class="user-class" id="home-class">Loading...</div>
+        </div>
+        <div class="home-streak-pill hidden" id="home-streak-pill" title="Daily learning streak">
+            <i class="fa-solid fa-fire"></i>
+            <span id="home-streak-count">0</span>
+        </div>
+        <div class="bell-wrapper">
+            <button class="bell-icon" id="home-bell" type="button" aria-label="Notifications">
+                <i class="fa-regular fa-bell"></i>
+                <span class="notif-badge hidden" id="home-notif-badge">0</span>
+            </button>
+            <div class="notif-panel hidden" id="home-notif-panel">
+                <div class="notif-panel-header">Notifications</div>
+                <div class="notif-panel-list" id="home-notif-list">
+                    <div class="notif-empty">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="search-engine">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" placeholder="Search lessons, subjects..." id="home-search" autocomplete="off">
+        <i class="fa-solid fa-microphone mic-icon" id="home-mic-btn"></i>
+    </div>
+    <div class="search-results hidden" id="home-search-results"></div>
+
+    <div class="competitive-section">
+        <div class="section-header">
+            <h3><span class="section-icon icon-amber"><i class="fa-solid fa-trophy"></i></span>Competitive Exams</h3>
+            <a href="#" class="see-all" id="competitive-see-all">See all</a>
+        </div>
+        <div class="competitive-grid" id="competitive-grid">
+            <div class="competitive-card active" style="opacity: 0.7;">
+                <div class="competitive-icon">…</div>
+                <div class="competitive-content">
+                    <div class="competitive-name">Loading exams</div>
+                    <div class="competitive-meta">Please wait</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="progress-module">
+        <h3><span class="section-icon icon-green"><i class="fa-solid fa-book-open-reader"></i></span>Continue Learning</h3>
+        <div class="progress-card" id="home-continue-card">
+            <div class="card-left">
+                <div class="badge" id="home-continue-subject">Loading...</div>
+                <h4 id="home-continue-title">Fetching your last lesson</h4>
+                <div class="progress-info" id="home-continue-info">Please wait...</div>
+                <div class="progress-bar"><div class="fill" id="home-continue-bar" style="width: 0%;"></div></div>
+            </div>
+            <div class="card-right" id="resume-lesson">
+                <div class="play-btn"><i class="fa-solid fa-play"></i></div>
+                <div class="percent" id="home-continue-pct">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="home-motivation-card hidden" id="home-motivation-card">
+        <i class="fa-solid fa-sparkles"></i>
+        <div class="home-motivation-text">
+            <div class="home-motivation-title" id="home-motivation-title">You're doing great!</div>
+            <div class="home-motivation-sub" id="home-motivation-sub">Keep learning every day to grow your streak.</div>
+        </div>
+    </div>
+
+    <div class="subject-slider-section">
+        <div class="section-header">
+            <h3><span class="section-icon icon-blue"><i class="fa-solid fa-layer-group"></i></span>Your Subjects</h3>
+            <a href="#" class="see-all" id="home-see-all">See All</a>
+        </div>
+        <div class="horizontal-slider" id="home-subjects-slider">
+            <div class="subject-card-skeleton"></div>
+            <div class="subject-card-skeleton"></div>
+            <div class="subject-card-skeleton"></div>
+        </div>
+        <div class="slider-dots" id="home-subjects-dots"></div>
+    </div>
+
+    <div class="subject-slider-section" style="margin-top: 16px;">
+        <div class="section-header">
+            <h3><span class="section-icon icon-purple"><i class="fa-solid fa-bolt"></i></span>Quick Quiz</h3>
+            <a href="#" class="see-all" id="home-quiz-link">See all</a>
+        </div>
+        <div class="progress-card quiz-center-card" id="home-quiz-card" style="cursor:pointer;">
+            <div class="quiz-card-left">
+                <div class="quiz-card-badge" id="home-quiz-icon"></div>
+                <div class="quiz-card-content">
+                    <div class="badge" id="home-quiz-subject">Loading...</div>
+                    <h4 id="home-quiz-title">Fetching quiz...</h4>
+                    <div class="quiz-chapter" id="home-quiz-chapter"></div>
+                    <div class="progress-info" id="home-quiz-info">Please wait...</div>
+                </div>
+            </div>
+            <div class="quiz-card-actions">
+                <div class="play-btn"><i class="fa-solid fa-brain"></i></div>
+            </div>
+        </div>
+    </div>
+
+</div>

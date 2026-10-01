@@ -1,109 +1,375 @@
-<div class="screen home-screen has-bottom-nav">
-
-    <div class="profile-row">
-        <div class="avatar" id="home-avatar">?</div>
-        <div class="user-info">
-            <div class="user-greeting" id="home-greeting">Welcome back,</div>
-            <div class="user-name" id="home-name">Student</div>
-            <div class="user-class" id="home-class">Loading...</div>
-        </div>
-        <div class="home-streak-pill hidden" id="home-streak-pill" title="Daily learning streak">
-            <i class="fa-solid fa-fire"></i>
-            <span id="home-streak-count">0</span>
-        </div>
-        <div class="bell-wrapper">
-            <button class="bell-icon" id="home-bell" type="button" aria-label="Notifications">
-                <i class="fa-regular fa-bell"></i>
-                <span class="notif-badge hidden" id="home-notif-badge">0</span>
-            </button>
-            <div class="notif-panel hidden" id="home-notif-panel">
-                <div class="notif-panel-header">Notifications</div>
-                <div class="notif-panel-list" id="home-notif-list">
-                    <div class="notif-empty">Loading...</div>
-                </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Adhyayan – Home</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&family=Kalam:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./home.css">
+    <style>
+        :root {
+            --text-primary: #14231f;
+            --text-secondary: #7b8784;
+            --bg: #f1f5f4;
+            --card: #fff;
+            --line: #e6ebe9;
+            --primary-green: #1f6144;
+        }
+    </style>
+</head>
+<body>
+    <div class="home-screen">
+        <!-- Header -->
+        <header class="top-nav-bar">
+            <div class="nav-logo">
+                <img src="../../public/Adhyayan-transparent.png" alt="Adhyayan" class="logo-image">
             </div>
-        </div>
-    </div>
+            <div class="nav-right">
+                <button class="bell-icon" id="notif-btn" aria-label="Notifications">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                        <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>
+                    </svg>
+                    <i></i>
+                </button>
+                <button class="avatar-badge" id="profile-btn" aria-label="Profile">R</button>
+            </div>
+        </header>
 
-    <div class="search-engine">
-        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" placeholder="Search lessons, subjects..." id="home-search" autocomplete="off">
-        <i class="fa-solid fa-microphone mic-icon" id="home-mic-btn"></i>
-    </div>
-    <div class="search-results hidden" id="home-search-results"></div>
+        <!-- Hero Section -->
+        <section class="main-header-section">
+            <div>
+                <div class="section-label">
+                    <span>Your learning space</span>
+                </div>
+                <h1 class="header-main-greeting">Good morning, <span id="home-name">Rahul</span> <span class="greeting-hand">👋</span></h1>
+                <p class="header-subtitle">Ready to continue learning? Pick up where you left off or explore something new.</p>
+                <label class="search-engine">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                        <circle cx="11" cy="11" r="7"/>
+                        <path d="m20 20-3.5-3.5"/>
+                    </svg>
+                    <input placeholder="Search subjects, chapters, keywords" id="home-search" autocomplete="off">
+                    <button type="button" id="search-submit-btn" class="search-btn">Search</button>
+                </label>
+            </div>
+            <div class="class-info-box">
+                <small class="class-info-label">
+                    YOUR CLASS 
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+                        <path d="m2 9 10-5 10 5-10 5z"/>
+                        <path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5M22 9v6"/>
+                    </svg>
+                </small>
+                <div class="class-info-content">
+                    <div class="class-icon">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div class="class-info-details">
+                        <div class="class-number" id="home-class-badge">Class 2</div>
+                        <div class="class-curriculum" id="home-class-meta">CBSE curriculum</div>
+                    </div>
+                </div>
+                <button class="change-class-link" id="change-class-btn">Change class <span class="arrow">→</span></button>
+            </div>
+        </section>
 
-    <div class="competitive-section">
-        <div class="section-header">
-            <h3><span class="section-icon icon-amber"><i class="fa-solid fa-trophy"></i></span>Competitive Exams</h3>
-            <a href="#" class="see-all" id="competitive-see-all">See all</a>
-        </div>
-        <div class="competitive-grid" id="competitive-grid">
-            <div class="competitive-card active" style="opacity: 0.7;">
-                <div class="competitive-icon">…</div>
+        <!-- Competitive Exams Section -->
+        <section class="competitive-section">
+            <div class="section-header">
+                <div>
+                    <h3>Prep for competitive</h3>
+                    <p>A resource already featured on your homepage.</p>
+                </div>
+                <button class="see-all" id="home-competitive-explore">Browse formats <span class="arrow">→</span></button>
+            </div>
+            <div class="competitive-card" id="home-competitive-card">
+                <div class="competitive-icon">📖</div>
                 <div class="competitive-content">
-                    <div class="competitive-name">Loading exams</div>
-                    <div class="competitive-meta">Please wait</div>
+                    <b class="competitive-name" id="home-competitive-title">Bihar General Knowledge</b>
+                    <small class="competitive-meta" id="home-competitive-meta">Competitive Exams • BPSC</small>
+                    <small class="competitive-meta">43 pages • From your current homepage</small>
+                </div>
+                <button class="ghost-btn">Explore resource <span class="arrow">→</span></button>
+            </div>
+        </section>
+
+        <!-- Continue Learning Section -->
+        <section class="continue-learning-section">
+            <div class="section-header">
+                <div>
+                    <h3>Continue learning</h3>
+                    <p>Your recent lesson is ready when you are.</p>
+                </div>
+                <button class="see-all" id="home-continue-explore">Explore learning <span class="arrow">→</span></button>
+            </div>
+            <div class="continue-card" id="home-continue-card">
+                <div style="position: relative; z-index: 1;">
+                    <span class="continue-badge" id="home-continue-badge">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="3" width="14" height="18" rx="2"/>
+                            <path d="M9 8h6M9 12h6"/>
+                        </svg>
+                        E-Book
+                    </span>
+                    <div class="continue-meta" id="home-continue-subject">English • Class 2</div>
+                    <div class="continue-content">
+                        <h4 id="home-continue-title">Mridang Overview</h4>
+                        <p id="home-continue-info">Continue your English textbook</p>
+                    </div>
+                    <div class="continue-progress">
+                        <div class="continue-progress-label">
+                            <span>Lesson progress</span>
+                            <span id="home-continue-percent">0%</span>
+                        </div>
+                        <div class="progress-bar" id="home-continue-bar"></div>
+                    </div>
+                </div>
+                <div class="continue-card-right" id="resume-lesson">
+                    <button class="continue-play-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                    </button>
+                    <div class="continue-pages" id="home-continue-pages">14 pages</div>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <div class="progress-module">
-        <h3><span class="section-icon icon-green"><i class="fa-solid fa-book-open-reader"></i></span>Continue Learning</h3>
-        <div class="progress-card" id="home-continue-card">
-            <div class="card-left">
-                <div class="badge" id="home-continue-subject">Loading...</div>
-                <h4 id="home-continue-title">Fetching your last lesson</h4>
-                <div class="progress-info" id="home-continue-info">Please wait...</div>
-                <div class="progress-bar"><div class="fill" id="home-continue-bar" style="width: 0%;"></div></div>
+        <!-- Choose how you learn Section -->
+        <section class="formats" style="padding-top: 22px;">
+            <h2 class="formats__title">Choose how you learn</h2>
+            <p class="formats__sub">Explore lessons in the format that works for you.</p>
+            <div class="formats__grid" id="learning-formats-grid">
+                <!-- Cards will be inserted here -->
             </div>
-            <div class="card-right" id="resume-lesson">
-                <div class="play-btn"><i class="fa-solid fa-play"></i></div>
-                <div class="percent" id="home-continue-pct">0%</div>
+        </section>
+
+        <!-- Class Selection Section -->
+        <section class="my-class">
+            <h2 class="my-class__title">My class</h2>
+            <p class="my-class__sub">Choose a class to explore its learning materials.</p>
+            <div class="my-class__panel" id="classPanel" role="radiogroup" aria-label="Choose class"></div>
+            <p class="my-class__note" id="clsNote">Showing the Class 2 subjects visible in your current homepage.</p>
+        </section>
+
+        <!-- Explore Subjects Section -->
+        <section class="explore-subjects-section" style="padding-top: 26px;">
+            <div class="section-header">
+                <div>
+                    <h3>Explore your subjects</h3>
+                    <p id="subNote">Jump straight into a subject for Class 2.</p>
+                </div>
+                <button class="see-all">See all <span class="arrow">→</span></button>
             </div>
-        </div>
-    </div>
+            <div class="subjects-grid" id="subjects-grid">
+                <!-- Cards will be inserted here -->
+            </div>
+        </section>
 
-    <div class="home-motivation-card hidden" id="home-motivation-card">
-        <i class="fa-solid fa-sparkles"></i>
-        <div class="home-motivation-text">
-            <div class="home-motivation-title" id="home-motivation-title">You're doing great!</div>
-            <div class="home-motivation-sub" id="home-motivation-sub">Keep learning every day to grow your streak.</div>
-        </div>
-    </div>
-
-    <div class="subject-slider-section">
-        <div class="section-header">
-            <h3><span class="section-icon icon-blue"><i class="fa-solid fa-layer-group"></i></span>Your Subjects</h3>
-            <a href="#" class="see-all" id="home-see-all">See All</a>
-        </div>
-        <div class="horizontal-slider" id="home-subjects-slider">
-            <div class="subject-card-skeleton"></div>
-            <div class="subject-card-skeleton"></div>
-            <div class="subject-card-skeleton"></div>
-        </div>
-        <div class="slider-dots" id="home-subjects-dots"></div>
-    </div>
-
-    <div class="subject-slider-section" style="margin-top: 16px;">
-        <div class="section-header">
-            <h3><span class="section-icon icon-purple"><i class="fa-solid fa-bolt"></i></span>Quick Quiz</h3>
-            <a href="#" class="see-all" id="home-quiz-link">See all</a>
-        </div>
-        <div class="progress-card quiz-center-card" id="home-quiz-card" style="cursor:pointer;">
-            <div class="quiz-card-left">
-                <div class="quiz-card-badge" id="home-quiz-icon"></div>
+        <!-- Practice Section -->
+        <section class="practice-section" style="padding-top: 24px;">
+            <div class="section-header">
+                <div>
+                    <h3>A little practice goes a long way</h3>
+                    <p>Pick up a quiz whenever you're ready.</p>
+                </div>
+                <button class="see-all">All quizzes <span class="arrow">→</span></button>
+            </div>
+            <div class="quiz-suggestion-card">
+                <div class="quiz-card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <circle cx="12" cy="12" r="1"/>
+                        <circle cx="19" cy="12" r="1"/>
+                        <circle cx="5" cy="12" r="1"/>
+                    </svg>
+                </div>
                 <div class="quiz-card-content">
-                    <div class="badge" id="home-quiz-subject">Loading...</div>
-                    <h4 id="home-quiz-title">Fetching quiz...</h4>
-                    <div class="quiz-chapter" id="home-quiz-chapter"></div>
-                    <div class="progress-info" id="home-quiz-info">Please wait...</div>
+                    <b id="qTitle">Class 2 Hindi</b>
+                    <p class="quiz-meta">General Knowledge Quiz</p>
+                    <small>Get ready to test your knowledge!</small>
+                </div>
+                <button class="start-quiz-btn">Start quiz →</button>
+            </div>
+
+            <!-- Streak Section -->
+            <div class="streak-section">
+                <h5>
+                    <span>🔥</span>
+                    Build a learning streak
+                </h5>
+                <p>Finish a lesson or quiz today to get started. A little practice counts.</p>
+                <div class="streak-calendar" id="days"></div>
+            </div>
+        </section>
+
+        <!-- Progress Section -->
+        <section class="progress-section" style="padding-top: 26px;">
+            <div class="section-header">
+                <div>
+                    <h3>Your learning progress</h3>
+                    <p>Your activity will show here as you learn.</p>
+                </div>
+                <button class="see-all">View progress <span class="arrow">→</span></button>
+            </div>
+            <div class="progress-cards-grid">
+                <div class="progress-card-item">
+                    <span class="progress-label">Topics covered</span>
+                    <i class="progress-indicator"></i>
+                    <small class="progress-note">8 of 24 topics</small>
+                </div>
+                <div class="progress-card-item">
+                    <span class="progress-label">Quiz score</span>
+                    <i class="progress-indicator"></i>
+                    <small class="progress-note">78% average</small>
+                </div>
+                <div class="progress-card-item">
+                    <span class="progress-label">Reading speed</span>
+                    <i class="progress-indicator"></i>
+                    <small class="progress-note">325 words/min</small>
+                </div>
+                <div class="progress-card-item">
+                    <span class="progress-label">Time spent</span>
+                    <i class="progress-indicator"></i>
+                    <small class="progress-note">24 hours 15m</small>
                 </div>
             </div>
-            <div class="quiz-card-actions">
-                <div class="play-btn"><i class="fa-solid fa-brain"></i></div>
+            <div class="progress-footer">
+                <div class="progress-footer-text">
+                    <b>Connected to your learning</b>
+                    <p>Progress and streaks should come from your real account activity.</p>
+                </div>
+                <button class="see-all">Continue a lesson <span class="arrow">→</span></button>
             </div>
-        </div>
+        </section>
+
+        <div class="pad"></div>
     </div>
 
-</div>
+    <script>
+        // Class selection functionality
+        var box = document.getElementById('classes');
+        for (var i = 1; i <= 12; i++) {
+            var b = document.createElement('button');
+            b.textContent = 'Class ' + i;
+            b.className = 'class-btn';
+            if (i === 2) b.classList.add('on');
+            b.onclick = (function(n, el) {
+                return function() {
+                    box.querySelectorAll('button').forEach(function(x) {
+                        x.classList.remove('on');
+                    });
+                    el.classList.add('on');
+                    document.getElementById('home-class-badge').textContent = 'Class ' + n;
+                    document.getElementById('clsNote').textContent = 'Showing the Class ' + n + ' subjects visible in your current homepage.';
+                    document.getElementById('subNote').textContent = 'Jump straight into a subject for Class ' + n + '.';
+                    document.getElementById('qTitle').textContent = 'Class ' + n + ' Hindi';
+                    document.querySelectorAll('.cn').forEach(function(c) {
+                        c.textContent = 'Class ' + n;
+                    });
+                };
+            })(i, b);
+            box.appendChild(b);
+        }
+
+        // Streak calendar functionality
+        var d = document.getElementById('days');
+        var dn = 'MTWTFSS';
+        var today = (new Date().getDay() + 6) % 7;
+        for (var j = 0; j < 7; j++) {
+            var s = document.createElement('span');
+            s.className = 'streak-day';
+            s.textContent = dn[j];
+            if (j === today) s.classList.add('today');
+            d.appendChild(s);
+        }
+
+        // Learning formats grid
+        var formats = [
+            {
+                icon: '📖',
+                color: '#eaf5ee',
+                textColor: '#1f6144',
+                title: 'E-Books',
+                desc: 'Read textbooks and learning materials.',
+                label: 'Explore'
+            },
+            {
+                icon: '�',
+                color: '#fcf1de',
+                textColor: '#a06a22',
+                title: 'Audio Books',
+                desc: 'Listen to engaging lessons on the go.',
+                label: 'Explore'
+            },
+            {
+                icon: '🎥',
+                color: '#e8edf8',
+                textColor: '#4a62a8',
+                title: 'Video Lessons',
+                desc: 'Watch expertly made video tutorials.',
+                label: 'Explore'
+            },
+            {
+                icon: '✍️',
+                color: '#f0e9f8',
+                textColor: '#7a52a8',
+                title: 'Quizzes',
+                desc: 'Test your knowledge with quizzes.',
+                label: 'Explore'
+            },
+            {
+                icon: '📚',
+                color: '#e6efec',
+                textColor: '#4a6b63',
+                title: 'Digital Library',
+                desc: 'Explore our vast collection of resources.',
+                label: 'Explore'
+            }
+        ];
+
+        var grid = document.getElementById('learning-formats-grid');
+        var fcardClasses = ['fcard--ebook', 'fcard--audio', 'fcard--video', 'fcard--quiz', 'fcard--library'];
+        var fcardIcons = [
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 6c-2-1.5-5-2-8-2v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14"/></svg>',
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>',
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 5v14l11-7z"/></svg>',
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 14l2 2 4-4"/></svg>',
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M15 4v16M4 9h5M4 14h5"/></svg>'
+        ];
+
+        formats.forEach(function(fmt, idx) {
+            var card = document.createElement('button');
+            card.className = 'fcard ' + fcardClasses[idx];
+            card.innerHTML = '<span class="fcard__icon">' + fcardIcons[idx] + '</span>' +
+                            '<span class="fcard__name">' + fmt.title + '</span>' +
+                            '<span class="fcard__desc">' + fmt.desc + '</span>' +
+                            '<span class="fcard__cta">' + fmt.label + '<span>→</span></span>';
+            grid.appendChild(card);
+        });
+
+        // Subjects grid
+        var subjects = [
+            { icon: '📚', color: '#1f6144', tint: '#e3f2e9', name: 'English', pages: 'Learn' },
+            { icon: '🔢', color: '#4a62a8', tint: '#e8edf8', name: 'Mathematics', pages: 'Practice' },
+            { icon: '🌍', color: '#e0922b', tint: '#fff4e6', name: 'Social Studies', pages: 'Explore' },
+            { icon: '🔬', color: '#2f9560', tint: '#e3f2e9', name: 'Science', pages: 'Discover' },
+            { icon: '🎨', color: '#8a5cc0', tint: '#f0e9f8', name: 'Arts', pages: 'Create' }
+        ];
+
+        var subGrid = document.getElementById('subjects-grid');
+        subjects.forEach(function(sub, idx) {
+            var card = document.createElement('button');
+            card.className = 'subject-card';
+            card.style.setProperty('--c', sub.color);
+            card.style.setProperty('--tint', sub.tint);
+            card.innerHTML = '<span class="icon-circle" style="background: linear-gradient(135deg, ' + sub.color + ', ' + sub.color + 'cc); color:#fff">' + sub.icon + '</span>' +
+                            '<b>' + sub.name + '</b>' +
+                            '<small>' + sub.pages + '</small>' +
+                            '<em>→</em>';
+            subGrid.appendChild(card);
+        });
+    </script>
+</body>
+</html>

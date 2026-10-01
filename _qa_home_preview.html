@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home QA Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./pages/home/home.css">
+</head>
+<body>
+<div id="desktop-wrapper">
+  <div id="app-container">
+    <div id="root-view">
+<div class="screen home-screen has-bottom-nav">
+
+    <div class="profile-row">
+        <div class="avatar" id="home-avatar">AD</div>
+        <div class="user-info">
+            <div class="user-greeting" id="home-greeting">Good morning,</div>
+            <div class="user-name" id="home-name">Adhyayan</div>
+            <div class="user-class" id="home-class">Class 4 &bull; CBSE</div>
+        </div>
+        <div class="home-streak-pill" id="home-streak-pill" title="Daily learning streak">
+            <i class="fa-solid fa-fire"></i>
+            <span id="home-streak-count">6</span>
+        </div>
+        <div class="bell-wrapper">
+            <button class="bell-icon" id="home-bell" type="button" aria-label="Notifications">
+                <i class="fa-regular fa-bell"></i>
+                <span class="notif-badge" id="home-notif-badge">3</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="search-engine">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" placeholder="Search lessons, subjects..." id="home-search" autocomplete="off">
+        <i class="fa-solid fa-microphone mic-icon" id="home-mic-btn"></i>
+    </div>
+
+    <div class="competitive-section">
+        <div class="section-header">
+            <h3><span class="section-icon icon-amber"><i class="fa-solid fa-trophy"></i></span>Competitive Exams</h3>
+            <a href="#" class="see-all">See all</a>
+        </div>
+        <div class="competitive-grid">
+            <div class="competitive-card active"><div class="competitive-icon"><i class="fa-solid fa-landmark"></i></div><div class="competitive-content"><div class="competitive-name">BPSC</div><div class="competitive-meta">43 Courses</div></div></div>
+            <div class="competitive-card"><div class="competitive-icon alt"><i class="fa-solid fa-landmark"></i></div><div class="competitive-content"><div class="competitive-name">UPSC</div><div class="competitive-meta">26 Courses</div></div></div>
+            <div class="competitive-card"><div class="competitive-icon accent"><i class="fa-solid fa-shield"></i></div><div class="competitive-content"><div class="competitive-name">SSC</div><div class="competitive-meta">36 Courses</div></div></div>
+            <div class="competitive-card"><div class="competitive-icon"><i class="fa-solid fa-train"></i></div><div class="competitive-content"><div class="competitive-name">Railway Exams</div><div class="competitive-meta">21 Courses</div></div></div>
+        </div>
+    </div>
+
+    <div class="progress-module">
+        <h3><span class="section-icon icon-green"><i class="fa-solid fa-book-open-reader"></i></span>Continue Learning</h3>
+        <div class="progress-card" id="home-continue-card">
+            <div class="card-left">
+                <div class="badge">English</div>
+                <h4>The World Around Us</h4>
+                <div class="progress-info">Continue where you left off</div>
+                <div class="progress-bar"><div class="fill" style="width: 68%;"></div></div>
+            </div>
+            <div class="card-right" id="resume-lesson">
+                <div class="play-btn"><i class="fa-solid fa-play"></i></div>
+                <div class="percent">68%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="home-motivation-card" id="home-motivation-card">
+        <i class="fa-solid fa-sparkles"></i>
+        <div class="home-motivation-text">
+            <div class="home-motivation-title">🔥 6-day streak! You're on fire!</div>
+            <div class="home-motivation-sub">Keep it going — a little every day adds up to a lot.</div>
+        </div>
+    </div>
+
+    <div class="subject-slider-section">
+        <div class="section-header">
+            <h3><span class="section-icon icon-blue"><i class="fa-solid fa-layer-group"></i></span>Your Subjects</h3>
+            <a href="#" class="see-all">See All</a>
+        </div>
+        <div class="horizontal-slider">
+            <div class="subject-card" style="border-top:3px solid #E53939;"><div class="icon-circle" style="background:linear-gradient(135deg,#E53939,#E53939CC);color:#fff;"><i class="fa-solid fa-book"></i></div><div class="title">English</div><div class="data">Class 4</div></div>
+            <div class="subject-card" style="border-top:3px solid #F59000;"><div class="icon-circle" style="background:linear-gradient(135deg,#F59000,#F59000CC);color:#fff;"><i class="fa-solid fa-language"></i></div><div class="title">Hindi</div><div class="data">Class 4</div></div>
+            <div class="subject-card" style="border-top:3px solid #1565C0;"><div class="icon-circle" style="background:linear-gradient(135deg,#1565C0,#1565C0CC);color:#fff;"><i class="fa-solid fa-calculator"></i></div><div class="title">Mathematics</div><div class="data">Class 4</div></div>
+            <div class="subject-card" style="border-top:3px solid #2E7D32;"><div class="icon-circle" style="background:linear-gradient(135deg,#2E7D32,#2E7D32CC);color:#fff;"><i class="fa-solid fa-flask"></i></div><div class="title">Science</div><div class="data">Class 4</div></div>
+            <div class="subject-card" style="border-top:3px solid #6A1B9A;"><div class="icon-circle" style="background:linear-gradient(135deg,#6A1B9A,#6A1B9ACC);color:#fff;"><i class="fa-solid fa-globe"></i></div><div class="title">Social Science</div><div class="data">Class 4</div></div>
+        </div>
+    </div>
+
+    <div class="subject-slider-section" style="margin-top: 16px;">
+        <div class="section-header">
+            <h3><span class="section-icon icon-purple"><i class="fa-solid fa-bolt"></i></span>Quick Quiz</h3>
+            <a href="#" class="see-all">See all</a>
+        </div>
+        <div class="progress-card quiz-center-card" style="cursor:pointer;">
+            <div class="quiz-card-left">
+                <div class="quiz-card-badge"><i class="fa-solid fa-book"></i></div>
+                <div class="quiz-card-content">
+                    <div class="badge">English</div>
+                    <h4>Reading Comprehension</h4>
+                    <div class="quiz-chapter">Chapter 3</div>
+                    <div class="progress-info">15 Questions &bull; 10 min</div>
+                </div>
+            </div>
+            <div class="quiz-card-actions">
+                <div class="play-btn"><i class="fa-solid fa-brain"></i></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+    </div>
+    <div id="bottom-nav">
+        <div class="nav-item active" data-route="home"><i class="fa-solid fa-house"></i><span>Home</span></div>
+        <div class="nav-item" data-route="courses"><i class="fa-solid fa-book"></i><span>Courses</span></div>
+        <div class="nav-item" data-route="quiz-center"><i class="fa-solid fa-bolt"></i><span>Quiz</span></div>
+        <div class="nav-item" data-route="progress"><i class="fa-solid fa-chart-line"></i><span>Progress</span></div>
+        <div class="nav-item" data-route="profile"><i class="fa-solid fa-user"></i><span>Profile</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

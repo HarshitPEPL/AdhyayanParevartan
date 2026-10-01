@@ -21,7 +21,6 @@ const SUBJECT_COLORS = [
     '#00695C', '#AD1457', '#4527A0', '#2E7D32'
 ];
 
-// Combined search index built from the user's subjects/materials/quizzes
 let searchIndex = [];
 
 function escapeHTML(str) {
@@ -71,8 +70,6 @@ function pickBestQuiz(quizzes) {
     })[0];
 }
 
-// Consecutive calendar days (ending today or yesterday) with at least one
-// quiz attempt — mirrors the same calculation on the Profile page.
 function computeStreak(attempts) {
     if (!attempts || attempts.length === 0) return 0;
 
@@ -96,51 +93,136 @@ function computeStreak(attempts) {
     return streak;
 }
 
-// Populates the fire-streak pill next to the avatar and the motivational
-// card further down the page, both purely for engagement/gamification.
+function setupClassSelection(currentClass, navigateTo, state) {
+    const panel = document.getElementById('classPanel');
+    const note = document.getElementById('clsNote');
+    if (!panel) return;
+
+    // Clear existing buttons
+    panel.innerHTML = '';
+
+    // Create buttons for classes 1-12
+    for (let i = 1; i <= 12; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'my-class__btn' + (i === currentClass ? ' is-active' : '');
+        btn.textContent = 'Class ' + i;
+        btn.setAttribute('role', 'radio');
+        btn.setAttribute('aria-checked', i === currentClass);
+
+        btn.addEventListener('click', () => {
+            // Update active state
+            panel.querySelectorAll('.my-class__btn').forEach((b, idx) => {
+                const isActive = idx + 1 === i;
+                b.classList.toggle('is-active', isActive);
+                b.setAttribute('aria-checked', isActive);
+            });
+
+            // Update state and content
+            state.selectedClass = i;
+            state.userSelectedClass = true;
+            note.textContent = `Showing the Class ${i} subjects visible in your current homepage.`;
+            document.getElementById('subNote').textContent = `Jump straight into a subject for Class ${i}.`;
+            document.getElementById('qTitle').textContent = `Class ${i} Hindi`;
+            document.querySelectorAll('.cn').forEach(el => el.textContent = `Class ${i}`);
+        });
+
+        panel.appendChild(btn);
+    }
+}
+
 async function renderStreakAndMotivation(user) {
-    const el = id => document.getElementById(id);
-    const pill = el('home-streak-pill');
-    const card = el('home-motivation-card');
-    if (!user?.user_id || (!pill && !card)) return;
+    if (!user?.user_id) return;
 
     try {
-        const attempts = await window.adhyayan.getQuizAttemptsByUser(user.user_id);
+        const attempts = await window.adhyayan.getQuizAttemptsByUser?.(user.user_id);
         const streak = computeStreak(attempts);
 
-        if (pill) {
+        const streakSection = document.querySelector('.streak-section');
+        if (streakSection) {
             if (streak > 0) {
-                el('home-streak-count').textContent = String(streak);
-                pill.classList.remove('hidden');
+                streakSection.style.display = 'block';
             } else {
-                pill.classList.add('hidden');
+                streakSection.style.display = 'none';
             }
-        }
-
-        if (card) {
-            const title = el('home-motivation-title');
-            const sub = el('home-motivation-sub');
-            if (streak >= 3) {
-                if (title) title.textContent = `🔥 ${streak}-day streak! You're on fire!`;
-                if (sub) sub.textContent = 'Keep it going — a little every day adds up to a lot.';
-            } else if (streak > 0) {
-                if (title) title.textContent = `Great start, ${streak} day${streak === 1 ? '' : 's'} strong!`;
-                if (sub) sub.textContent = 'Come back tomorrow to keep your streak alive.';
-            } else {
-                if (title) title.textContent = "You're doing great!";
-                if (sub) sub.textContent = 'Finish a lesson or quiz today to start a streak.';
-            }
-            card.classList.remove('hidden');
         }
     } catch (err) {
-        console.error('Failed to load streak/motivation stats:', err);
+        console.error('Failed to load streak stats:', err);
     }
+}
+
+function generateFormatCards() {
+    const formats = [
+        {
+            icon: '📖',
+            color: '#eaf5ee',
+            textColor: '#1f6144',
+            title: 'E-Books',
+            desc: 'Read textbooks and learning materials.',
+            label: 'Explore'
+        },
+        {
+            icon: '🎧',
+            color: '#fcf1de',
+            textColor: '#a06a22',
+            title: 'Audio Books',
+            desc: 'Listen to engaging lessons on the go.',
+            label: 'Explore'
+        },
+        {
+            icon: '🎥',
+            color: '#e8edf8',
+            textColor: '#4a62a8',
+            title: 'Video Lessons',
+            desc: 'Watch expertly made video tutorials.',
+            label: 'Explore'
+        },
+        {
+            icon: '✍️',
+            color: '#f0e9f8',
+            textColor: '#7a52a8',
+            title: 'Quizzes',
+            desc: 'Test your knowledge with quizzes.',
+            label: 'Explore'
+        },
+        {
+            icon: '📚',
+            color: '#e6efec',
+            textColor: '#4a6b63',
+            title: 'Digital Library',
+            desc: 'Explore our vast collection of resources.',
+            label: 'Explore'
+        }
+    ];
+
+    const grid = document.getElementById('learning-formats-grid');
+    if (!grid) return;
+
+    const fcardClasses = ['fcard--ebook', 'fcard--audio', 'fcard--video', 'fcard--quiz', 'fcard--library'];
+    const fcardIcons = [
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 6c-2-1.5-5-2-8-2v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14"/></svg>',
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>',
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 5v14l11-7z"/></svg>',
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 14l2 2 4-4"/></svg>',
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M15 4v16M4 9h5M4 14h5"/></svg>'
+    ];
+
+    grid.innerHTML = '';
+    formats.forEach((fmt, idx) => {
+        const card = document.createElement('button');
+        card.className = 'fcard ' + fcardClasses[idx];
+        card.innerHTML = '<span class="fcard__icon">' + fcardIcons[idx] + '</span>' +
+                        '<span class="fcard__name">' + fmt.title + '</span>' +
+                        '<span class="fcard__desc">' + fmt.desc + '</span>' +
+                        '<span class="fcard__cta">' + fmt.label + '<span>→</span></span>';
+        grid.appendChild(card);
+    });
 }
 
 export async function init(navigateTo, state) {
     const user = state.currentUser;
 
-    // --- Populate user info ---
+    // --- Populate user info in header ---
     if (user) {
         const nameParts = (user.full_name || 'Student').trim().split(' ').filter(Boolean);
         const initials = nameParts.map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
@@ -148,26 +230,37 @@ export async function init(navigateTo, state) {
         const greeting = getGreeting();
 
         const el = id => document.getElementById(id);
-        if (el('home-avatar'))   el('home-avatar').textContent   = initials;
-        if (el('home-name'))     el('home-name').textContent     = user.full_name || 'Student';
-        if (el('home-greeting')) el('home-greeting').textContent = greeting;
-        if (el('home-class')) {
-            const cls   = user.class_number || state.selectedClass || '?';
+        if (el('home-name')) {
+            el('home-name').textContent = user.full_name || 'Student';
+        }
+        if (el('profile-btn')) {
+            el('profile-btn').textContent = initials;
+        }
+
+        // Update class display
+        if (el('home-class-badge')) {
+            const cls = user.class_number || state.selectedClass || 2;
+            el('home-class-badge').textContent = `Class ${cls}`;
+        }
+        if (el('home-class-meta')) {
             const board = user.board || 'CBSE';
-            el('home-class').textContent = `Class ${cls}  •  ${board}`;
+            el('home-class-meta').textContent = `${board} curriculum`;
         }
     }
 
-    // Wire up the notification bell right away (before any awaited data loads)
-    // so it's clickable immediately once this page finishes rendering — this
-    // lets other pages (e.g. Profile) reliably auto-open it right after navigating here.
+    // Setup notifications
     setupNotifications(state);
     renderStreakAndMotivation(user);
 
-    // --- Load subjects for user's class ---
-    const classNumber = user?.class_number || state.selectedClass || 9;
-    const slider = document.getElementById('home-subjects-slider');
+    // Setup class selection
+    const classNumber = user?.class_number || state.selectedClass || 2;
+    setupClassSelection(classNumber, navigateTo, state);
 
+    // Generate format cards for "Choose how you learn" section
+    generateFormatCards();
+
+    // --- Load subjects ---
+    const subGrid = document.getElementById('subjects-grid');
     let loadedSubjects = [];
     let loadedMaterials = [];
     let loadedQuizzes = [];
@@ -176,82 +269,65 @@ export async function init(navigateTo, state) {
         const subjects = await window.adhyayan.getSubjectsByClass(classNumber);
         loadedSubjects = subjects || [];
 
-        if (!slider) return;
-
-        const dotsContainer = document.getElementById('home-subjects-dots');
-
-        if (!subjects || subjects.length === 0) {
-            slider.innerHTML = `<div style="padding:16px;color:#888;font-size:14px;">No subjects found for Class ${classNumber}.</div>`;
-            setupSliderDots(slider, dotsContainer, 0);
-        } else {
-            slider.innerHTML = subjects.map((sub, i) => {
-                const icon  = SUBJECT_ICONS[sub.subject_name] || 'fa-book';
-                const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
-                return `
-                    <div class="subject-card" onclick="window.navigateTo('courses')" style="cursor:pointer; border-top: 3px solid ${color};">
-                        <div class="icon-circle" style="background: linear-gradient(135deg, ${color}, ${color}CC); color:#fff;">
-                            <i class="fa-solid ${icon}"></i>
-                        </div>
-                        <div class="title">${sub.subject_name}</div>
-                        <div class="data">Class ${classNumber}</div>
-                    </div>
-                `;
-            }).join('');
-            setupSliderDots(slider, dotsContainer, subjects.length);
+        if (subGrid) {
+            if (!subjects || subjects.length === 0) {
+                subGrid.innerHTML = `<div style="padding:16px;color:#888;font-size:14px;">No subjects found for Class ${classNumber}.</div>`;
+            } else {
+                subGrid.innerHTML = subjects.slice(0, 5).map((sub, i) => {
+                    const icon = SUBJECT_ICONS[sub.subject_name] || 'fa-book';
+                    const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+                    return `
+                        <button class="subject-card" style="cursor:pointer; border-top: 3px solid ${color};" onclick="window.navigateTo && window.navigateTo('courses')">
+                            <span class="icon-circle" style="background: linear-gradient(135deg, ${color}, ${color}cc); color:#fff; margin:0;">
+                                <i class="fa-solid ${icon}"></i>
+                            </span>
+                            <div><b>${escapeHTML(sub.subject_name)}</b><small><span class="cn">Class ${classNumber}</span></small></div><em>→</em>
+                        </button>
+                    `;
+                }).join('');
+            }
         }
     } catch (err) {
         console.error('Failed to load subjects:', err);
-        if (slider) slider.innerHTML = `<div style="padding:16px;color:#c00;font-size:14px;">Could not load subjects.</div>`;
     }
 
-    // --- Load continue-learning card: prefer the user's most recently accessed
-    // material (real progress %), fall back to the first available material. ---
+    // --- Load continue-learning card ---
     try {
         const materials = await window.adhyayan.getMaterialsByClass(classNumber);
         loadedMaterials = materials || [];
 
         if (materials && materials.length > 0) {
-            const recentProgress = window.adhyayan.getRecentMaterialProgress?.(user?.user_id);
-            const recentMat = recentProgress ? materials.find(m => m.material_id === recentProgress.material_id) : null;
+            const mat = materials[0];
+            const pct = 0;
 
-            const mat = recentMat || materials[0];
-            const pct = recentMat ? recentProgress.percent : 0;
+            const el = id => document.getElementById(id);
+            if (el('home-continue-badge')) el('home-continue-badge').textContent = mat.format_name || 'E-Book';
+            if (el('home-continue-subject')) el('home-continue-subject').textContent = `${mat.subject_name || 'Subject'} • Class ${classNumber}`;
+            if (el('home-continue-title')) el('home-continue-title').textContent = mat.title || 'Lesson';
+            if (el('home-continue-info')) el('home-continue-info').textContent = pct >= 100 ? 'Completed' : (pct > 0 ? 'Continue where you left off' : (mat.duration_lessons ? `Duration: ${mat.duration_lessons}` : 'Tap to start'));
+            if (el('home-continue-pages')) el('home-continue-pages').textContent = `${mat.duration_lessons || 14} pages`;
 
-            const el  = id => document.getElementById(id);
-            if (el('home-continue-subject')) el('home-continue-subject').textContent = mat.subject_name || 'Subject';
-            if (el('home-continue-title'))   el('home-continue-title').textContent   = mat.title || 'Lesson';
-            if (el('home-continue-info'))    el('home-continue-info').textContent    = pct >= 100 ? 'Completed' : (pct > 0 ? 'Continue where you left off' : (mat.duration_lessons ? `Duration: ${mat.duration_lessons}` : 'Tap to start'));
-            if (el('home-continue-bar'))     el('home-continue-bar').style.width     = `${pct}%`;
-            if (el('home-continue-pct'))     el('home-continue-pct').textContent     = `${pct}%`;
+            // Update progress bar
+            const bar = document.getElementById('home-continue-bar');
+            if (bar) {
+                bar.innerHTML = `<div style="width:${pct}%; height:100%; background:#ffd36e; border-radius:5px;"></div>`;
+            }
 
             document.getElementById('resume-lesson')?.addEventListener('click', () => {
                 state.activeMaterial = mat;
                 navigateTo('lesson');
             });
-        } else {
-            // No materials - show friendly empty state
-            const card = document.getElementById('home-continue-card');
-            if (card) {
-                card.innerHTML = `
-                    <div style="width:100%;text-align:center;padding:10px 0;color:#aaa;font-size:14px;">
-                        <i class="fa-solid fa-book-open" style="font-size:28px;margin-bottom:8px;display:block;"></i>
-                        No lessons yet for Class ${classNumber}.<br>Check back soon!
-                    </div>
-                `;
-            }
         }
     } catch (err) {
         console.error('Failed to load continue-learning material:', err);
     }
 
-    // --- Load competitive exam cards ---
+    // --- Load competitive exams ---
     try {
         const competitiveExams = await window.adhyayan.getCompetitiveMaterials?.() || [];
         await renderCompetitiveExams(competitiveExams, navigateTo);
     } catch (err) {
         console.error('Failed to load competitive exams:', err);
-        const grid = document.getElementById('competitive-grid');
-        if (grid) grid.innerHTML = '<div class="competitive-card active" style="opacity:0.7;"><div class="competitive-icon">!</div><div class="competitive-content"><div class="competitive-name">Unavailable</div><div class="competitive-meta">Competitive exams could not be loaded.</div></div></div>';
     }
 
     // --- Load quiz suggestion ---
@@ -259,114 +335,82 @@ export async function init(navigateTo, state) {
         const quizzes = await window.adhyayan.getQuizzesByClass(classNumber);
         loadedQuizzes = quizzes || [];
         const quiz = pickBestQuiz(quizzes);
-        const quizCard = document.getElementById('home-quiz-card');
-        const quizSubject = document.getElementById('home-quiz-subject');
-        const quizTitle = document.getElementById('home-quiz-title');
-        const quizInfo = document.getElementById('home-quiz-info');
 
-        if (quiz && quizCard) {
-            if (quizSubject) quizSubject.textContent = quiz.subject_name || 'Quiz';
-            if (quizTitle) quizTitle.textContent = quiz.title || 'Practice quiz';
-            if (quizInfo) quizInfo.textContent = `${quiz.questions?.length || 0} questions • Tap to start`;
-            if (document.getElementById('home-quiz-chapter')) {
-                document.getElementById('home-quiz-chapter').textContent = quiz.chapter_name ? `${quiz.chapter_name}` : '';
+        if (quiz) {
+            const quizCard = document.querySelector('.quiz-suggestion-card');
+            if (quizCard) {
+                const title = quizCard.querySelector('b');
+                const meta = quizCard.querySelector('.quiz-meta');
+                const small = quizCard.querySelector('small');
+                const btn = quizCard.querySelector('.start-quiz-btn');
+
+                if (title) title.textContent = quiz.title || 'Practice quiz';
+                if (meta) meta.textContent = `${quiz.questions?.length || 0} questions • ${quiz.subject_name || 'Quiz'}`;
+                if (small) small.textContent = 'Get ready to test your knowledge!';
+
+                const handleQuizClick = () => {
+                    state.activeQuiz = quiz;
+                    navigateTo('quiz-center');
+                };
+
+                quizCard.addEventListener('click', handleQuizClick);
+                if (btn) btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    handleQuizClick();
+                });
             }
-            if (document.getElementById('home-quiz-icon')) {
-                const iconEl = document.getElementById('home-quiz-icon');
-                const iconClass = quiz.subject_icon || 'fa-book';
-                iconEl.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
-            }
-            quizCard.addEventListener('click', () => {
-                state.activeQuiz = quiz;
-                navigateTo('quiz-center');
-            });
-        } else if (quizCard) {
-            quizCard.innerHTML = '<div style="width:100%;text-align:center;padding:10px 0;color:#aaa;font-size:14px;">No quizzes available for this class yet.</div>';
         }
     } catch (err) {
         console.error('Failed to load quiz card:', err);
     }
 
-    // --- See all -> courses ---
-    document.getElementById('competitive-see-all')?.addEventListener('click', (e) => {
+    // --- Event listeners for navigation ---
+    document.getElementById('change-class-btn')?.addEventListener('click', (e) => {
         e.preventDefault();
-        navigateTo('competitive-exams');
+        document.querySelector('.class-selection-section')?.scrollIntoView({ behavior: 'smooth' });
     });
 
-    document.getElementById('home-see-all')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        navigateTo('courses');
+    document.querySelectorAll('.fcard').forEach(card => {
+        card.addEventListener('click', () => navigateTo('courses'));
     });
 
-    document.getElementById('home-quiz-link')?.addEventListener('click', (e) => {
+    document.querySelector('.start-quiz-btn')?.addEventListener('click', (e) => {
         e.preventDefault();
-        navigateTo('quiz');
+        navigateTo('quiz-center');
     });
 
-    // --- Build search index & wire up search ---
+    // --- Build search index & setup search ---
     buildSearchIndex(navigateTo, state, loadedSubjects, loadedMaterials, loadedQuizzes, classNumber);
     setupSearch(navigateTo, state);
 }
 
 async function renderCompetitiveExams(exams, navigateTo) {
-    const grid = document.getElementById('competitive-grid');
-    if (!grid) return;
+    const card = document.getElementById('home-competitive-card');
+    if (!card || !exams || exams.length === 0) return;
 
-    const list = Array.isArray(exams) ? exams : [];
-    if (!list.length) {
-        grid.innerHTML = `
-            <div class="competitive-card active" style="opacity:0.7;">
-                <div class="competitive-icon">…</div>
-                <div class="competitive-content">
-                    <div class="competitive-name">No exams yet</div>
-                    <div class="competitive-meta">Check back soon for new competitive content.</div>
-                </div>
-            </div>
-        `;
-        return;
-    }
+    const exam = exams[0];
+    
+    document.getElementById('home-competitive-title').textContent = exam.title || exam.exam_name || 'Competitive exam';
+    document.getElementById('home-competitive-meta').textContent = `${exam.exam_name || 'Competitive'} • ${exam.duration_lessons || 'Study material'}`;
 
-    const cards = list.slice(0, 6).map((exam, index) => {
-        const iconClass = index % 3 === 0 ? 'fa-graduation-cap' : index % 3 === 1 ? 'fa-book-open-reader' : 'fa-file-lines';
-        const extraClass = index % 3 === 0 ? 'active' : '';
-        return `
-            <div class="competitive-card ${extraClass}" data-id="${exam.material_id ?? index}" data-file="${escapeHTML(exam.file_url || '')}" data-title="${escapeHTML(exam.title || exam.exam_name || 'Competitive exam')}">
-                <div class="competitive-icon ${index % 3 === 1 ? 'alt' : index % 3 === 2 ? 'accent' : ''}"><i class="fa-solid ${iconClass}"></i></div>
-                <div class="competitive-content">
-                    <div class="competitive-name">${escapeHTML(exam.title || exam.exam_name || 'Competitive exam')}</div>
-                    <div class="competitive-meta">${escapeHTML(exam.exam_name || 'Competitive')} • ${escapeHTML(exam.duration_lessons || 'Study material')}</div>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    grid.innerHTML = cards;
-    grid.querySelectorAll('.competitive-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const examId = Number(card.dataset.id);
-            const exam = list.find(item => Number(item.material_id) === examId);
-            if (!exam) return;
-
-            const material = {
-                material_id: exam.material_id,
-                title: exam.title || exam.exam_name || 'Competitive exam',
-                subject_name: exam.exam_name || 'Competitive Exam',
-                format_name: exam.format_name || 'Study Material',
-                duration_lessons: exam.duration_lessons || 'N/A',
-                instructor_name: exam.instructor_name || 'Competitive Exam',
-                file_url: exam.file_url || '',
-            };
-            state.activeMaterial = material;
-            state.lastLibraryRoute = 'courses';
-            navigateTo('lesson');
-        });
+    card.addEventListener('click', () => {
+        const material = {
+            material_id: exam.material_id,
+            title: exam.title || exam.exam_name || 'Competitive exam',
+            subject_name: exam.exam_name || 'Competitive Exam',
+            format_name: exam.format_name || 'Study Material',
+            duration_lessons: exam.duration_lessons || 'N/A',
+            instructor_name: exam.instructor_name || 'Competitive Exam',
+            file_url: exam.file_url || '',
+        };
+        navigateTo('competitive-exams');
     });
 }
 
 function buildSearchIndex(navigateTo, state, subjects, materials, quizzes, classNumber) {
     searchIndex = [];
 
-    subjects.forEach((sub, i) => {
+    subjects.forEach((sub) => {
         searchIndex.push({
             label: sub.subject_name,
             subtitle: `Class ${classNumber} Subject`,
@@ -391,7 +435,7 @@ function buildSearchIndex(navigateTo, state, subjects, materials, quizzes, class
         searchIndex.push({
             label: q.title,
             subtitle: q.chapter_name ? `${q.subject_name || 'Quiz'} • ${q.chapter_name}` : (q.subject_name || 'Quiz'),
-            icon: q.subject_icon || 'fa-brain',
+            icon: 'fa-brain',
             action: () => {
                 state.activeQuiz = q;
                 navigateTo('quiz-center');
@@ -402,208 +446,70 @@ function buildSearchIndex(navigateTo, state, subjects, materials, quizzes, class
 
 function setupSearch(navigateTo, state) {
     const input = document.getElementById('home-search');
-    const resultsBox = document.getElementById('home-search-results');
-    const micBtn = document.getElementById('home-mic-btn');
-    if (!input || !resultsBox) return;
-
-    function runSearch(query) {
-        const q = (query || '').trim().toLowerCase();
-        if (!q) {
-            resultsBox.classList.add('hidden');
-            resultsBox.innerHTML = '';
-            return;
-        }
-
-        const matches = searchIndex.filter(item =>
-            item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
-        ).slice(0, 8);
-
-        if (matches.length === 0) {
-            resultsBox.innerHTML = `<div class="notif-empty">No results for "${escapeHTML(query)}"</div>`;
-        } else {
-            resultsBox.innerHTML = matches.map((m, i) => `
-                <div class="search-result-item" data-index="${i}">
-                    <div class="icon-circle-sm"><i class="fa-solid ${m.icon}"></i></div>
-                    <div>
-                        <div class="result-label">${escapeHTML(m.label)}</div>
-                        <div class="result-sub">${escapeHTML(m.subtitle)}</div>
-                    </div>
-                </div>
-            `).join('');
-
-            resultsBox.querySelectorAll('.search-result-item').forEach(elm => {
-                elm.addEventListener('click', () => {
-                    const idx = Number(elm.dataset.index);
-                    matches[idx].action();
-                    resultsBox.classList.add('hidden');
-                    resultsBox.innerHTML = '';
-                    input.value = '';
-                });
-            });
-        }
-        resultsBox.classList.remove('hidden');
-    }
+    if (!input) return;
 
     let debounceTimer;
     input.addEventListener('input', (e) => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => runSearch(e.target.value), 200);
+        debounceTimer = setTimeout(() => {
+            const q = (e.target.value || '').trim().toLowerCase();
+            const matches = searchIndex.filter(item =>
+                item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
+            ).slice(0, 8);
+
+            if (matches.length > 0 && q) {
+                matches[0].action();
+            }
+        }, 200);
     });
 
-    input.addEventListener('focus', () => {
-        if (input.value.trim()) runSearch(input.value);
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!resultsBox.contains(e.target) && e.target !== input) {
-            resultsBox.classList.add('hidden');
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const q = (input.value || '').trim().toLowerCase();
+            const matches = searchIndex.filter(item =>
+                item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
+            ).slice(0, 8);
+            if (matches.length > 0) {
+                matches[0].action();
+            }
         }
     });
-
-    // Voice search via the Web Speech API (falls back gracefully if unsupported)
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (micBtn && SpeechRecognitionCtor) {
-        micBtn.style.cursor = 'pointer';
-        micBtn.addEventListener('click', () => {
-            try {
-                const recognition = new SpeechRecognitionCtor();
-                recognition.lang = 'en-IN';
-                recognition.interimResults = false;
-                recognition.maxAlternatives = 1;
-                micBtn.classList.add('mic-active');
-
-                recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    input.value = transcript;
-                    runSearch(transcript);
-                };
-                recognition.onerror = () => micBtn.classList.remove('mic-active');
-                recognition.onend = () => micBtn.classList.remove('mic-active');
-                recognition.start();
-            } catch (err) {
-                console.error('Voice search failed:', err);
-                micBtn.classList.remove('mic-active');
-            }
-        });
-    } else if (micBtn) {
-        micBtn.style.opacity = '0.4';
-        micBtn.title = 'Voice search not supported in this browser';
-    }
 }
 
 async function loadNotifications(state) {
-    const list = document.getElementById('home-notif-list');
-    const badge = document.getElementById('home-notif-badge');
-
     try {
-        const notifications = await window.adhyayan.getNotifications();
+        const notifications = await window.adhyayan.getNotifications?.();
         const userId = state.currentUser?.user_id || 'guest';
         const lastSeenId = Number(localStorage.getItem(`adhyayan_notif_seen_${userId}`) || 0);
         const unread = (notifications || []).filter(n => Number(n.notification_id) > lastSeenId).length;
 
+        const badge = document.querySelector('.bell-icon i');
         if (badge) {
             if (unread > 0) {
-                badge.textContent = unread > 9 ? '9+' : String(unread);
-                badge.classList.remove('hidden');
+                badge.style.display = 'block';
             } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        if (list) {
-            if (!notifications || notifications.length === 0) {
-                list.innerHTML = `<div class="notif-empty">No notifications yet.</div>`;
-            } else {
-                list.innerHTML = notifications.map(n => `
-                    <div class="notif-item">
-                        <div class="notif-title">${escapeHTML(n.title)}</div>
-                        <div class="notif-message">${escapeHTML(n.message)}</div>
-                        <div class="notif-time">${formatRelativeTime(n.created_at)}</div>
-                    </div>
-                `).join('');
+                badge.style.display = 'none';
             }
         }
 
         return notifications || [];
     } catch (err) {
         console.error('Failed to load notifications:', err);
-        if (list) list.innerHTML = `<div class="notif-empty">Could not load notifications.</div>`;
         return [];
     }
 }
 
-// Renders one dot per subject beneath the horizontal slider and keeps the
-// active dot in sync with the slider's scroll position (like a carousel).
-function setupSliderDots(slider, dotsContainer, count) {
-    if (!dotsContainer) return;
-
-    if (!count || count <= 1) {
-        dotsContainer.innerHTML = '';
-        return;
-    }
-
-    dotsContainer.innerHTML = Array.from({ length: count }, (_, i) =>
-        `<span class="dot${i === 0 ? ' active' : ''}" data-dot-index="${i}"></span>`
-    ).join('');
-
-    const dots = Array.from(dotsContainer.querySelectorAll('.dot'));
-
-    const updateActiveDot = () => {
-        const cards = slider.querySelectorAll('.subject-card');
-        if (!cards.length) return;
-        const sliderRect = slider.getBoundingClientRect();
-        const sliderCenter = sliderRect.left + sliderRect.width / 2;
-
-        let closestIndex = 0;
-        let closestDist = Infinity;
-        cards.forEach((card, i) => {
-            const rect = card.getBoundingClientRect();
-            const cardCenter = rect.left + rect.width / 2;
-            const dist = Math.abs(cardCenter - sliderCenter);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestIndex = i;
-            }
-        });
-
-        dots.forEach((dot, i) => dot.classList.toggle('active', i === closestIndex));
-    };
-
-    slider.onscroll = updateActiveDot;
-    dots.forEach((dot, i) => {
-        dot.onclick = () => {
-            const card = slider.querySelectorAll('.subject-card')[i];
-            if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        };
-    });
-
-    updateActiveDot();
-}
-
 function setupNotifications(state) {
-    const bell = document.getElementById('home-bell');
-    const panel = document.getElementById('home-notif-panel');
-    if (!bell || !panel) return;
+    const bell = document.getElementById('notif-btn');
+    if (!bell) return;
 
-    // Populate the unread badge on load without opening the panel.
     loadNotifications(state);
 
     bell.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const opening = panel.classList.contains('hidden');
-        panel.classList.toggle('hidden');
-        if (!opening) return;
-
         const notifications = await loadNotifications(state);
         const userId = state.currentUser?.user_id || 'guest';
         const maxId = notifications.reduce((max, n) => Math.max(max, Number(n.notification_id) || 0), 0);
         localStorage.setItem(`adhyayan_notif_seen_${userId}`, String(maxId));
-        document.getElementById('home-notif-badge')?.classList.add('hidden');
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!panel.contains(e.target) && !bell.contains(e.target)) {
-            panel.classList.add('hidden');
-        }
     });
 }
