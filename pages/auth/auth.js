@@ -5,14 +5,15 @@ import { signInWithGoogle, isGoogleAuthConfigured } from '../../core/googleAuth.
 export function init(navigateTo, state) {
     const { getUserByEmail, addUser, updateUserPassword } = window.adhyayan;
     let selectedClass = null;
-    const errorEl = document.getElementById('class-error');
     const googleWarningEl = document.getElementById('google-class-warning');
     const roleSelect = document.getElementById('auth-role');
     const termsCheckbox = document.getElementById('auth-terms');
+    const loginForm = document.getElementById('loginForm');
 
     const roleMap = {
         student: 3,
         teacher: 2,
+        parent: 4,
         admin: 1
     };
 
@@ -21,25 +22,45 @@ export function init(navigateTo, state) {
         const role = getSelectedRole();
         if (role === 'student') return 'Student';
         if (role === 'teacher') return 'Teacher';
+        if (role === 'parent') return 'Parent';
         if (role === 'admin') return 'Admin';
         return '';
     };
 
-    document.querySelectorAll('.capsule').forEach(el => {
-        el.addEventListener('click', (e) => {
-            document.querySelectorAll('.capsule').forEach(c => {
-                c.style.backgroundColor = '#FFF';
-                c.style.color = '#111';
-                c.style.borderColor = '#999';
-            });
-            e.target.style.backgroundColor = '#1B8039';
-            e.target.style.color = '#FFF';
-            e.target.style.borderColor = '#1B8039';
-            selectedClass = e.target.dataset.class;
-            if(errorEl) errorEl.style.display = 'none';
-            if(googleWarningEl) googleWarningEl.style.display = 'none';
-        });
-    });
+    // --- CLASS SELECTOR: 3 pages of 4 classes (1–4, 5–8, 9–12) ---
+    const pills = document.getElementById('pills');
+    const dots = document.getElementById('dots');
+    let page = 0;
+
+    function renderClassSelector() {
+        pills.innerHTML = '';
+        for (let i = 1; i <= 4; i++) {
+            const n = page * 4 + i;
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'pill';
+            b.textContent = n;
+            b.setAttribute('aria-pressed', selectedClass === n);
+            b.onclick = () => {
+                selectedClass = n;
+                renderClassSelector();
+            };
+            pills.appendChild(b);
+        }
+        dots.innerHTML = '';
+        for (let p = 0; p < 3; p++) {
+            const d = document.createElement('button');
+            d.type = 'button';
+            d.setAttribute('aria-label', 'Classes page ' + (p + 1));
+            if (p === page) d.setAttribute('aria-current', 'true');
+            d.onclick = () => {
+                page = p;
+                renderClassSelector();
+            };
+            dots.appendChild(d);
+        }
+    }
+    renderClassSelector();
 
     const validateAndNavigate = async (route) => {
         const emailInput = document.getElementById('auth-email');
@@ -55,6 +76,11 @@ export function init(navigateTo, state) {
         if (!selectedRole) {
             alert("Please select your role before logging in.");
             if (roleSelect) roleSelect.focus();
+            return;
+        }
+
+        if (!selectedClass) {
+            if (googleWarningEl) googleWarningEl.style.display = 'block';
             return;
         }
 
@@ -111,7 +137,13 @@ export function init(navigateTo, state) {
         }
     };
 
-    document.getElementById('btn-continue')?.addEventListener('click', () => validateAndNavigate('home'));
+    // Handle form submission
+    loginForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        validateAndNavigate('home');
+    });
+
+    // Google sign-in handler
     document.getElementById('btn-google')?.addEventListener('click', async (e) => {
         const selectedRole = getSelectedRole();
         if (!termsCheckbox?.checked) {
@@ -193,32 +225,12 @@ export function init(navigateTo, state) {
             btnGoogle.innerHTML = originalLabel;
         }
     });
+
     document.getElementById('btn-admin-login')?.addEventListener('click', () => navigateTo('admin-login'));
     document.getElementById('btn-visible-admin-login')?.addEventListener('click', (e) => {
         e.preventDefault();
         navigateTo('admin-login');
     });
-
-    const slider = document.getElementById('class-slider');
-    const dots = document.querySelectorAll('.carousel-dot');
-    
-    if (slider && dots.length) {
-        dots.forEach(dot => {
-            dot.addEventListener('click', (e) => {
-                const index = parseInt(e.target.dataset.index);
-                const scrollLeft = index * slider.clientWidth;
-                slider.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-            });
-        });
-
-        slider.addEventListener('scroll', () => {
-            const index = Math.round(slider.scrollLeft / slider.clientWidth);
-            dots.forEach((dot, i) => {
-                if (i === index) dot.classList.add('active');
-                else dot.classList.remove('active');
-            });
-        });
-    }
 
     // --- SIGN UP FLOW ---
     const signupModal = document.getElementById('signup-modal');
@@ -247,7 +259,7 @@ export function init(navigateTo, state) {
         if (!selectedClass) {
             alert("Please select your class from the numbers below first!");
             closeSignupModal();
-            document.querySelector('.class-setter')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.querySelector('.classes')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
@@ -295,161 +307,138 @@ export function init(navigateTo, state) {
         }
     });
 
-    // --- STUDENT FORGOT PASSWORD FLOW ---
-    let authOTP = null;
-    let authRecoveryEmail = '';
-
-    const modal = document.getElementById('forgot-pwd-modal');
+    // --- FORGOT PASSWORD FLOW ---
+    const forgotPwdModal = document.getElementById('forgot-pwd-modal');
     const btnForgotPassword = document.getElementById('btn-forgot-password');
-    const modalClose = document.getElementById('forgot-modal-close');
-    const modalOverlay = document.getElementById('forgot-pwd-overlay');
+    const forgotPwdOverlay = document.getElementById('forgot-pwd-overlay');
+    const forgotPwdClose = document.getElementById('forgot-modal-close');
+    const btnForgotSendOtp = document.getElementById('btn-forgot-send-otp');
+    const btnForgotVerifyOtp = document.getElementById('btn-forgot-verify-otp');
+    const btnForgotSavePwd = document.getElementById('btn-forgot-save-pwd');
+    const btnForgotResendOtp = document.getElementById('btn-forgot-resend-otp');
 
-    const showAuthSubview = (viewId) => {
-        document.querySelectorAll('.forgot-subview').forEach(view => {
-            if (view.id === viewId) {
-                view.style.display = 'flex';
-            } else {
-                view.style.display = 'none';
-            }
-        });
-    };
-
-    const dispatchAuthOTP = async (email) => {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        authOTP = otp;
-
-        const toast = document.getElementById('auth-otp-toast');
-        const toastMsg = document.getElementById('auth-otp-toast-message');
-        const emailConfigured = isEmailConfigured();
-
-        if (toast && toastMsg) {
-            toastMsg.innerHTML = emailConfigured
-                ? `OTP verification code <strong>${otp}</strong> is being emailed to ${email}`
-                : `OTP verification code <strong>${otp}</strong> successfully dispatched to ${email} (email service not configured — showing code here)`;
-            toast.classList.remove('hidden');
-
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 8000);
-        }
-
-        showAuthSubview('forgot-view-otp');
-        const label = document.getElementById('forgot-otp-label');
-        if (label) label.textContent = `We sent a security verification code to ${email}`;
-        
-        const input = document.getElementById('forgot-otp-input');
-        if (input) {
-            input.value = '';
-            input.focus();
-        }
-
-        // Best-effort real email dispatch; the on-screen toast above already
-        // lets the flow work even if the email service isn't configured yet.
-        const result = await sendEmail({
-            toEmail: email,
-            subject: 'Adhyayan Parevartan — Password Reset Code',
-            message: `Your password reset verification code is: ${otp}\n\nThis code expires shortly. If you did not request a password reset, you can safely ignore this email.`
-        });
-
-        if (toastMsg && result.sent) {
-            toastMsg.innerHTML = `A verification code has been emailed to <strong>${email}</strong>`;
-        }
-    };
-
-    if (btnForgotPassword) {
-        btnForgotPassword.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (modal) {
-                modal.classList.remove('hidden');
-                showAuthSubview('forgot-view-email');
-                const emailInput = document.getElementById('forgot-email-input');
-                if (emailInput) {
-                    // Try to pre-fill from the login screen input
-                    const loginEmail = document.getElementById('auth-email')?.value.trim();
-                    emailInput.value = loginEmail || '';
-                    emailInput.focus();
-                }
-            }
-        });
-    }
-
-    const closeModal = () => {
-        if (modal) modal.classList.add('hidden');
-    };
-
-    modalClose?.addEventListener('click', closeModal);
-    modalOverlay?.addEventListener('click', closeModal);
-
-    document.getElementById('btn-forgot-send-otp')?.addEventListener('click', () => {
-        const emailInput = document.getElementById('forgot-email-input');
-        const email = emailInput ? emailInput.value.trim() : '';
-
-        if (!email || !email.includes('@')) {
-            alert("Validation Error: Please enter a valid registered email address.");
-            return;
-        }
-
-        authRecoveryEmail = email;
-        dispatchAuthOTP(email);
+    btnForgotPassword?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (forgotPwdModal) forgotPwdModal.classList.remove('hidden');
     });
 
-    document.getElementById('btn-forgot-resend-otp')?.addEventListener('click', () => {
-        if (authRecoveryEmail) {
-            dispatchAuthOTP(authRecoveryEmail);
-        }
-    });
+    const closeForgotPwdModal = () => {
+        if (forgotPwdModal) forgotPwdModal.classList.add('hidden');
+    };
 
-    document.getElementById('btn-forgot-verify-otp')?.addEventListener('click', () => {
-        const otpInput = document.getElementById('forgot-otp-input');
-        const enteredOTP = otpInput ? otpInput.value.trim() : '';
+    forgotPwdClose?.addEventListener('click', closeForgotPwdModal);
+    forgotPwdOverlay?.addEventListener('click', closeForgotPwdModal);
 
-        if (enteredOTP === authOTP) {
-            showAuthSubview('forgot-view-reset');
-            const passInput = document.getElementById('forgot-new-password');
-            if (passInput) {
-                passInput.value = '';
-                passInput.focus();
-            }
-        } else {
-            alert("Verification Failed: Invalid OTP code. Please enter the correct code.");
-            if (otpInput) {
-                otpInput.value = '';
-                otpInput.focus();
-            }
-        }
-    });
+    let forgotOtpCode = null;
+    let forgotUserEmail = null;
 
-    document.getElementById('btn-forgot-save-pwd')?.addEventListener('click', async () => {
-        const passInput = document.getElementById('forgot-new-password');
-        const newPassword = passInput ? passInput.value : '';
-
-        if (newPassword.length < 4) {
-            alert("Validation Error: New password must be at least 4 characters.");
+    btnForgotSendOtp?.addEventListener('click', async () => {
+        const email = document.getElementById('forgot-email-input')?.value.trim();
+        if (!email) {
+            alert("Please enter your email address.");
             return;
         }
 
         try {
-            const user = await getUserByEmail(authRecoveryEmail);
+            const user = await getUserByEmail(email);
             if (!user) {
-                alert("Error: No account found with this email. Please contact your administrator to create your account.");
-                closeModal();
+                alert("No account found with this email address.");
                 return;
             }
 
-            // Block pending (unapproved) users from resetting password
-            if (user.role_id === 3 && !user.is_approved) {
-                alert("Access Denied: Your account is pending administrator approval. You cannot reset your password until an admin activates your account.");
-                closeModal();
-                return;
+            forgotOtpCode = String(Math.floor(Math.random() * 999999)).padStart(6, '0');
+            forgotUserEmail = email;
+
+            sendEmail({
+                toEmail: email,
+                toName: user.full_name,
+                subject: 'Adhyayan Parevartan — Password Recovery Code',
+                message: `Hi ${user.full_name},\n\nYour password recovery code is: ${forgotOtpCode}\n\nThis code will expire in 10 minutes.\n\nIf you did not request a password reset, please ignore this email.`
+            }).catch(() => {});
+
+            const toastEl = document.getElementById('auth-otp-toast');
+            const toastMsg = document.getElementById('auth-otp-toast-message');
+            if (toastEl && toastMsg) {
+                toastMsg.innerHTML = `OTP Code <strong>${forgotOtpCode}</strong> sent successfully`;
+                toastEl.classList.remove('hidden');
+                setTimeout(() => toastEl.classList.add('hidden'), 6000);
             }
 
-            await updateUserPassword(user.user_id, newPassword);
-            alert("Password Updated Successfully! Please log in with your new password.");
-            closeModal();
-            // Do NOT auto-login — user must log in manually with their new password
+            // Show OTP view
+            document.getElementById('forgot-view-email').style.display = 'none';
+            document.getElementById('forgot-view-otp').style.display = 'block';
         } catch (e) {
-            console.error("Failed to save updated password in database:", e);
-            alert("Database Error: Could not save password change. Please try again.");
+            console.error("Forgot password error:", e);
+            alert("Failed to send recovery code. Please try again.");
+        }
+    });
+
+    btnForgotVerifyOtp?.addEventListener('click', async () => {
+        const otp = document.getElementById('forgot-otp-input')?.value.trim();
+        if (!otp || otp !== forgotOtpCode) {
+            alert("Invalid verification code. Please try again.");
+            return;
+        }
+
+        // Show reset password view
+        document.getElementById('forgot-view-otp').style.display = 'none';
+        document.getElementById('forgot-view-reset').style.display = 'block';
+    });
+
+    btnForgotSavePwd?.addEventListener('click', async () => {
+        const newPassword = document.getElementById('forgot-new-password')?.value;
+        if (!newPassword) {
+            alert("Please enter a new password.");
+            return;
+        }
+
+        try {
+            if (!forgotUserEmail) throw new Error('Email not set');
+            await updateUserPassword(forgotUserEmail, newPassword);
+
+            alert("Your password has been successfully updated. Please log in with your new password.");
+            closeForgotPwdModal();
+
+            // Reset to email view
+            document.getElementById('forgot-view-email').style.display = 'block';
+            document.getElementById('forgot-view-otp').style.display = 'none';
+            document.getElementById('forgot-view-reset').style.display = 'none';
+            document.getElementById('forgot-email-input').value = '';
+            document.getElementById('forgot-otp-input').value = '';
+            document.getElementById('forgot-new-password').value = '';
+        } catch (e) {
+            console.error("Update password error:", e);
+            alert("Failed to update password. Please try again.");
+        }
+    });
+
+    btnForgotResendOtp?.addEventListener('click', async () => {
+        try {
+            if (!forgotUserEmail) throw new Error('Email not set');
+            const user = await getUserByEmail(forgotUserEmail);
+            if (!user) throw new Error('User not found');
+
+            forgotOtpCode = String(Math.floor(Math.random() * 999999)).padStart(6, '0');
+
+            sendEmail({
+                toEmail: forgotUserEmail,
+                toName: user.full_name,
+                subject: 'Adhyayan Parevartan — Password Recovery Code',
+                message: `Hi ${user.full_name},\n\nYour password recovery code is: ${forgotOtpCode}\n\nThis code will expire in 10 minutes.\n\nIf you did not request a password reset, please ignore this email.`
+            }).catch(() => {});
+
+            const toastEl = document.getElementById('auth-otp-toast');
+            const toastMsg = document.getElementById('auth-otp-toast-message');
+            if (toastEl && toastMsg) {
+                toastMsg.innerHTML = `OTP Code <strong>${forgotOtpCode}</strong> resent successfully`;
+                toastEl.classList.remove('hidden');
+                setTimeout(() => toastEl.classList.add('hidden'), 6000);
+            }
+        } catch (e) {
+            console.error("Resend OTP error:", e);
+            alert("Failed to resend code. Please try again.");
         }
     });
 }
+
+

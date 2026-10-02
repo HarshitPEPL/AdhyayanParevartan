@@ -410,16 +410,16 @@ body.native-app #bottom-nav {
 }
 
 .btn {
-    padding: 14px;
-    border-radius: 12px;
-    font-size: 16px;
-
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 13px;
     font-weight: 600;
     text-align: center;
     border: none;
     cursor: pointer;
     width: 100%;
     transition: transform 0.1s, opacity 0.2s;
+    flex-shrink: 0;
 }
 
 .btn:active {
@@ -438,12 +438,20 @@ body.native-app #bottom-nav {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.btn-social svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 
 .btn-social img {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
 }
 
 /* Modal Overlay */
@@ -586,12 +594,50 @@ body.native-app #bottom-nav {
 
 /* Auth Screen (Screen 2) */
 .auth-screen {
-    padding-top: 40px;
+    padding: 12px 16px;
+    justify-content: flex-start;
+    align-items: center;
+    overflow: hidden !important;
+}
+
+.auth-page {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    overflow: hidden;
+    height: 100%;
 }
 
 .auth-header-container {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 6px;
+}
+
+.auth-brand-logo {
+    height: 18px;
+    width: auto;
+    display: inline-block;
+    margin: 0 4px;
+    vertical-align: middle;
+}
+
+.auth-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+
+.auth-title span {
+    display: block;
+}
+
+.auth-subtitle {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 0;
 }
 
 .mortarboard-icon {
@@ -608,41 +654,47 @@ body.native-app #bottom-nav {
 }
 
 .auth-header-container h2 {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .auth-header-container p {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--text-secondary);
 }
 
+.auth-form-group {
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+
 .form-group {
-    margin-bottom: 24px;
+    margin-bottom: 8px;
 }
 
 .input-with-icon {
     position: relative;
-    margin-bottom: 12px;
+    margin-bottom: 5px;
 }
 
 .input-with-icon i {
     position: absolute;
-    left: 16px;
+    left: 12px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-secondary);
+    font-size: 14px;
 }
 
 .input-with-icon input {
     width: 100%;
-    padding: 16px 16px 16px 48px;
-    border-radius: 12px;
+    padding: 10px 10px 10px 36px;
+    border-radius: 8px;
     border: 1px solid var(--border-color);
     background-color: var(--surface-light);
-    font-size: 16px;
+    font-size: 13px;
     outline: none;
 }
 
@@ -650,44 +702,109 @@ body.native-app #bottom-nav {
     border-color: var(--primary-green);
 }
 
-.forgot-link {
-    display: block;
+.input-with-icon select {
+    width: 100%;
+    padding: 10px 10px 10px 36px;
+    padding-right: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-light);
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+}
+
+.input-with-icon select:focus {
+    border-color: var(--primary-green);
+}
+
+.terms-checkbox-wrap {
+    display: flex;
+    align-items: flex-start;
+    font-size: 11px;
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+.terms-checkbox-wrap input {
+    margin-top: 2px;
+    margin-right: 6px;
+    min-width: 14px;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.forgot-password-wrap {
     text-align: right;
+    margin-bottom: 5px;
+}
+
+.forgot-link {
     color: var(--primary-green);
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 600;
     text-decoration: none;
 }
 
+.forgot-link:hover {
+    text-decoration: underline;
+}
+
 .class-setter {
-    margin-bottom: 32px;
+    margin: 6px 0 4px 0;
+    flex-shrink: 0;
 }
 
 .class-setter p {
-    font-size: 14px;
+    font-size: 11px;
     color: var(--text-secondary);
-    margin-bottom: 12px;
+    margin-bottom: 4px;
     font-weight: 500;
 }
 
-.class-capsules {
+.class-capsules-container {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    gap: 12px;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.class-group {
     display: flex;
     gap: 12px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
 }
 
 .capsule {
-    width: 44px;
-    height: 44px;
-    border-radius: 22px;
+    flex: 0 0 calc(25% - 9px);
+    width: calc(25% - 9px);
+    aspect-ratio: 1;
+    min-height: 36px;
+    border-radius: 8px;
     display: flex;
     justify-content: center;
     align-items: center;
     background-color: var(--surface-light);
     color: var(--text-primary);
     font-weight: 600;
-    font-size: 16px;
+    font-size: 13px;
     cursor: pointer;
     border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+    scroll-snap-align: start;
+}
+
+.capsule:hover {
+    border-color: var(--primary-green);
 }
 
 .capsule.selected {
@@ -700,7 +817,8 @@ body.native-app #bottom-nav {
     display: flex;
     align-items: center;
     text-align: center;
-    margin: 24px 0;
+    margin: 6px 0 6px 0;
+    flex-shrink: 0;
 }
 
 .separator::before,
@@ -711,17 +829,18 @@ body.native-app #bottom-nav {
 }
 
 .separator span {
-    padding: 0 10px;
+    padding: 0 6px;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 500;
 }
 
 .footer-links {
     text-align: center;
-    margin-top: 32px;
-    font-size: 14px;
+    margin-top: 4px;
+    font-size: 10px;
     color: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 .footer-links a {
@@ -730,12 +849,17 @@ body.native-app #bottom-nav {
     text-decoration: none;
 }
 
+.footer-links .divider {
+    margin: 0 4px;
+}
+
 .compliance-text {
     text-align: center;
-    margin-top: auto;
-    padding-top: 20px;
-    font-size: 12px;
+    margin-top: 3px;
+    padding-top: 2px;
+    font-size: 9px;
     color: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 /* Home Screen (Screen 3) */
