@@ -450,7 +450,9 @@ export function init(navigateTo, state) {
     };
     
     signupClose?.addEventListener('click', closeSignupModal);
-    signupOverlay?.addEventListener('click', closeSignupModal);
+    signupOverlay?.addEventListener('click', (e) => {
+        if (e.target === signupOverlay) closeSignupModal();
+    });
 
     btnSubmitSignup?.addEventListener('click', async () => {
         if (!selectedClass) {
@@ -564,7 +566,9 @@ export function init(navigateTo, state) {
     };
 
     forgotPwdClose?.addEventListener('click', closeForgotPwdModal);
-    forgotPwdOverlay?.addEventListener('click', closeForgotPwdModal);
+    forgotPwdOverlay?.addEventListener('click', (e) => {
+        if (e.target === forgotPwdOverlay) closeForgotPwdModal();
+    });
 
     btnForgotSendOtp?.addEventListener('click', async () => {
         const email = document.getElementById('forgot-email-input')?.value.trim();

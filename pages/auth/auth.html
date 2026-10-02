@@ -57,17 +57,18 @@ a{cursor:pointer}
 .carousel-dot.active{background:#2aa35c;border-color:#2aa35c;box-shadow:none}
 .compliance-text{margin-top:clamp(2px,0.3vh,4px);font-size:clamp(.58rem,1.4vw,.68rem);color:#666;font-weight:600;text-align:center}
 .hidden{display:none!important}
-.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px)}
-.modal{background:#fff;border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.15);position:relative;max-height:90vh;overflow-y:auto}
-@media (max-width:480px){.modal{max-width:95%;padding:20px;border-radius:12px}}
+#signup-overlay,#forgot-pwd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;backdrop-filter:blur(2px)}
+#signup-modal,#forgot-pwd-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:min(92vw,420px);max-height:90vh;overflow-y:auto;background:#fff;border-radius:20px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3);opacity:1;visibility:visible}
+#signup-modal.hidden,#forgot-pwd-modal.hidden{display:none!important}
+#signup-overlay.hidden,#forgot-pwd-overlay.hidden{display:none!important}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .modal-title{font-size:1.2rem;font-weight:800;color:#111;margin:0}
-.modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#666;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
-.modal-close:hover{color:#111}
+.modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#333;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.modal-close:hover{color:#000}
 .form-field{margin-bottom:12px}
 .form-field label{display:block;font-size:.9rem;font-weight:600;margin-bottom:6px;color:#111}
-.form-field input{width:100%;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-size:.95rem;font-family:inherit;box-sizing:border-box}
-.form-field input:focus{outline:none;border-color:#1a8a48;box-shadow:0 0 0 3px rgba(26,138,72,.12)}
+.form-field input,.form-field select{width:100%;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-size:.95rem;font-family:inherit;box-sizing:border-box;background:#f9f9f9}
+.form-field input:focus,.form-field select:focus{outline:none;border-color:#1a8a48;background:#fff;box-shadow:0 0 0 3px rgba(26,138,72,.12)}
 .btn-modal{width:100%;padding:12px;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
 .btn-modal:disabled{opacity:0.6;cursor:not-allowed}
 .btn-primary-modal{background:linear-gradient(180deg,#72c76e,#5bb861);color:#fff}
@@ -147,7 +148,15 @@ a{cursor:pointer}
   </div>
 </div>
 
-<!-- SIGNUP MODAL -->
+<!-- TOASTS -->
+<div id="auth-otp-toast" class="toast hidden">
+  <span id="auth-otp-toast-message"></span>
+</div>
+<div id="signup-success-toast" class="toast hidden">
+  <span id="signup-success-toast-message"></span>
+</div>
+
+<!-- SIGNUP MODAL - OUTSIDE AUTH CONTAINER -->
 <div id="signup-overlay" class="modal-overlay hidden"></div>
 <div id="signup-modal" class="modal hidden" role="dialog">
   <div class="modal-header">
@@ -183,7 +192,7 @@ a{cursor:pointer}
   <button class="btn-modal btn-primary-modal" id="btn-submit-signup">Create Account</button>
 </div>
 
-<!-- FORGOT PASSWORD MODAL -->
+<!-- FORGOT PASSWORD MODAL - OUTSIDE AUTH CONTAINER -->
 <div id="forgot-pwd-overlay" class="modal-overlay hidden"></div>
 <div id="forgot-pwd-modal" class="modal hidden" role="dialog">
   <div class="modal-header">
@@ -230,14 +239,6 @@ a{cursor:pointer}
     </div>
     <button class="btn-modal btn-primary-modal" id="btn-forgot-save-pwd">Update Password</button>
   </div>
-</div>
-
-<!-- TOASTS -->
-<div id="auth-otp-toast" class="toast hidden">
-  <span id="auth-otp-toast-message"></span>
-</div>
-<div id="signup-success-toast" class="toast hidden">
-  <span id="signup-success-toast-message"></span>
 </div>
 
 <script>
