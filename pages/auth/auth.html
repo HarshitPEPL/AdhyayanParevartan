@@ -213,19 +213,35 @@ a{cursor:pointer}
 </div>
 
 <script>
-const slider=document.getElementById('class-slider');
-if(slider){
-  const dots=[...document.querySelectorAll('.carousel-dot')];
-  const pills=document.getElementById('pills');
-  const dotsContainer=document.getElementById('dots');
-  if(pills&&dotsContainer){
-    const cap=[...document.querySelectorAll('.pill')];
-    cap.forEach(c=>c.addEventListener('click',()=>{cap.forEach(x=>x.classList.remove('active'));c.classList.add('active')}));
-    dots.forEach((d,i)=>d.addEventListener('click',()=>slider.scrollTo({left:i*slider.clientWidth})));
-    slider.addEventListener('scroll',()=>{const i=Math.round(slider.scrollLeft/slider.clientWidth);dots.forEach((d,j)=>d.classList.toggle('active',i===j))});
-  }
-}
+// Prevent default on all # links
 document.querySelectorAll('a[href="#"]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
+
+// Initialize modals and class slider after DOM is ready (let auth.js handle the complex logic)
+document.addEventListener('DOMContentLoaded', function() {
+  // Overlay click handlers for modals
+  const signupOverlay = document.getElementById('signup-overlay');
+  const forgotOverlay = document.getElementById('forgot-pwd-overlay');
+  
+  if (signupOverlay) {
+    signupOverlay.addEventListener('click', function(e) {
+      if (e.target === this) {
+        const modal = document.getElementById('signup-modal');
+        if (modal) modal.classList.add('hidden');
+        this.classList.add('hidden');
+      }
+    });
+  }
+  
+  if (forgotOverlay) {
+    forgotOverlay.addEventListener('click', function(e) {
+      if (e.target === this) {
+        const modal = document.getElementById('forgot-pwd-modal');
+        if (modal) modal.classList.add('hidden');
+        this.classList.add('hidden');
+      }
+    });
+  }
+});
 </script>
 </body>
 </html>

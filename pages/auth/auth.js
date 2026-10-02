@@ -246,10 +246,12 @@ export function init(navigateTo, state) {
             signupRoleSelect.value = getSelectedRole() || 'student';
         }
         if (signupModal) signupModal.classList.remove('hidden');
+        if (signupOverlay) signupOverlay.classList.remove('hidden');
     });
 
     const closeSignupModal = () => {
         if (signupModal) signupModal.classList.add('hidden');
+        if (signupOverlay) signupOverlay.classList.add('hidden');
     };
     
     signupClose?.addEventListener('click', closeSignupModal);
@@ -320,10 +322,12 @@ export function init(navigateTo, state) {
     btnForgotPassword?.addEventListener('click', (e) => {
         e.preventDefault();
         if (forgotPwdModal) forgotPwdModal.classList.remove('hidden');
+        if (forgotPwdOverlay) forgotPwdOverlay.classList.remove('hidden');
     });
 
     const closeForgotPwdModal = () => {
         if (forgotPwdModal) forgotPwdModal.classList.add('hidden');
+        if (forgotPwdOverlay) forgotPwdOverlay.classList.add('hidden');
     };
 
     forgotPwdClose?.addEventListener('click', closeForgotPwdModal);
