@@ -31,70 +31,93 @@ export function init(navigateTo, state) {
     const pills = document.getElementById('pills');
     const dots = document.getElementById('dots');
     const slider = document.getElementById('class-slider');
-    let page = 0;
+    let currentPage = 0;
 
     function renderClassSelector() {
+        // Render all 3 pages at once in the carousel
         pills.innerHTML = '';
-        for (let i = 1; i <= 4; i++) {
-            const n = page * 4 + i;
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'pill';
-            if (selectedClass === n) b.classList.add('active');
-            b.textContent = n;
-            b.setAttribute('aria-pressed', selectedClass === n);
-            b.onclick = () => {
-                selectedClass = n;
-                renderClassSelector();
-            };
-            pills.appendChild(b);
+        for (let page = 0; page < 3; page++) {
+            const pageGroup = document.createElement('div');
+            pageGroup.className = 'class-group';
+            pageGroup.style.minWidth = '100%';
+            pageGroup.style.display = 'flex';
+            pageGroup.style.justifyContent = 'center';
+            pageGroup.style.gap = 'clamp(10px,2vw,16px)';
+            pageGroup.style.alignItems = 'center';
+            pageGroup.style.padding = '0 clamp(8px,1.5vw,12px)';
+            pageGroup.style.scrollSnapAlign = 'start';
+            
+            for (let i = 1; i <= 4; i++) {
+                const classNum = page * 4 + i;
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'pill';
+                if (selectedClass === classNum) b.classList.add('active');
+                b.textContent = classNum;
+                b.setAttribute('aria-pressed', selectedClass === classNum);
+                b.onclick = (e) => {
+                    e.preventDefault();
+                    selectedClass = classNum;
+                    renderClassSelector();
+                    updateDotsIndicator();
+                };
+                pageGroup.appendChild(b);
+            }
+            pills.appendChild(pageGroup);
         }
+
+        // Render carousel dots
         dots.innerHTML = '';
         for (let p = 0; p < 3; p++) {
             const d = document.createElement('button');
             d.type = 'button';
             d.className = 'carousel-dot';
-            if (p === page) d.classList.add('active');
+            if (p === currentPage) d.classList.add('active');
             d.setAttribute('aria-label', 'Classes page ' + (p + 1));
-            if (p === page) d.setAttribute('aria-current', 'true');
-            d.onclick = () => {
-                page = p;
+            if (p === currentPage) d.setAttribute('aria-current', 'true');
+            d.onclick = (e) => {
+                e.preventDefault();
+                currentPage = p;
                 // Scroll carousel smoothly to the page position
                 if (slider) {
                     const scrollPosition = p * slider.clientWidth;
                     slider.scrollTo({ left: scrollPosition, behavior: 'smooth' });
-                    // Update page and re-render after scroll
-                    setTimeout(() => {
-                        updateProgressIndicator();
-                    }, 300);
                 }
+                updateDotsIndicator();
             };
             dots.appendChild(d);
         }
     }
     renderClassSelector();
     
-    // Function to update progress indicator based on scroll position
-    function updateProgressIndicator() {
+    // Function to update dots indicator based on scroll position
+    function updateDotsIndicator() {
         if (!slider || !dots) return;
-        const totalWidth = slider.scrollWidth - slider.clientWidth;
-        const scrollPercent = totalWidth > 0 ? slider.scrollLeft / totalWidth : 0;
-        const currentPage = Math.round(scrollPercent * 2); // 3 pages = 0, 1, 2
+        const scrollWidth = slider.scrollWidth - slider.clientWidth;
+        if (scrollWidth === 0) return;
+        
+        const scrollPercent = slider.scrollLeft / scrollWidth;
+        const newPage = Math.round(scrollPercent * 2); // 3 pages = 0, 1, 2
+        
+        if (newPage !== currentPage) {
+            currentPage = newPage;
+        }
         
         const allDots = dots.querySelectorAll('.carousel-dot');
         allDots.forEach((dot, idx) => {
             if (idx === currentPage) {
                 dot.classList.add('active');
-                page = currentPage;
+                dot.setAttribute('aria-current', 'true');
             } else {
                 dot.classList.remove('active');
+                dot.removeAttribute('aria-current');
             }
         });
     }
     
-    // Listen to carousel scroll
+    // Listen to carousel scroll events
     if (slider) {
-        slider.addEventListener('scroll', updateProgressIndicator, { passive: true });
+        slider.addEventListener('scroll', updateDotsIndicator, { passive: true });
     }
 
     const validateAndNavigate = async (route) => {
@@ -115,8 +138,29 @@ export function init(navigateTo, state) {
         }
 
         if (!selectedClass) {
-            if (googleWarningEl) googleWarningEl.style.display = 'block';
+            // Show a more prominent warning message
+            if (googleWarningEl) {
+                googleWarningEl.style.display = 'block';
+                googleWarningEl.textContent = 'Please select your class from the numbers below';
+                googleWarningEl.style.color = '#d9534f';
+                googleWarningEl.style.marginTop = '12px';
+            }
+            // Show toast message
+            const toastEl = document.getElementById('auth-toast') || document.createElement('div');
+            if (!document.getElementById('auth-toast')) {
+                toastEl.id = 'auth-toast';
+                toastEl.className = 'toast';
+                document.body.appendChild(toastEl);
+            }
+            toastEl.textContent = 'Please select your class (1-12) before continuing';
+            toastEl.classList.remove('hidden');
+            setTimeout(() => toastEl.classList.add('hidden'), 3500);
             return;
+        }
+        
+        // Clear the warning if class is selected
+        if (googleWarningEl) {
+            googleWarningEl.style.display = 'none';
         }
 
         if (emailInput && passwordInput) {
@@ -197,7 +241,23 @@ export function init(navigateTo, state) {
             return;
         }
         if (!selectedClass) {
-            if (googleWarningEl) googleWarningEl.style.display = 'block';
+            // Show a more prominent warning message
+            if (googleWarningEl) {
+                googleWarningEl.style.display = 'block';
+                googleWarningEl.textContent = 'Please select your class from the numbers below';
+                googleWarningEl.style.color = '#d9534f';
+                googleWarningEl.style.marginTop = '12px';
+            }
+            // Show toast message
+            const toastEl = document.getElementById('auth-toast') || document.createElement('div');
+            if (!document.getElementById('auth-toast')) {
+                toastEl.id = 'auth-toast';
+                toastEl.className = 'toast';
+                document.body.appendChild(toastEl);
+            }
+            toastEl.textContent = 'Please select your class (1-12) before continuing';
+            toastEl.classList.remove('hidden');
+            setTimeout(() => toastEl.classList.add('hidden'), 3500);
             return;
         }
         if (googleWarningEl) googleWarningEl.style.display = 'none';
@@ -294,9 +354,16 @@ export function init(navigateTo, state) {
 
     btnSubmitSignup?.addEventListener('click', async () => {
         if (!selectedClass) {
-            alert("Please select your class from the numbers below first!");
-            closeSignupModal();
-            document.querySelector('.classes')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Show warning message with toast
+            const toastEl = document.getElementById('auth-toast') || document.createElement('div');
+            if (!document.getElementById('auth-toast')) {
+                toastEl.id = 'auth-toast';
+                toastEl.className = 'toast';
+                document.body.appendChild(toastEl);
+            }
+            toastEl.textContent = 'Please select your class from the numbers below first';
+            toastEl.classList.remove('hidden');
+            setTimeout(() => toastEl.classList.add('hidden'), 3500);
             return;
         }
 
