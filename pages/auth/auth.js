@@ -39,6 +39,7 @@ export function init(navigateTo, state) {
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'pill';
+            if (selectedClass === n) b.classList.add('active');
             b.textContent = n;
             b.setAttribute('aria-pressed', selectedClass === n);
             b.onclick = () => {
@@ -51,6 +52,8 @@ export function init(navigateTo, state) {
         for (let p = 0; p < 3; p++) {
             const d = document.createElement('button');
             d.type = 'button';
+            d.className = 'carousel-dot';
+            if (p === page) d.classList.add('active');
             d.setAttribute('aria-label', 'Classes page ' + (p + 1));
             if (p === page) d.setAttribute('aria-current', 'true');
             d.onclick = () => {
