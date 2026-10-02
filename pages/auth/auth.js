@@ -30,6 +30,7 @@ export function init(navigateTo, state) {
     // --- CLASS SELECTOR: 3 pages of 4 classes (1–4, 5–8, 9–12) ---
     const pills = document.getElementById('pills');
     const dots = document.getElementById('dots');
+    const slider = document.getElementById('class-slider');
     let page = 0;
 
     function renderClassSelector() {
@@ -58,6 +59,11 @@ export function init(navigateTo, state) {
             if (p === page) d.setAttribute('aria-current', 'true');
             d.onclick = () => {
                 page = p;
+                // Scroll carousel smoothly to the page position
+                if (slider) {
+                    const scrollPosition = p * slider.clientWidth;
+                    slider.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+                }
                 renderClassSelector();
             };
             dots.appendChild(d);
