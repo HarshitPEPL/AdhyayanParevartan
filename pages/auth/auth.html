@@ -50,10 +50,10 @@ a{cursor:pointer}
 .class-group{min-width:100%;display:flex;justify-content:center;gap:clamp(10px,2vw,16px);scroll-snap-align:start;align-items:center;padding:0 clamp(8px,1.5vw,12px)}
 .pill{width:clamp(36px,6vmin,46px);height:clamp(36px,6vmin,46px);flex:0 0 auto;border-radius:50%;border:2px solid #a7a7a7;background:#fff;display:flex;align-items:center;justify-content:center;font-size:clamp(.88rem,0.95vw,1rem);font-weight:700;color:#111;cursor:pointer;transition:all .2s;user-select:none;font-family:inherit}
 .pill.active,.pill:hover{background:#1b8d47;border-color:#1b8d47;color:#fff}
-.carousel-indicators{display:flex;justify-content:center;align-items:center;gap:clamp(4px,1vw,8px);margin-top:8px;height:clamp(4px,1vw,6px);position:relative}
+.carousel-indicators{display:flex;justify-content:center;align-items:center;gap:clamp(1px,0.2vw,2px);margin-top:6px;height:clamp(2px,0.5vw,3px);position:relative}
 .carousel-indicators::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:#e0e0e0;border-radius:2px;z-index:0;transform:translateY(-50%)}
-.carousel-dot{width:clamp(10px,2vw,16px);height:clamp(10px,2vw,16px);border-radius:50%;background:#fff;border:2px solid #d0d0d0;cursor:pointer;transition:all .3s ease;position:relative;z-index:1;font-family:inherit}
-.carousel-dot.active{background:#2aa35c;border-color:#2aa35c;box-shadow:0 0 0 3px rgba(42,163,92,.2)}
+.carousel-dot{width:clamp(2px,0.4vw,3px);height:clamp(2px,0.4vw,3px);border-radius:50%;background:#fff;border:1px solid #d0d0d0;cursor:pointer;transition:all .3s ease;position:relative;z-index:1;font-family:inherit;padding:0}
+.carousel-dot.active{background:#2aa35c;border-color:#2aa35c;box-shadow:0 0 0 1px rgba(42,163,92,.3)}
 .compliance-text{margin-top:clamp(2px,0.3vh,4px);font-size:clamp(.58rem,1.4vw,.68rem);color:#666;font-weight:600;text-align:center}
 .hidden{display:none!important}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px)}
