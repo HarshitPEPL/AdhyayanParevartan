@@ -63,13 +63,39 @@ export function init(navigateTo, state) {
                 if (slider) {
                     const scrollPosition = p * slider.clientWidth;
                     slider.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+                    // Update page and re-render after scroll
+                    setTimeout(() => {
+                        updateProgressIndicator();
+                    }, 300);
                 }
-                renderClassSelector();
             };
             dots.appendChild(d);
         }
     }
     renderClassSelector();
+    
+    // Function to update progress indicator based on scroll position
+    function updateProgressIndicator() {
+        if (!slider || !dots) return;
+        const totalWidth = slider.scrollWidth - slider.clientWidth;
+        const scrollPercent = totalWidth > 0 ? slider.scrollLeft / totalWidth : 0;
+        const currentPage = Math.round(scrollPercent * 2); // 3 pages = 0, 1, 2
+        
+        const allDots = dots.querySelectorAll('.carousel-dot');
+        allDots.forEach((dot, idx) => {
+            if (idx === currentPage) {
+                dot.classList.add('active');
+                page = currentPage;
+            } else {
+                dot.classList.remove('active');
+            }
+        });
+    }
+    
+    // Listen to carousel scroll
+    if (slider) {
+        slider.addEventListener('scroll', updateProgressIndicator, { passive: true });
+    }
 
     const validateAndNavigate = async (route) => {
         const emailInput = document.getElementById('auth-email');
