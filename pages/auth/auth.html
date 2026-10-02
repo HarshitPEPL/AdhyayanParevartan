@@ -58,7 +58,8 @@ a{cursor:pointer}
 .compliance-text{margin-top:clamp(2px,0.3vh,4px);font-size:clamp(.58rem,1.4vw,.68rem);color:#666;font-weight:600;text-align:center}
 .hidden{display:none!important}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px)}
-.modal{background:#fff;border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.15);position:relative}
+.modal{background:#fff;border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.15);position:relative;max-height:90vh;overflow-y:auto}
+@media (max-width:480px){.modal{max-width:95%;padding:20px;border-radius:12px}}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .modal-title{font-size:1.2rem;font-weight:800;color:#111;margin:0}
 .modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#666;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
@@ -68,8 +69,9 @@ a{cursor:pointer}
 .form-field input{width:100%;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-size:.95rem;font-family:inherit;box-sizing:border-box}
 .form-field input:focus{outline:none;border-color:#1a8a48;box-shadow:0 0 0 3px rgba(26,138,72,.12)}
 .btn-modal{width:100%;padding:12px;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-modal:disabled{opacity:0.6;cursor:not-allowed}
 .btn-primary-modal{background:linear-gradient(180deg,#72c76e,#5bb861);color:#fff}
-.btn-primary-modal:hover{filter:brightness(.98)}
+.btn-primary-modal:hover:not(:disabled){filter:brightness(.98)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2aa35c;color:#fff;padding:16px 24px;border-radius:8px;font-size:.9rem;z-index:2000;box-shadow:0 4px 12px rgba(0,0,0,.15);max-width:90%}
 .toast.hidden{display:none}
 .google-class-warning{display:none;color:#d9534f;font-size:.85rem;font-weight:600;margin-top:8px;text-align:center}
@@ -152,6 +154,7 @@ a{cursor:pointer}
     <h2 class="modal-title">Create Account</h2>
     <button class="modal-close" id="signup-modal-close" type="button">&times;</button>
   </div>
+  <div id="signup-class-indicator" style="background:#f0f8f0;border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.9rem;color:#1b8d47;font-weight:600;text-align:center;"></div>
   <div class="form-field">
     <label for="signup-name">Full Name</label>
     <input type="text" id="signup-name" placeholder="Enter your full name">
@@ -161,8 +164,13 @@ a{cursor:pointer}
     <input type="email" id="signup-email" placeholder="Enter your email">
   </div>
   <div class="form-field">
-    <label for="signup-password">Password</label>
-    <input type="password" id="signup-password" placeholder="Create a password">
+    <label for="signup-password">Password (min 6 chars)</label>
+    <div style="position:relative;">
+      <input type="password" id="signup-password" placeholder="Create a password" style="padding-right:40px;width:100%;box-sizing:border-box;">
+      <button type="button" class="pwd-toggle" data-target="signup-password" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#666;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;width:30px;height:30px;">
+        <i class="fa-regular fa-eye"></i>
+      </button>
+    </div>
   </div>
   <div class="form-field">
     <label for="signup-role">Role</label>
@@ -191,16 +199,34 @@ a{cursor:pointer}
   </div>
   <div id="forgot-view-otp" style="display:none;">
     <div class="form-field">
-      <label for="forgot-otp-input">Recovery Code</label>
-      <input type="text" id="forgot-otp-input" placeholder="Enter the code from your email">
+      <label for="forgot-otp-input">Recovery Code (6 digits)</label>
+      <input type="text" id="forgot-otp-input" placeholder="Enter the code from your email" maxlength="6" inputmode="numeric">
     </div>
+    <div id="forgot-otp-timer" style="font-size:0.85rem;color:#666;text-align:center;margin:8px 0;"></div>
     <button class="btn-modal btn-primary-modal" id="btn-forgot-verify-otp">Verify Code</button>
-    <button class="btn-modal" id="btn-forgot-resend-otp" style="background:#f0f0f0;color:#111;margin-top:8px;">Resend Code</button>
+    <button class="btn-modal" id="btn-forgot-resend-otp" style="background:#f0f0f0;color:#111;margin-top:8px;" disabled>
+      <span id="btn-resend-text">Resend Code</span>
+      <span id="btn-resend-timer" style="display:none;"> (<span id="timer-seconds">30</span>s)</span>
+    </button>
   </div>
   <div id="forgot-view-reset" style="display:none;">
     <div class="form-field">
-      <label for="forgot-new-password">New Password</label>
-      <input type="password" id="forgot-new-password" placeholder="Enter your new password">
+      <label for="forgot-new-password">New Password (min 6 chars)</label>
+      <div style="position:relative;">
+        <input type="password" id="forgot-new-password" placeholder="Enter your new password" style="padding-right:40px;width:100%;box-sizing:border-box;">
+        <button type="button" class="pwd-toggle" data-target="forgot-new-password" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#666;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;width:30px;height:30px;">
+          <i class="fa-regular fa-eye"></i>
+        </button>
+      </div>
+    </div>
+    <div class="form-field">
+      <label for="forgot-confirm-password">Confirm Password</label>
+      <div style="position:relative;">
+        <input type="password" id="forgot-confirm-password" placeholder="Confirm your password" style="padding-right:40px;width:100%;box-sizing:border-box;">
+        <button type="button" class="pwd-toggle" data-target="forgot-confirm-password" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#666;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;width:30px;height:30px;">
+          <i class="fa-regular fa-eye"></i>
+        </button>
+      </div>
     </div>
     <button class="btn-modal btn-primary-modal" id="btn-forgot-save-pwd">Update Password</button>
   </div>

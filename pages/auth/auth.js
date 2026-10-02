@@ -10,6 +10,41 @@ export function init(navigateTo, state) {
     const termsCheckbox = document.getElementById('auth-terms');
     const loginForm = document.getElementById('loginForm');
 
+    // --- PASSWORD HASHING UTILITY (SHA-256) ---
+    async function hashPassword(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // --- SECURE OTP GENERATION ---
+    function generateSecureOTP() {
+        const array = new Uint8Array(3);
+        window.crypto.getRandomValues(array);
+        let otp = (array[0] << 16) | (array[1] << 8) | array[2];
+        otp = otp % 1000000; // Keep it to 6 digits
+        return String(otp).padStart(6, '0');
+    }
+
+    // --- PASSWORD SHOW/HIDE TOGGLE ---
+    document.querySelectorAll('.pwd-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-eye');
+                icon.classList.toggle('fa-eye-slash');
+            }
+        });
+    });
+
     const roleMap = {
         student: 3,
         teacher: 2,
@@ -229,7 +264,9 @@ export function init(navigateTo, state) {
                     return;
                 }
 
-                if (user.password_hash !== password) {
+                // Hash the entered password and compare
+                const hashedPassword = await hashPassword(password);
+                if (user.password_hash !== hashedPassword) {
                     alert("Incorrect password. Please try again.");
                     return;
                 }
@@ -328,7 +365,9 @@ export function init(navigateTo, state) {
             let user = await getUserByEmail(profile.email);
             if (!user) {
                 const randomPassword = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                await addUser(profile.name, profile.email, randomPassword, roleMap[selectedRole], selectedClass, 1, profile.sub);
+                // Hash the random password before storing
+                const hashedPassword = await hashPassword(randomPassword);
+                await addUser(profile.name, profile.email, hashedPassword, roleMap[selectedRole], selectedClass, 1, profile.sub);
                 user = await getUserByEmail(profile.email);
             }
 
@@ -378,11 +417,24 @@ export function init(navigateTo, state) {
     const btnShowSignup = document.getElementById('btn-show-signup');
     const btnSubmitSignup = document.getElementById('btn-submit-signup');
     const signupRoleSelect = document.getElementById('signup-role');
+    const signupClassIndicator = document.getElementById('signup-class-indicator');
 
     btnShowSignup?.addEventListener('click', (e) => {
         e.preventDefault();
         if (signupRoleSelect) {
             signupRoleSelect.value = getSelectedRole() || 'student';
+        }
+        // Update class indicator
+        if (signupClassIndicator) {
+            if (selectedClass) {
+                signupClassIndicator.textContent = `Class selected: ${selectedClass}`;
+                signupClassIndicator.style.display = 'block';
+            } else {
+                signupClassIndicator.textContent = 'Please select your class from the numbers below first';
+                signupClassIndicator.style.display = 'block';
+                signupClassIndicator.style.background = '#fff3cd';
+                signupClassIndicator.style.color = '#856404';
+            }
         }
         if (signupModal) signupModal.classList.remove('hidden');
         if (signupOverlay) signupOverlay.classList.remove('hidden');
@@ -391,6 +443,10 @@ export function init(navigateTo, state) {
     const closeSignupModal = () => {
         if (signupModal) signupModal.classList.add('hidden');
         if (signupOverlay) signupOverlay.classList.add('hidden');
+        // Clear form
+        document.getElementById('signup-name').value = '';
+        document.getElementById('signup-email').value = '';
+        document.getElementById('signup-password').value = '';
     };
     
     signupClose?.addEventListener('click', closeSignupModal);
@@ -422,6 +478,11 @@ export function init(navigateTo, state) {
             return;
         }
 
+        if (password.length < 6) {
+            alert("Password must be at least 6 characters long.");
+            return;
+        }
+
         try {
             const existing = await getUserByEmail(email);
             if (existing) {
@@ -429,7 +490,10 @@ export function init(navigateTo, state) {
                 return;
             }
 
-            await addUser(name, email, password, signupRoleId, selectedClass, 0);
+            // Hash the password before sending to DB
+            const hashedPassword = await hashPassword(password);
+
+            await addUser(name, email, hashedPassword, signupRoleId, selectedClass, 0);
 
             // Send a registration confirmation email (best-effort; app still works
             // without it since the on-screen toast already confirms registration)
@@ -464,6 +528,16 @@ export function init(navigateTo, state) {
     const btnForgotVerifyOtp = document.getElementById('btn-forgot-verify-otp');
     const btnForgotSavePwd = document.getElementById('btn-forgot-save-pwd');
     const btnForgotResendOtp = document.getElementById('btn-forgot-resend-otp');
+    const forgotOtpTimer = document.getElementById('forgot-otp-timer');
+    const btnResendText = document.getElementById('btn-resend-text');
+    const btnResendTimer = document.getElementById('btn-resend-timer');
+    const timerSeconds = document.getElementById('timer-seconds');
+
+    let forgotOtpCode = null;
+    let forgotUserEmail = null;
+    let forgotOtpExpiry = null;
+    let forgotOtpAttempts = 0;
+    let lastOtpSentTime = 0;
 
     btnForgotPassword?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -474,13 +548,23 @@ export function init(navigateTo, state) {
     const closeForgotPwdModal = () => {
         if (forgotPwdModal) forgotPwdModal.classList.add('hidden');
         if (forgotPwdOverlay) forgotPwdOverlay.classList.add('hidden');
+        // Reset form
+        document.getElementById('forgot-email-input').value = '';
+        document.getElementById('forgot-otp-input').value = '';
+        document.getElementById('forgot-new-password').value = '';
+        document.getElementById('forgot-confirm-password').value = '';
+        // Reset views
+        document.getElementById('forgot-view-email').style.display = 'block';
+        document.getElementById('forgot-view-otp').style.display = 'none';
+        document.getElementById('forgot-view-reset').style.display = 'none';
+        forgotOtpCode = null;
+        forgotUserEmail = null;
+        forgotOtpAttempts = 0;
+        lastOtpSentTime = 0;
     };
 
     forgotPwdClose?.addEventListener('click', closeForgotPwdModal);
     forgotPwdOverlay?.addEventListener('click', closeForgotPwdModal);
-
-    let forgotOtpCode = null;
-    let forgotUserEmail = null;
 
     btnForgotSendOtp?.addEventListener('click', async () => {
         const email = document.getElementById('forgot-email-input')?.value.trim();
@@ -491,13 +575,29 @@ export function init(navigateTo, state) {
 
         try {
             const user = await getUserByEmail(email);
+            
+            // Security: Don't reveal whether email exists
             if (!user) {
-                alert("No account found with this email address.");
+                const toastEl = document.getElementById('auth-otp-toast');
+                const toastMsg = document.getElementById('auth-otp-toast-message');
+                if (toastEl && toastMsg) {
+                    toastMsg.textContent = 'If this email is registered, a recovery code has been sent.';
+                    toastEl.classList.remove('hidden');
+                    setTimeout(() => toastEl.classList.add('hidden'), 5000);
+                }
+                // Still show OTP view for UX, but it won't work
+                document.getElementById('forgot-view-email').style.display = 'none';
+                document.getElementById('forgot-view-otp').style.display = 'block';
+                forgotUserEmail = email; // Store even if doesn't exist
                 return;
             }
 
-            forgotOtpCode = String(Math.floor(Math.random() * 999999)).padStart(6, '0');
+            // Generate secure OTP with 10-minute expiry
+            forgotOtpCode = generateSecureOTP();
             forgotUserEmail = email;
+            forgotOtpExpiry = Date.now() + (10 * 60 * 1000); // 10 minutes from now
+            forgotOtpAttempts = 0;
+            lastOtpSentTime = Date.now();
 
             sendEmail({
                 toEmail: email,
@@ -509,24 +609,88 @@ export function init(navigateTo, state) {
             const toastEl = document.getElementById('auth-otp-toast');
             const toastMsg = document.getElementById('auth-otp-toast-message');
             if (toastEl && toastMsg) {
-                toastMsg.innerHTML = `OTP Code <strong>${forgotOtpCode}</strong> sent successfully`;
+                toastMsg.textContent = 'Recovery code sent to your email. Check your inbox.';
                 toastEl.classList.remove('hidden');
-                setTimeout(() => toastEl.classList.add('hidden'), 6000);
+                setTimeout(() => toastEl.classList.add('hidden'), 5000);
             }
 
             // Show OTP view
             document.getElementById('forgot-view-email').style.display = 'none';
             document.getElementById('forgot-view-otp').style.display = 'block';
+            startOtpTimer();
+            startResendCooldown();
         } catch (e) {
             console.error("Forgot password error:", e);
             alert("Failed to send recovery code. Please try again.");
         }
     });
 
+    function startResendCooldown() {
+        btnForgotResendOtp.disabled = true;
+        btnResendText.style.display = 'none';
+        btnResendTimer.style.display = 'inline';
+        
+        let secondsLeft = 30;
+        timerSeconds.textContent = secondsLeft;
+        
+        const countdown = setInterval(() => {
+            secondsLeft--;
+            if (secondsLeft <= 0) {
+                clearInterval(countdown);
+                btnForgotResendOtp.disabled = false;
+                btnResendText.style.display = 'inline';
+                btnResendTimer.style.display = 'none';
+            } else {
+                timerSeconds.textContent = secondsLeft;
+            }
+        }, 1000);
+    }
+
+    function startOtpTimer() {
+        const updateTimer = () => {
+            if (!forgotOtpExpiry) return;
+            const remaining = Math.max(0, Math.floor((forgotOtpExpiry - Date.now()) / 1000));
+            if (remaining > 0) {
+                if (forgotOtpTimer) {
+                    forgotOtpTimer.textContent = `Code expires in ${remaining} seconds`;
+                }
+                setTimeout(updateTimer, 1000);
+            } else {
+                if (forgotOtpTimer) {
+                    forgotOtpTimer.textContent = 'Code has expired. Please request a new one.';
+                    forgotOtpTimer.style.color = '#d9534f';
+                }
+                btnForgotVerifyOtp.disabled = true;
+            }
+        };
+        updateTimer();
+    }
+
     btnForgotVerifyOtp?.addEventListener('click', async () => {
+        // Check if OTP has expired
+        if (!forgotOtpExpiry || Date.now() > forgotOtpExpiry) {
+            alert("Recovery code has expired. Please request a new one.");
+            return;
+        }
+
         const otp = document.getElementById('forgot-otp-input')?.value.trim();
-        if (!otp || otp !== forgotOtpCode) {
-            alert("Invalid verification code. Please try again.");
+        if (!otp) {
+            alert("Please enter the recovery code.");
+            return;
+        }
+
+        forgotOtpAttempts++;
+        
+        if (otp !== forgotOtpCode) {
+            if (forgotOtpAttempts >= 5) {
+                alert("Too many failed attempts. Please request a new recovery code.");
+                document.getElementById('forgot-view-otp').style.display = 'none';
+                document.getElementById('forgot-view-email').style.display = 'block';
+                forgotOtpCode = null;
+                forgotOtpAttempts = 0;
+            } else {
+                alert(`Invalid code. ${5 - forgotOtpAttempts} attempts remaining.`);
+            }
             return;
         }
 
@@ -537,25 +701,39 @@ export function init(navigateTo, state) {
 
     btnForgotSavePwd?.addEventListener('click', async () => {
         const newPassword = document.getElementById('forgot-new-password')?.value;
-        if (!newPassword) {
-            alert("Please enter a new password.");
+        const confirmPassword = document.getElementById('forgot-confirm-password')?.value;
+        
+        if (!newPassword || !confirmPassword) {
+            alert("Please enter both passwords.");
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            alert("Password must be at least 6 characters long.");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            alert("Passwords do not match. Please try again.");
             return;
         }
 
         try {
             if (!forgotUserEmail) throw new Error('Email not set');
-            await updateUserPassword(forgotUserEmail, newPassword);
+            
+            // Hash the new password before updating
+            const hashedPassword = await hashPassword(newPassword);
+            await updateUserPassword(forgotUserEmail, hashedPassword);
 
-            alert("Your password has been successfully updated. Please log in with your new password.");
+            const toastEl = document.getElementById('auth-otp-toast');
+            const toastMsg = document.getElementById('auth-otp-toast-message');
+            if (toastEl && toastMsg) {
+                toastMsg.textContent = 'Password updated successfully. Please log in with your new password.';
+                toastEl.classList.remove('hidden');
+                setTimeout(() => toastEl.classList.add('hidden'), 5000);
+            }
+
             closeForgotPwdModal();
-
-            // Reset to email view
-            document.getElementById('forgot-view-email').style.display = 'block';
-            document.getElementById('forgot-view-otp').style.display = 'none';
-            document.getElementById('forgot-view-reset').style.display = 'none';
-            document.getElementById('forgot-email-input').value = '';
-            document.getElementById('forgot-otp-input').value = '';
-            document.getElementById('forgot-new-password').value = '';
         } catch (e) {
             console.error("Update password error:", e);
             alert("Failed to update password. Please try again.");
@@ -563,27 +741,55 @@ export function init(navigateTo, state) {
     });
 
     btnForgotResendOtp?.addEventListener('click', async () => {
+        const now = Date.now();
+        const timeSinceLastSend = now - lastOtpSentTime;
+        const secondsRemaining = Math.ceil((30000 - timeSinceLastSend) / 1000);
+
+        if (secondsRemaining > 0) {
+            alert(`Please wait ${secondsRemaining} seconds before resending.`);
+            return;
+        }
+
         try {
             if (!forgotUserEmail) throw new Error('Email not set');
             const user = await getUserByEmail(forgotUserEmail);
-            if (!user) throw new Error('User not found');
+            if (!user) {
+                // Generic message - don't reveal email doesn't exist
+                const toastEl = document.getElementById('auth-otp-toast');
+                const toastMsg = document.getElementById('auth-otp-toast-message');
+                if (toastEl && toastMsg) {
+                    toastMsg.textContent = 'If this email is registered, a recovery code has been sent.';
+                    toastEl.classList.remove('hidden');
+                    setTimeout(() => toastEl.classList.add('hidden'), 5000);
+                }
+                return;
+            }
 
-            forgotOtpCode = String(Math.floor(Math.random() * 999999)).padStart(6, '0');
+            // Generate new secure OTP
+            forgotOtpCode = generateSecureOTP();
+            forgotOtpExpiry = Date.now() + (10 * 60 * 1000);
+            forgotOtpAttempts = 0;
+            lastOtpSentTime = now;
 
             sendEmail({
                 toEmail: forgotUserEmail,
                 toName: user.full_name,
-                subject: 'Adhyayan Parevartan — Password Recovery Code',
+                subject: 'Adhyayan Parevartan — Password Recovery Code (Resent)',
                 message: `Hi ${user.full_name},\n\nYour password recovery code is: ${forgotOtpCode}\n\nThis code will expire in 10 minutes.\n\nIf you did not request a password reset, please ignore this email.`
             }).catch(() => {});
 
             const toastEl = document.getElementById('auth-otp-toast');
             const toastMsg = document.getElementById('auth-otp-toast-message');
             if (toastEl && toastMsg) {
-                toastMsg.innerHTML = `OTP Code <strong>${forgotOtpCode}</strong> resent successfully`;
+                toastMsg.textContent = 'Recovery code resent to your email.';
                 toastEl.classList.remove('hidden');
-                setTimeout(() => toastEl.classList.add('hidden'), 6000);
+                setTimeout(() => toastEl.classList.add('hidden'), 5000);
             }
+
+            // Reset OTP input and start timer
+            document.getElementById('forgot-otp-input').value = '';
+            startOtpTimer();
+            startResendCooldown();
         } catch (e) {
             console.error("Resend OTP error:", e);
             alert("Failed to resend code. Please try again.");
