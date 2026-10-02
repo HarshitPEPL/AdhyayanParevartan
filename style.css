@@ -2328,20 +2328,16 @@ body.native-app #bottom-nav {
         font-size: 26px;
         padding: 40px;
         max-width: 80%;
-        margin: 0 auto 40px;
     }
+}
 
-    .courses-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 40px;
-    }
-
-    .btn, button {
-        font-size: 18px;
-        padding: 16px 32px;
-        min-height: 56px;
-    }
+/* Fix for carousel dots on auth page - override button min-width/min-height rules */
+.carousel-dot {
+    min-width: 8px !important;
+    min-height: 8px !important;
+    width: 8px !important;
+    height: 8px !important;
+    padding: 0 !important;
 }
 
 /* Massive Screens: 2560px and above (8K monitors, projection displays, 110" screens)
@@ -2718,3 +2714,12 @@ a {
     z-index: 999;
 }
 
+
+/* Fix for carousel dots on auth page - override button min-width/min-height rules */
+.carousel-dot {
+    min-width: 8px !important;
+    min-height: 8px !important;
+    width: 8px !important;
+    height: 8px !important;
+    padding: 0 !important;
+}
