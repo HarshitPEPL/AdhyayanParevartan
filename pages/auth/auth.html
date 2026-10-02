@@ -48,12 +48,29 @@ a{cursor:pointer}
 .class-capsules-container{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding-bottom:6px;scrollbar-width:none;width:100%;gap:clamp(8px,1.5vw,14px);justify-content:center}
 .class-capsules-container::-webkit-scrollbar{display:none}
 .class-group{min-width:100%;display:flex;justify-content:center;gap:clamp(10px,2vw,16px);scroll-snap-align:start;align-items:center;padding:0 clamp(8px,1.5vw,12px)}
-.capsule{width:clamp(36px,6vmin,46px);height:clamp(36px,6vmin,46px);flex:0 0 auto;border-radius:50%;border:2px solid #a7a7a7;background:#fff;display:flex;align-items:center;justify-content:center;font-size:clamp(.88rem,0.95vw,1rem);font-weight:700;color:#111;cursor:pointer;transition:all .2s;user-select:none}
-.capsule.active,.capsule:hover{background:#1b8d47;border-color:#1b8d47;color:#fff}
+.pill{width:clamp(36px,6vmin,46px);height:clamp(36px,6vmin,46px);flex:0 0 auto;border-radius:50%;border:2px solid #a7a7a7;background:#fff;display:flex;align-items:center;justify-content:center;font-size:clamp(.88rem,0.95vw,1rem);font-weight:700;color:#111;cursor:pointer;transition:all .2s;user-select:none;font-family:inherit}
+.pill.active,.pill:hover{background:#1b8d47;border-color:#1b8d47;color:#fff}
 .carousel-indicators{display:flex;justify-content:center;gap:clamp(5px,1vw,8px);margin-top:6px}
-.carousel-dot{width:clamp(6px,1vw,10px);height:clamp(6px,1vw,10px);border-radius:50%;background:#d0d0d0;transition:background .2s;cursor:pointer}
+.carousel-dot{width:clamp(6px,1vw,10px);height:clamp(6px,1vw,10px);border-radius:50%;background:#d0d0d0;transition:background .2s;cursor:pointer;border:none;font-family:inherit}
 .carousel-dot.active{background:#2aa35c}
 .compliance-text{margin-top:clamp(2px,0.3vh,4px);font-size:clamp(.58rem,1.4vw,.68rem);color:#666;font-weight:600;text-align:center}
+.hidden{display:none!important}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px)}
+.modal{background:#fff;border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.15);position:relative}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-title{font-size:1.2rem;font-weight:800;color:#111;margin:0}
+.modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#666;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{color:#111}
+.form-field{margin-bottom:12px}
+.form-field label{display:block;font-size:.9rem;font-weight:600;margin-bottom:6px;color:#111}
+.form-field input{width:100%;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-size:.95rem;font-family:inherit;box-sizing:border-box}
+.form-field input:focus{outline:none;border-color:#1a8a48;box-shadow:0 0 0 3px rgba(26,138,72,.12)}
+.btn-modal{width:100%;padding:12px;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-primary-modal{background:linear-gradient(180deg,#72c76e,#5bb861);color:#fff}
+.btn-primary-modal:hover{filter:brightness(.98)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2aa35c;color:#fff;padding:16px 24px;border-radius:8px;font-size:.9rem;z-index:2000;box-shadow:0 4px 12px rgba(0,0,0,.15);max-width:90%}
+.toast.hidden{display:none}
+.google-class-warning{display:none;color:#d9534f;font-size:.85rem;font-weight:600;margin-top:8px;text-align:center}
 :focus-visible{outline:3px solid rgba(27,128,57,.4);outline-offset:2px}
 @media (max-width:520px){.input-with-icon input,.input-with-icon select{font-size:16px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -67,7 +84,7 @@ a{cursor:pointer}
       <p class="auth-subtitle">Sign in to continue your learning journey</p>
     </div>
 
-    <div class="form-group auth-form-group">
+    <form id="loginForm" class="auth-form-group">
       <div class="input-with-icon">
         <i class="fa-regular fa-envelope"></i>
         <input type="email" placeholder="Enter your email" id="auth-email">
@@ -91,13 +108,14 @@ a{cursor:pointer}
         <span>I agree to the <a href="#" id="auth-terms-link">Terms and Conditions</a></span>
       </label>
       <div class="forgot-password-wrap"><a href="#" class="forgot-link" id="btn-forgot-password">Forgot password?</a></div>
-    </div>
+      <div class="google-class-warning" id="google-class-warning">Please select your class first</div>
+    </form>
 
     <button class="btn btn-primary auth-continue" id="btn-continue">Continue</button>
 
     <div class="separator"><span></span><span>OR</span><span></span></div>
 
-    <button class="btn btn-social" id="btn-google">
+    <button class="btn btn-social" id="btn-google" type="button">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.7 17.74 9.5 24 9.5z"/>
         <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -117,25 +135,97 @@ a{cursor:pointer}
     <div class="class-setter">
       <p class="class-label">I'm in class</p>
       <div class="class-capsules-container" id="class-slider">
-        <div class="class-group"><div class="capsule">1</div><div class="capsule">2</div><div class="capsule">3</div><div class="capsule">4</div></div>
-        <div class="class-group"><div class="capsule">5</div><div class="capsule">6</div><div class="capsule">7</div><div class="capsule">8</div></div>
-        <div class="class-group"><div class="capsule">9</div><div class="capsule">10</div><div class="capsule">11</div><div class="capsule">12</div></div>
+        <div class="class-group" id="pills"></div>
       </div>
-      <div class="carousel-indicators" id="carousel-dots">
-        <span class="carousel-dot active"></span><span class="carousel-dot"></span><span class="carousel-dot"></span>
-      </div>
+      <div class="carousel-indicators" id="dots"></div>
     </div>
 
     <div class="compliance-text">By continuing you agree to Terms &amp; Privacy</div>
   </div>
 </div>
+
+<!-- SIGNUP MODAL -->
+<div id="signup-overlay" class="modal-overlay hidden"></div>
+<div id="signup-modal" class="modal hidden" role="dialog">
+  <div class="modal-header">
+    <h2 class="modal-title">Create Account</h2>
+    <button class="modal-close" id="signup-modal-close" type="button">&times;</button>
+  </div>
+  <div class="form-field">
+    <label for="signup-name">Full Name</label>
+    <input type="text" id="signup-name" placeholder="Enter your full name">
+  </div>
+  <div class="form-field">
+    <label for="signup-email">Email</label>
+    <input type="email" id="signup-email" placeholder="Enter your email">
+  </div>
+  <div class="form-field">
+    <label for="signup-password">Password</label>
+    <input type="password" id="signup-password" placeholder="Create a password">
+  </div>
+  <div class="form-field">
+    <label for="signup-role">Role</label>
+    <select id="signup-role" style="width:100%;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-family:inherit;">
+      <option value="student">Student</option>
+      <option value="teacher">Teacher</option>
+      <option value="parent">Parent</option>
+    </select>
+  </div>
+  <button class="btn-modal btn-primary-modal" id="btn-submit-signup">Create Account</button>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="forgot-pwd-overlay" class="modal-overlay hidden"></div>
+<div id="forgot-pwd-modal" class="modal hidden" role="dialog">
+  <div class="modal-header">
+    <h2 class="modal-title">Reset Password</h2>
+    <button class="modal-close" id="forgot-modal-close" type="button">&times;</button>
+  </div>
+  <div id="forgot-view-email">
+    <div class="form-field">
+      <label for="forgot-email-input">Email Address</label>
+      <input type="email" id="forgot-email-input" placeholder="Enter your registered email">
+    </div>
+    <button class="btn-modal btn-primary-modal" id="btn-forgot-send-otp">Send Recovery Code</button>
+  </div>
+  <div id="forgot-view-otp" style="display:none;">
+    <div class="form-field">
+      <label for="forgot-otp-input">Recovery Code</label>
+      <input type="text" id="forgot-otp-input" placeholder="Enter the code from your email">
+    </div>
+    <button class="btn-modal btn-primary-modal" id="btn-forgot-verify-otp">Verify Code</button>
+    <button class="btn-modal" id="btn-forgot-resend-otp" style="background:#f0f0f0;color:#111;margin-top:8px;">Resend Code</button>
+  </div>
+  <div id="forgot-view-reset" style="display:none;">
+    <div class="form-field">
+      <label for="forgot-new-password">New Password</label>
+      <input type="password" id="forgot-new-password" placeholder="Enter your new password">
+    </div>
+    <button class="btn-modal btn-primary-modal" id="btn-forgot-save-pwd">Update Password</button>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="auth-otp-toast" class="toast hidden">
+  <span id="auth-otp-toast-message"></span>
+</div>
+<div id="signup-success-toast" class="toast hidden">
+  <span id="signup-success-toast-message"></span>
+</div>
+
 <script>
 const slider=document.getElementById('class-slider');
-const dots=[...document.querySelectorAll('.carousel-dot')];
-const caps=[...document.querySelectorAll('.capsule')];
-caps.forEach(c=>c.addEventListener('click',()=>{caps.forEach(x=>x.classList.remove('active'));c.classList.add('active')}));
-dots.forEach((d,i)=>d.addEventListener('click',()=>slider.scrollTo({left:i*slider.clientWidth})));
-slider.addEventListener('scroll',()=>{const i=Math.round(slider.scrollLeft/slider.clientWidth);dots.forEach((d,j)=>d.classList.toggle('active',i===j))});
+if(slider){
+  const dots=[...document.querySelectorAll('.carousel-dot')];
+  const pills=document.getElementById('pills');
+  const dotsContainer=document.getElementById('dots');
+  if(pills&&dotsContainer){
+    const cap=[...document.querySelectorAll('.pill')];
+    cap.forEach(c=>c.addEventListener('click',()=>{cap.forEach(x=>x.classList.remove('active'));c.classList.add('active')}));
+    dots.forEach((d,i)=>d.addEventListener('click',()=>slider.scrollTo({left:i*slider.clientWidth})));
+    slider.addEventListener('scroll',()=>{const i=Math.round(slider.scrollLeft/slider.clientWidth);dots.forEach((d,j)=>d.classList.toggle('active',i===j))});
+  }
+}
 document.querySelectorAll('a[href="#"]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
 </script>
 </body>
