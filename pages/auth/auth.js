@@ -27,97 +27,141 @@ export function init(navigateTo, state) {
         return '';
     };
 
-    // --- CLASS SELECTOR: 3 pages of 4 classes (1–4, 5–8, 9–12) ---
+    // --- CLASS SELECTOR: Swipeable Carousel with 3 pages of 4 classes (1–4, 5–8, 9–12) ---
     const pills = document.getElementById('pills');
     const dots = document.getElementById('dots');
     const slider = document.getElementById('class-slider');
     let currentPage = 0;
+    let isDragging = false;
+    let startX = 0;
+    let scrollLeft = 0;
 
-    function renderClassSelector() {
-        // Render all 3 pages at once in the carousel
+    function initClassSelector() {
+        // Build the carousel structure with 3 pages
         pills.innerHTML = '';
+        
         for (let page = 0; page < 3; page++) {
-            const pageGroup = document.createElement('div');
-            pageGroup.className = 'class-group';
-            pageGroup.style.minWidth = '100%';
-            pageGroup.style.display = 'flex';
-            pageGroup.style.justifyContent = 'center';
-            pageGroup.style.gap = 'clamp(10px,2vw,16px)';
-            pageGroup.style.alignItems = 'center';
-            pageGroup.style.padding = '0 clamp(8px,1.5vw,12px)';
-            pageGroup.style.scrollSnapAlign = 'start';
+            const classPage = document.createElement('div');
+            classPage.className = 'class-page';
+            classPage.style.flex = '0 0 100%';
+            classPage.style.width = '100%';
+            classPage.style.display = 'flex';
+            classPage.style.justifyContent = 'center';
+            classPage.style.gap = '14px';
+            classPage.style.alignItems = 'center';
+            classPage.style.scrollSnapAlign = 'center';
+            classPage.style.scrollSnapStop = 'always';
             
             for (let i = 1; i <= 4; i++) {
                 const classNum = page * 4 + i;
                 const b = document.createElement('button');
                 b.type = 'button';
                 b.className = 'pill';
+                b.dataset.class = classNum;
                 if (selectedClass === classNum) b.classList.add('active');
                 b.textContent = classNum;
                 b.setAttribute('aria-pressed', selectedClass === classNum);
                 b.onclick = (e) => {
                     e.preventDefault();
+                    // Update selected class without re-rendering
+                    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+                    b.classList.add('active');
+                    b.setAttribute('aria-pressed', 'true');
                     selectedClass = classNum;
-                    renderClassSelector();
-                    updateDotsIndicator();
                 };
-                pageGroup.appendChild(b);
+                classPage.appendChild(b);
             }
-            pills.appendChild(pageGroup);
+            pills.appendChild(classPage);
         }
 
-        // Render carousel dots
+        // Initialize dots
+        initDots();
+    }
+
+    function initDots() {
         dots.innerHTML = '';
         for (let p = 0; p < 3; p++) {
             const d = document.createElement('button');
             d.type = 'button';
             d.className = 'carousel-dot';
+            d.dataset.page = p;
             if (p === currentPage) d.classList.add('active');
             d.setAttribute('aria-label', 'Classes page ' + (p + 1));
             if (p === currentPage) d.setAttribute('aria-current', 'true');
             d.onclick = (e) => {
                 e.preventDefault();
-                currentPage = p;
-                // Scroll carousel smoothly to the page position
+                // Scroll to the page
                 if (slider) {
-                    const scrollPosition = p * slider.clientWidth;
-                    slider.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+                    slider.scrollTo({ left: p * slider.clientWidth, behavior: 'smooth' });
                 }
-                updateDotsIndicator();
             };
             dots.appendChild(d);
         }
     }
-    renderClassSelector();
-    
-    // Function to update dots indicator based on scroll position
+
     function updateDotsIndicator() {
         if (!slider || !dots) return;
-        const scrollWidth = slider.scrollWidth - slider.clientWidth;
-        if (scrollWidth === 0) return;
-        
-        const scrollPercent = slider.scrollLeft / scrollWidth;
-        const newPage = Math.round(scrollPercent * 2); // 3 pages = 0, 1, 2
+        // Compute current page based on scroll position
+        const newPage = Math.round(slider.scrollLeft / slider.clientWidth);
         
         if (newPage !== currentPage) {
             currentPage = newPage;
+            // Update dots
+            dots.querySelectorAll('.carousel-dot').forEach((dot, idx) => {
+                if (idx === newPage) {
+                    dot.classList.add('active');
+                    dot.setAttribute('aria-current', 'true');
+                } else {
+                    dot.classList.remove('active');
+                    dot.removeAttribute('aria-current');
+                }
+            });
         }
-        
-        const allDots = dots.querySelectorAll('.carousel-dot');
-        allDots.forEach((dot, idx) => {
-            if (idx === currentPage) {
-                dot.classList.add('active');
-                dot.setAttribute('aria-current', 'true');
-            } else {
-                dot.classList.remove('active');
-                dot.removeAttribute('aria-current');
-            }
-        });
     }
-    
-    // Listen to carousel scroll events
+
+    // Initialize carousel
+    initClassSelector();
+
+    // Smooth scroll updates
     if (slider) {
         slider.addEventListener('scroll', updateDotsIndicator, { passive: true });
+    }
+
+    // --- MOUSE DRAG SUPPORT (Desktop) ---
+    if (slider) {
+        // Mouse down - start drag
+        slider.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            scrollLeft = slider.scrollLeft;
+            slider.style.scrollBehavior = 'auto';
+            slider.style.cursor = 'grabbing';
+        });
+
+        // Mouse move - drag
+        document.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.clientX;
+            const walk = (startX - x) * 1; // 1x multiplier for 1:1 drag
+            slider.scrollLeft = scrollLeft + walk;
+        });
+
+        // Mouse up - end drag
+        document.addEventListener('pointerup', () => {
+            if (isDragging) {
+                isDragging = false;
+                slider.style.scrollBehavior = 'smooth';
+                slider.style.cursor = 'grab';
+                // Snap to nearest page after drag
+                const pageWidth = slider.clientWidth;
+                const currentScroll = slider.scrollLeft;
+                const nextPage = Math.round(currentScroll / pageWidth);
+                slider.scrollTo({ left: nextPage * pageWidth, behavior: 'smooth' });
+            }
+        });
+
+        slider.style.cursor = 'grab';
     }
 
     const validateAndNavigate = async (route) => {
