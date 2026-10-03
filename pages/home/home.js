@@ -511,17 +511,32 @@ function setupSearch(navigateTo, state) {
     const input = document.getElementById('home-search');
     const dropdown = document.getElementById('search-dropdown');
     const searchBtn = document.getElementById('search-submit-btn');
+    const content = dropdown?.querySelector('.search-dropdown-content');
     
-    if (!input || !dropdown) return;
+    if (!input || !dropdown || !content) return;
 
     let debounceTimer;
     let currentKeyboardIndex = -1;
+    const RESULTS_PER_GROUP = 4;
 
+    // Position dropdown under search input
+    const positionDropdown = () => {
+        const rect = input.getBoundingClientRect();
+        const isMobile = window.innerWidth <= 640;
+        
+        content.style.position = 'fixed';
+        content.style.top = (rect.bottom + 8) + 'px';
+        content.style.left = rect.left + 'px';
+        content.style.width = rect.width + 'px';
+    };
+
+    // Close dropdown
     const closeSearchDropdown = () => {
         dropdown.classList.remove('show');
         currentKeyboardIndex = -1;
     };
 
+    // Render search results with grouping and "View all" button
     const renderSearchResults = (query) => {
         if (!query.trim()) {
             closeSearchDropdown();
@@ -533,12 +548,10 @@ function setupSearch(navigateTo, state) {
             item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
         );
 
-        const content = dropdown.querySelector('.search-dropdown-content');
-        if (!content) return;
-
         if (matches.length === 0) {
             content.innerHTML = `<div class="search-empty">No results found for "${escapeHTML(q)}"</div>`;
             dropdown.classList.add('show');
+            positionDropdown();
             return;
         }
 
@@ -553,12 +566,17 @@ function setupSearch(navigateTo, state) {
 
         let html = '';
         const groupOrder = ['Subjects', 'Books & Materials', 'Quizzes'];
+        
         groupOrder.forEach(type => {
             if (groups[type]) {
+                const allItems = groups[type];
+                const visibleItems = allItems.slice(0, RESULTS_PER_GROUP);
+                const hasMore = allItems.length > RESULTS_PER_GROUP;
+                
                 html += `<div class="search-group">
                     <div class="search-group-title">${type}</div>
-                    ${groups[type].map((item, idx) => `
-                        <div class="search-result" data-index="${idx}" data-type="${type}">
+                    ${visibleItems.map((item, idx) => `
+                        <div class="search-result" data-index="${idx}" data-type="${type}" tabindex="0">
                             <div class="search-result-text">
                                 <div class="search-result-label">${escapeHTML(item.label)}</div>
                                 <div class="search-result-subtitle">${escapeHTML(item.subtitle || '')}</div>
@@ -568,19 +586,20 @@ function setupSearch(navigateTo, state) {
                             </div>
                         </div>
                     `).join('')}
+                    ${hasMore ? `<div class="search-view-all" data-type="${type}" tabindex="0">View all ${type.toLowerCase()}</div>` : ''}
                 </div>`;
             }
         });
 
-        html += `<div class="search-result-count">${matches.length} result${matches.length !== 1 ? 's' : ''}</div>`;
         content.innerHTML = html;
 
         // Add click handlers
-        content.querySelectorAll('.search-result').forEach((el, idx) => {
+        content.querySelectorAll('.search-result').forEach((el) => {
             el.addEventListener('click', () => {
+                const label = el.querySelector('.search-result-label').textContent.trim();
+                const subtitle = el.querySelector('.search-result-subtitle').textContent.trim();
                 const index = matches.findIndex(m => 
-                    m.label === el.querySelector('.search-result-label').textContent.trim() &&
-                    m.subtitle === el.querySelector('.search-result-subtitle').textContent.trim()
+                    m.label === label && m.subtitle === subtitle
                 );
                 if (index >= 0) {
                     matches[index].action();
@@ -590,9 +609,30 @@ function setupSearch(navigateTo, state) {
             });
         });
 
+        // Add "View all" handlers
+        content.querySelectorAll('.search-view-all').forEach((el) => {
+            el.addEventListener('click', () => {
+                closeSearchDropdown();
+                input.value = '';
+                // Could navigate to full search results page if available
+            });
+        });
+
         dropdown.classList.add('show');
+        positionDropdown();
     };
 
+    // Reposition on resize and scroll
+    const repositionOnEvent = () => {
+        if (dropdown.classList.contains('show')) {
+            positionDropdown();
+        }
+    };
+
+    window.addEventListener('resize', repositionOnEvent);
+    window.addEventListener('scroll', repositionOnEvent, true);
+
+    // Input listener with debounce
     input.addEventListener('input', (e) => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
@@ -600,20 +640,41 @@ function setupSearch(navigateTo, state) {
         }, 250);
     });
 
+    // Keyboard navigation
     input.addEventListener('keydown', (e) => {
-        const results = dropdown.querySelectorAll('.search-result');
+        const results = content.querySelectorAll('.search-result');
         const count = results.length;
 
         if (e.key === 'Escape') {
             closeSearchDropdown();
         } else if (e.key === 'ArrowDown') {
             e.preventDefault();
+            if (!dropdown.classList.contains('show')) {
+                renderSearchResults(input.value);
+            }
             currentKeyboardIndex = (currentKeyboardIndex + 1) % count;
-            results.forEach((r, i) => r.style.background = i === currentKeyboardIndex ? 'var(--bg)' : '');
+            results.forEach((r, i) => {
+                if (i === currentKeyboardIndex) {
+                    r.focus();
+                    r.style.background = 'var(--bg)';
+                } else {
+                    r.style.background = '';
+                }
+            });
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
+            if (!dropdown.classList.contains('show')) {
+                renderSearchResults(input.value);
+            }
             currentKeyboardIndex = (currentKeyboardIndex - 1 + count) % count;
-            results.forEach((r, i) => r.style.background = i === currentKeyboardIndex ? 'var(--bg)' : '');
+            results.forEach((r, i) => {
+                if (i === currentKeyboardIndex) {
+                    r.focus();
+                    r.style.background = 'var(--bg)';
+                } else {
+                    r.style.background = '';
+                }
+            });
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (currentKeyboardIndex >= 0 && currentKeyboardIndex < count) {
@@ -631,6 +692,7 @@ function setupSearch(navigateTo, state) {
         }
     });
 
+    // Search button click
     if (searchBtn) {
         searchBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -648,6 +710,13 @@ function setupSearch(navigateTo, state) {
     // Close dropdown on outside click
     document.addEventListener('click', (e) => {
         if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            closeSearchDropdown();
+        }
+    });
+
+    // Close when input is cleared
+    input.addEventListener('input', (e) => {
+        if (!e.target.value.trim()) {
             closeSearchDropdown();
         }
     });
