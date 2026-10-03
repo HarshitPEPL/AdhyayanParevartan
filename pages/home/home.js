@@ -221,40 +221,91 @@ function generateFormatCards() {
 
 export async function init(navigateTo, state) {
     const user = state.currentUser;
+    const el = id => document.getElementById(id);
 
-    // --- Populate user info in header ---
-    if (user) {
-        const nameParts = (user.full_name || 'Student').trim().split(' ').filter(Boolean);
-        const initials = nameParts.map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+    // Store for use in other functions
+    window._lastNavigateTo = navigateTo;
+    window.state = state;
 
+    // --- 1. GREETING: Dynamic time-based greeting with first name ---
+    const updateGreeting = () => {
         const greeting = getGreeting();
-
-        const el = id => document.getElementById(id);
-        if (el('home-name')) {
-            el('home-name').textContent = user.full_name || 'Student';
+        if (el('home-greeting-text')) {
+            el('home-greeting-text').textContent = greeting;
         }
-        if (el('profile-btn')) {
-            el('profile-btn').textContent = initials;
-        }
+    };
+    updateGreeting();
 
-        // Update class display
+    // Extract first name from full_name (or fallback to "there")
+    let firstName = 'there';
+    if (user?.full_name) {
+        const firstNameMatch = user.full_name.trim().split(/\s+/)[0];
+        if (firstNameMatch) {
+            firstName = firstNameMatch.charAt(0).toUpperCase() + firstNameMatch.slice(1).toLowerCase();
+        }
+    }
+
+    if (el('home-name')) {
+        el('home-name').textContent = firstName;
+    }
+
+    // --- 2. AVATAR: Show first letter, clickable to profile ---
+    let avatarLetter = firstName[0].toUpperCase();
+    if (el('profile-btn')) {
+        el('profile-btn').textContent = avatarLetter;
+        el('profile-btn').setAttribute('aria-label', 'Open profile');
+        el('profile-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            closeNotificationPopup(); // Close notification popup if open
+            navigateTo('profile');
+        });
+    }
+
+    // --- 3. CLASS: Dynamic "Your Class" card ---
+    const classNumber = state.selectedClass || user?.class_number || 9;
+    
+    const refreshClassDisplay = () => {
+        const cls = state.selectedClass || user?.class_number || 9;
         if (el('home-class-badge')) {
-            const cls = user.class_number || state.selectedClass || 2;
             el('home-class-badge').textContent = `Class ${cls}`;
         }
         if (el('home-class-meta')) {
-            const board = user.board || 'CBSE';
+            const board = user?.board || 'CBSE';
             el('home-class-meta').textContent = `${board} curriculum`;
         }
+    };
+    refreshClassDisplay();
+
+    // --- 4. CHANGE CLASS: Navigate to classes page and refresh on return ---
+    if (el('change-class-btn')) {
+        el('change-class-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            // Navigate to classes page which handles class selection
+            navigateTo('classes');
+            // When user returns, the class will be updated in state
+        });
     }
+
+    // --- Update all class-dependent content when state.selectedClass changes ---
+    const originalSetSelectedClass = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(state), 'selectedClass');
+    let _selectedClass = state.selectedClass;
+    Object.defineProperty(state, 'selectedClass', {
+        get() { return _selectedClass; },
+        set(value) {
+            if (_selectedClass !== value) {
+                _selectedClass = value;
+                refreshClassDisplay();
+                // Refresh search index and notifications on class change
+                rebuildSearchIndex();
+                loadAndDisplayNotifications();
+            }
+        },
+        configurable: true
+    });
 
     // Setup notifications
     setupNotifications(state);
     renderStreakAndMotivation(user);
-
-    // Setup class selection
-    const classNumber = user?.class_number || state.selectedClass || 2;
-    setupClassSelection(classNumber, navigateTo, state);
 
     // Generate format cards for "Choose how you learn" section
     generateFormatCards();
@@ -414,7 +465,7 @@ function buildSearchIndex(navigateTo, state, subjects, materials, quizzes, class
         searchIndex.push({
             label: sub.subject_name,
             subtitle: `Class ${classNumber} Subject`,
-            icon: SUBJECT_ICONS[sub.subject_name] || 'fa-book',
+            icon: 'fa-book',
             action: () => navigateTo('courses')
         });
     });
@@ -444,51 +495,347 @@ function buildSearchIndex(navigateTo, state, subjects, materials, quizzes, class
     });
 }
 
+// Global function to rebuild search index when class changes
+window._rebuildSearchIndexForClass = async function(classNumber, navigateTo, state) {
+    try {
+        const subjects = await window.adhyayan.getSubjectsByClass(classNumber) || [];
+        const materials = await window.adhyayan.getMaterialsByClass(classNumber) || [];
+        const quizzes = await window.adhyayan.getQuizzesByClass(classNumber) || [];
+        buildSearchIndex(navigateTo, state, subjects, materials, quizzes, classNumber);
+    } catch (err) {
+        console.error('Failed to rebuild search index:', err);
+    }
+};
+
 function setupSearch(navigateTo, state) {
     const input = document.getElementById('home-search');
-    if (!input) return;
+    const dropdown = document.getElementById('search-dropdown');
+    const searchBtn = document.getElementById('search-submit-btn');
+    
+    if (!input || !dropdown) return;
 
     let debounceTimer;
+    let currentKeyboardIndex = -1;
+
+    const closeSearchDropdown = () => {
+        dropdown.classList.remove('show');
+        currentKeyboardIndex = -1;
+    };
+
+    const renderSearchResults = (query) => {
+        if (!query.trim()) {
+            closeSearchDropdown();
+            return;
+        }
+
+        const q = query.trim().toLowerCase();
+        const matches = searchIndex.filter(item =>
+            item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
+        );
+
+        const content = dropdown.querySelector('.search-dropdown-content');
+        if (!content) return;
+
+        if (matches.length === 0) {
+            content.innerHTML = `<div class="search-empty">No results found for "${escapeHTML(q)}"</div>`;
+            dropdown.classList.add('show');
+            return;
+        }
+
+        // Group results by type
+        const groups = {};
+        matches.forEach(item => {
+            const type = item.icon === 'fa-brain' ? 'Quizzes' : 
+                        item.icon === 'fa-file-lines' ? 'Books & Materials' : 'Subjects';
+            if (!groups[type]) groups[type] = [];
+            groups[type].push(item);
+        });
+
+        let html = '';
+        const groupOrder = ['Subjects', 'Books & Materials', 'Quizzes'];
+        groupOrder.forEach(type => {
+            if (groups[type]) {
+                html += `<div class="search-group">
+                    <div class="search-group-title">${type}</div>
+                    ${groups[type].map((item, idx) => `
+                        <div class="search-result" data-index="${idx}" data-type="${type}">
+                            <div class="search-result-text">
+                                <div class="search-result-label">${escapeHTML(item.label)}</div>
+                                <div class="search-result-subtitle">${escapeHTML(item.subtitle || '')}</div>
+                            </div>
+                            <div class="search-result-icon">
+                                <i class="fa-solid ${item.icon}"></i>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+            }
+        });
+
+        html += `<div class="search-result-count">${matches.length} result${matches.length !== 1 ? 's' : ''}</div>`;
+        content.innerHTML = html;
+
+        // Add click handlers
+        content.querySelectorAll('.search-result').forEach((el, idx) => {
+            el.addEventListener('click', () => {
+                const index = matches.findIndex(m => 
+                    m.label === el.querySelector('.search-result-label').textContent.trim() &&
+                    m.subtitle === el.querySelector('.search-result-subtitle').textContent.trim()
+                );
+                if (index >= 0) {
+                    matches[index].action();
+                    closeSearchDropdown();
+                    input.value = '';
+                }
+            });
+        });
+
+        dropdown.classList.add('show');
+    };
+
     input.addEventListener('input', (e) => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            const q = (e.target.value || '').trim().toLowerCase();
-            const matches = searchIndex.filter(item =>
-                item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
-            ).slice(0, 8);
-
-            if (matches.length > 0 && q) {
-                matches[0].action();
-            }
-        }, 200);
+            renderSearchResults(e.target.value);
+        }, 250);
     });
 
     input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const q = (input.value || '').trim().toLowerCase();
-            const matches = searchIndex.filter(item =>
-                item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
-            ).slice(0, 8);
-            if (matches.length > 0) {
-                matches[0].action();
+        const results = dropdown.querySelectorAll('.search-result');
+        const count = results.length;
+
+        if (e.key === 'Escape') {
+            closeSearchDropdown();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentKeyboardIndex = (currentKeyboardIndex + 1) % count;
+            results.forEach((r, i) => r.style.background = i === currentKeyboardIndex ? 'var(--bg)' : '');
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentKeyboardIndex = (currentKeyboardIndex - 1 + count) % count;
+            results.forEach((r, i) => r.style.background = i === currentKeyboardIndex ? 'var(--bg)' : '');
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentKeyboardIndex >= 0 && currentKeyboardIndex < count) {
+                results[currentKeyboardIndex].click();
+            } else {
+                const q = (input.value || '').trim().toLowerCase();
+                const matches = searchIndex.filter(item =>
+                    item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
+                );
+                if (matches.length > 0) {
+                    matches[0].action();
+                    closeSearchDropdown();
+                }
             }
         }
     });
+
+    if (searchBtn) {
+        searchBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const q = (input.value || '').trim().toLowerCase();
+            const matches = searchIndex.filter(item =>
+                item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
+            );
+            if (matches.length > 0) {
+                matches[0].action();
+                closeSearchDropdown();
+            }
+        });
+    }
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            closeSearchDropdown();
+        }
+    });
+}
+
+// --- NOTIFICATION POPUP FUNCTIONS ---
+
+let notificationRefreshTimer = null;
+
+function getUnreadNotificationsKey(userId) {
+    return `adhyayan_unread_notifs_${userId}`;
+}
+
+async function loadAndDisplayNotifications() {
+    try {
+        const userId = window.state?.currentUser?.user_id || 'guest';
+        const notifications = await window.adhyayan.getNotifications?.() || [];
+        const unreadSet = new Set(JSON.parse(localStorage.getItem(getUnreadNotificationsKey(userId)) || '[]'));
+
+        // Update badge
+        const badge = document.querySelector('.bell-icon i');
+        const unreadCount = unreadSet.size;
+        
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.classList.add('show');
+                badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+            } else {
+                badge.classList.remove('show');
+                badge.textContent = '';
+            }
+        }
+
+        // Store for later use in popup
+        window._cachedNotifications = notifications;
+        window._cachedUnreadSet = unreadSet;
+
+        return { notifications, unreadSet };
+    } catch (err) {
+        console.error('Failed to load notifications:', err);
+        return { notifications: [], unreadSet: new Set() };
+    }
+}
+
+async function renderNotificationPopup(notifications, unreadSet) {
+    const listEl = document.getElementById('notif-popup-list');
+    const emptyEl = document.getElementById('notif-popup-empty');
+    
+    if (!listEl) return;
+
+    if (!notifications || notifications.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+    }
+
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = notifications.map(n => {
+        const notifId = Number(n.notification_id);
+        const isUnread = unreadSet.has(notifId);
+        const time = formatRelativeTime(n.created_at);
+        
+        return `
+            <div class="notif-item ${isUnread ? 'unread' : ''}" data-notif-id="${notifId}">
+                <div class="notif-item-title">${escapeHTML(n.title)}</div>
+                <div class="notif-item-message">${escapeHTML(n.message)}</div>
+                <div class="notif-item-time">${time}</div>
+            </div>
+        `;
+    }).join('');
+
+    // Add click handlers to mark as read
+    listEl.querySelectorAll('.notif-item').forEach(item => {
+        item.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const notifId = Number(item.getAttribute('data-notif-id'));
+            const userId = window.state?.currentUser?.user_id || 'guest';
+            const unreadKey = getUnreadNotificationsKey(userId);
+            const unreadSet = new Set(JSON.parse(localStorage.getItem(unreadKey) || '[]'));
+            unreadSet.delete(notifId);
+            localStorage.setItem(unreadKey, JSON.stringify(Array.from(unreadSet)));
+            
+            // Update UI
+            item.classList.remove('unread');
+            await loadAndDisplayNotifications();
+        });
+    });
+}
+
+function closeNotificationPopup() {
+    const popup = document.getElementById('notif-popup');
+    const overlay = document.getElementById('notif-overlay');
+    if (popup) popup.classList.remove('show');
+    if (overlay) overlay.classList.remove('show');
+}
+
+function setupNotifications(state) {
+    const bell = document.getElementById('notif-btn');
+    const popup = document.getElementById('notif-popup');
+    const overlay = document.getElementById('notif-overlay');
+    const closeBtn = document.getElementById('notif-popup-close');
+    const markAllReadBtn = document.getElementById('notif-mark-all-read');
+
+    if (!bell || !popup) return;
+
+    // Initial load
+    loadAndDisplayNotifications();
+
+    // Refresh every 45 seconds
+    if (notificationRefreshTimer) clearInterval(notificationRefreshTimer);
+    notificationRefreshTimer = setInterval(() => {
+        loadAndDisplayNotifications();
+    }, 45000);
+
+    // Bell click: open popup
+    bell.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const { notifications, unreadSet } = await loadAndDisplayNotifications();
+        await renderNotificationPopup(notifications, unreadSet);
+        popup.classList.add('show');
+        overlay.classList.add('show');
+    });
+
+    // Close button
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeNotificationPopup();
+        });
+    }
+
+    // Mark all as read
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const userId = state.currentUser?.user_id || 'guest';
+            localStorage.setItem(getUnreadNotificationsKey(userId), '[]');
+            await loadAndDisplayNotifications();
+            await renderNotificationPopup(window._cachedNotifications || [], new Set());
+        });
+    }
+
+    // Close on overlay click
+    if (overlay) {
+        overlay.addEventListener('click', closeNotificationPopup);
+    }
+
+    // Close on ESC key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && popup.classList.contains('show')) {
+            closeNotificationPopup();
+        }
+    });
+
+    // Close popup when navigating
+    window._closeNotificationPopup = closeNotificationPopup;
+}
+
+// --- SEARCH FUNCTIONS ---
+
+function rebuildSearchIndex() {
+    // Called when class changes - rebuild search index for new class
+    const classNum = window.state?.selectedClass || window.state?.currentUser?.class_number || 9;
+    if (window._rebuildSearchIndexForClass && window._lastNavigateTo) {
+        window._rebuildSearchIndexForClass(classNum, window._lastNavigateTo, window.state);
+    }
 }
 
 async function loadNotifications(state) {
     try {
         const notifications = await window.adhyayan.getNotifications?.();
         const userId = state.currentUser?.user_id || 'guest';
-        const lastSeenId = Number(localStorage.getItem(`adhyayan_notif_seen_${userId}`) || 0);
-        const unread = (notifications || []).filter(n => Number(n.notification_id) > lastSeenId).length;
+        const unreadKey = getUnreadNotificationsKey(userId);
+        const unreadSet = new Set(JSON.parse(localStorage.getItem(unreadKey) || '[]'));
+        
+        // On first load, mark all existing notifications as read
+        if (unreadSet.size === 0 && notifications && notifications.length > 0) {
+            const allIds = notifications.map(n => Number(n.notification_id));
+            unreadSet.clear();
+        }
 
         const badge = document.querySelector('.bell-icon i');
         if (badge) {
-            if (unread > 0) {
-                badge.style.display = 'block';
+            if (unreadSet.size > 0) {
+                badge.classList.add('show');
+                badge.textContent = unreadSet.size > 9 ? '9+' : unreadSet.size;
             } else {
-                badge.style.display = 'none';
+                badge.classList.remove('show');
             }
         }
 
@@ -497,19 +844,4 @@ async function loadNotifications(state) {
         console.error('Failed to load notifications:', err);
         return [];
     }
-}
-
-function setupNotifications(state) {
-    const bell = document.getElementById('notif-btn');
-    if (!bell) return;
-
-    loadNotifications(state);
-
-    bell.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const notifications = await loadNotifications(state);
-        const userId = state.currentUser?.user_id || 'guest';
-        const maxId = notifications.reduce((max, n) => Math.max(max, Number(n.notification_id) || 0), 0);
-        localStorage.setItem(`adhyayan_notif_seen_${userId}`, String(maxId));
-    });
 }

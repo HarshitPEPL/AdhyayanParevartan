@@ -43,7 +43,7 @@
                 <div class="section-label">
                     <span>Your learning space</span>
                 </div>
-                <h1 class="header-main-greeting">Good morning, <span id="home-name">Rahul</span> <span class="greeting-hand">👋</span></h1>
+                <h1 class="header-main-greeting"><span id="home-greeting-text">Good morning</span>, <span id="home-name">there</span> <span class="greeting-hand">👋</span></h1>
                 <p class="header-subtitle">Ready to continue learning? Pick up where you left off or explore something new.</p>
                 <label class="search-engine">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
@@ -371,5 +371,34 @@
             subGrid.appendChild(card);
         });
     </script>
+
+    <!-- Notification Dropdown Popup (fixed position, direct child of body) -->
+    <div class="notif-overlay" id="notif-overlay"></div>
+    <div class="notif-popup" id="notif-popup">
+        <div class="notif-popup-header">
+            <h3>Notifications</h3>
+            <button class="notif-popup-close" id="notif-popup-close" aria-label="Close notifications">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="notif-popup-actions">
+            <button class="notif-mark-all-read" id="notif-mark-all-read">Mark all as read</button>
+        </div>
+        <div class="notif-popup-list" id="notif-popup-list">
+            <!-- Notifications rendered here -->
+        </div>
+        <div class="notif-popup-empty" id="notif-popup-empty" style="display:none;">
+            <p>No notifications yet</p>
+        </div>
+    </div>
+
+    <!-- Search Results Dropdown -->
+    <div class="search-dropdown" id="search-dropdown">
+        <div class="search-dropdown-content">
+            <!-- Results grouped by type -->
+        </div>
+    </div>
 </body>
 </html>
