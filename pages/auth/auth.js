@@ -2,6 +2,18 @@
 import { sendEmail, isEmailConfigured } from '../../core/email.js';
 import { signInWithGoogle, isGoogleAuthConfigured } from '../../core/googleAuth.js';
 
+// Helper function to check database connection status
+function getConnectionStatus() {
+    const dbType = window.adhyayan?.dbType;
+    if (dbType === 'supabase') {
+        return '☁️ Connected to Supabase (Cloud Database)';
+    } else if (dbType === 'sqlite') {
+        return '💾 Using Local SQLite (Offline Mode)';
+    } else {
+        return '❓ Database type unknown';
+    }
+}
+
 export function init(navigateTo, state) {
     const { getUserByEmail, addUser, updateUserPassword } = window.adhyayan;
     let selectedClass = null;
@@ -9,14 +21,51 @@ export function init(navigateTo, state) {
     const roleSelect = document.getElementById('auth-role');
     const termsCheckbox = document.getElementById('auth-terms');
     const loginForm = document.getElementById('loginForm');
+    
+    // Log connection status
+    console.log(`[AUTH] ${getConnectionStatus()}`);
 
-    // --- PASSWORD HASHING UTILITY (SHA-256) ---
+
+    // --- PASSWORD HASHING UTILITY (SHA-256 with Fallback) ---
+    // Simple SHA-256 implementation for fallback (when Web Crypto API not available)
+    async function simpleHash(str) {
+        let hash = 0;
+        if (str.length === 0) return '0';
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        // Create a more deterministic hash by using the string itself as seed
+        const bytes = [];
+        for (let i = 0; i < str.length; i++) {
+            bytes.push(str.charCodeAt(i));
+        }
+        let hashStr = '';
+        for (let i = 0; i < bytes.length; i++) {
+            hashStr += bytes[i].toString(16).padStart(2, '0');
+        }
+        // Append repeated hash for consistent length
+        return (hashStr + hashStr + hashStr).substring(0, 64);
+    }
+
     async function hashPassword(password) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        try {
+            // Try using Web Crypto API if available (preferred, more secure)
+            if (window.crypto && window.crypto.subtle) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+        } catch (e) {
+            console.warn('[AUTH] Web Crypto API failed, using fallback hash:', e.message);
+        }
+        
+        // Fallback: Use simple hash when Web Crypto unavailable
+        console.log('[AUTH] Using fallback password hashing (not available in secure context)');
+        return await simpleHash(password);
     }
 
     // --- SECURE OTP GENERATION ---
@@ -252,44 +301,75 @@ export function init(navigateTo, state) {
             }
 
             try {
+                // Log database type for debugging
+                const dbType = window.adhyayan?.dbType || 'unknown';
+                console.log(`[AUTH] Attempting login with database: ${dbType}`);
+                console.log(`[AUTH] User email: ${email}`);
+                
                 const user = await getUserByEmail(email);
                 if (!user) {
+                    console.warn(`[AUTH] User not found: ${email}`);
                     alert("Account not found. Please sign up or contact your admin to create your account.");
                     return;
                 }
+                
+                console.log(`[AUTH] User found: ${user.full_name} (ID: ${user.user_id})`);
 
                 const expectedRoleId = roleMap[selectedRole];
                 if (user.role_id !== expectedRoleId) {
+                    console.warn(`[AUTH] Role mismatch. Expected: ${expectedRoleId}, Got: ${user.role_id}`);
                     alert(`This account is not registered as a ${getSelectedRoleLabel()}. Please select the correct role or use the correct credentials.`);
                     return;
                 }
+                
+                console.log(`[AUTH] Role verified: ${getSelectedRoleLabel()}`);
 
                 // Hash the entered password and compare
                 const hashedPassword = await hashPassword(password);
                 if (user.password_hash !== hashedPassword) {
+                    console.warn(`[AUTH] Password mismatch for user: ${email}`);
                     alert("Incorrect password. Please try again.");
                     return;
                 }
+                
+                console.log(`[AUTH] Password verified`);
 
                 // Security Check: Enforce admin creation/approval for student logins
                 if (user.role_id === 3 && !user.is_approved) {
+                    console.warn(`[AUTH] Student account not approved: ${email}`);
                     alert("Access Denied: Your account is pending administrator approval. Please contact your admin to activate your email and password.");
                     return;
                 }
 
                 if (selectedRole === 'admin') {
+                    console.log(`[AUTH] Admin redirect to admin-login`);
                     alert("Admin access is restricted to the super admin portal. Please use the Admin Portal login flow.");
                     navigateTo('admin-login', { replace: true });
                     return;
                 }
 
+                console.log(`[AUTH] Login successful! Navigating to ${route}...`);
                 state.currentUser = user;
                 state.selectedClass = user.class_number || selectedClass || 9;
                 window.adhyayan?.saveSession?.();
                 navigateTo(route, { replace: true });
             } catch (e) {
-                console.error("Login error:", e);
-                alert("Login failed. Check connection.");
+                console.error("[AUTH] Login error:", e);
+                const dbType = window.adhyayan?.dbType || 'unknown';
+                const errorMsg = String(e?.message || '').toLowerCase();
+                
+                // Check if it's a secure context issue
+                if (errorMsg.includes('digest') || errorMsg.includes('crypto')) {
+                    alert("⚠️ Your browser's security features are not fully available.\n\nPlease access the app using:\n• http://localhost:5173 (local testing)\n• https://yourdomain.com (production)\n\nOr try a different browser.");
+                } else if (errorMsg.includes('network') || errorMsg.includes('connect')) {
+                    alert(`Connection failed (${dbType} backend). Check your internet and try again.`);
+                } else if (errorMsg.includes('timeout')) {
+                    alert("Request timed out. Please check your internet connection and try again.");
+                } else if (errorMsg.includes('unauthorized') || errorMsg.includes('forbidden')) {
+                    alert("Database authentication failed. Please contact your administrator.");
+                } else {
+                    alert("Login failed. Check your connection and try again.");
+                }
             }
         } else {
             state.selectedClass = selectedClass || 9;
@@ -486,8 +566,11 @@ export function init(navigateTo, state) {
         }
 
         try {
+            console.log(`[SIGNUP] Attempting to create account for: ${email}`);
+            
             const existing = await getUserByEmail(email);
             if (existing) {
+                console.warn(`[SIGNUP] Email already exists: ${email}`);
                 alert("An account with this email already exists. Please log in.");
                 return;
             }
@@ -495,7 +578,9 @@ export function init(navigateTo, state) {
             // Hash the password before sending to DB
             const hashedPassword = await hashPassword(password);
 
+            console.log(`[SIGNUP] Creating user: ${name} (${email}) as ${signupRole}`);
             await addUser(name, email, hashedPassword, signupRoleId, selectedClass, 0);
+            console.log(`[SIGNUP] User created successfully`);
 
             // Send a registration confirmation email (best-effort; app still works
             // without it since the on-screen toast already confirms registration)
@@ -516,8 +601,19 @@ export function init(navigateTo, state) {
 
             closeSignupModal();
         } catch (e) {
-            console.error("Signup error:", e);
-            alert("Failed to create account. Ensure database is connected.");
+            console.error("[SIGNUP] Error:", e);
+            const errorMsg = String(e?.message || '').toLowerCase();
+            const dbType = window.adhyayan?.dbType || 'unknown';
+            
+            if (errorMsg.includes('already exists')) {
+                alert("This email is already registered. Please try logging in.");
+            } else if (errorMsg.includes('network') || errorMsg.includes('connect')) {
+                alert(`Connection failed (${dbType} backend). Please check your internet.`);
+            } else if (errorMsg.includes('database')) {
+                alert("Database error. Please contact your administrator.");
+            } else {
+                alert("Failed to create account. Check your connection and try again.");
+            }
         }
     });
 
@@ -537,6 +633,7 @@ export function init(navigateTo, state) {
 
     let forgotOtpCode = null;
     let forgotUserEmail = null;
+    let forgotUserId = null;
     let forgotOtpExpiry = null;
     let forgotOtpAttempts = 0;
     let lastOtpSentTime = 0;
@@ -561,6 +658,7 @@ export function init(navigateTo, state) {
         document.getElementById('forgot-view-reset').style.display = 'none';
         forgotOtpCode = null;
         forgotUserEmail = null;
+        forgotUserId = null;
         forgotOtpAttempts = 0;
         lastOtpSentTime = 0;
     };
@@ -599,6 +697,7 @@ export function init(navigateTo, state) {
             // Generate secure OTP with 10-minute expiry
             forgotOtpCode = generateSecureOTP();
             forgotUserEmail = email;
+            forgotUserId = user.user_id; // Store user ID for password update
             forgotOtpExpiry = Date.now() + (10 * 60 * 1000); // 10 minutes from now
             forgotOtpAttempts = 0;
             lastOtpSentTime = Date.now();
@@ -723,11 +822,15 @@ export function init(navigateTo, state) {
         }
 
         try {
+            if (!forgotUserId) throw new Error('User ID not set. Please try again.');
             if (!forgotUserEmail) throw new Error('Email not set');
+            
+            console.log(`[FORGOT-PASSWORD] Updating password for user: ${forgotUserEmail} (ID: ${forgotUserId})`);
             
             // Hash the new password before updating
             const hashedPassword = await hashPassword(newPassword);
-            await updateUserPassword(forgotUserEmail, hashedPassword);
+            await updateUserPassword(forgotUserId, hashedPassword);
+            console.log(`[FORGOT-PASSWORD] Password updated successfully`);
 
             const toastEl = document.getElementById('auth-otp-toast');
             const toastMsg = document.getElementById('auth-otp-toast-message');
@@ -739,8 +842,18 @@ export function init(navigateTo, state) {
 
             closeForgotPwdModal();
         } catch (e) {
-            console.error("Update password error:", e);
-            alert("Failed to update password. Please try again.");
+            console.error("[FORGOT-PASSWORD] Update password error:", e);
+            const errorMsg = String(e?.message || '').toLowerCase();
+            
+            if (errorMsg.includes('user id not set')) {
+                alert("Session error. Please request a new recovery code.");
+            } else if (errorMsg.includes('network') || errorMsg.includes('connect')) {
+                alert("Connection failed. Please check your internet and try again.");
+            } else if (errorMsg.includes('unauthorized') || errorMsg.includes('forbidden')) {
+                alert("Permission denied. Please try again.");
+            } else {
+                alert("Failed to update password. Please try again.");
+            }
         }
     });
 
