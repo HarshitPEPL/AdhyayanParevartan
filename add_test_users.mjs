@@ -1,30 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import CryptoJS from 'crypto-js';
 
 const url = 'https://oyvomnjeytgwontiucxl.supabase.co';
 const key = 'sb_publishable_aRexYK8jj0VuC2aNZd8c6Q_UABVo0M4';
 
 const supabase = createClient(url, key);
 
-// Hash function that matches the fallback in auth.js
+// Hash function using crypto-js for consistency with browser auth.js
 function hashPassword(password) {
-    // Try using Node.js crypto for SHA-256 (more secure)
-    try {
-        return crypto.createHash('sha256').update(password).digest('hex');
-    } catch (e) {
-        // Fallback to simple hash (same as browser fallback)
-        console.warn('Crypto not available, using simple hash');
-        const str = password;
-        const bytes = [];
-        for (let i = 0; i < str.length; i++) {
-            bytes.push(str.charCodeAt(i));
-        }
-        let hashStr = '';
-        for (let i = 0; i < bytes.length; i++) {
-            hashStr += bytes[i].toString(16).padStart(2, '0');
-        }
-        return (hashStr + hashStr + hashStr).substring(0, 64);
-    }
+    return CryptoJS.SHA256(password).toString();
 }
 
 async function addTestUsers() {

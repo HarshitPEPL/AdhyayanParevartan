@@ -1,4 +1,5 @@
 // Uses window.adhyayan global (set by the bundled core/app.js after db init)
+import CryptoJS from 'crypto-js';
 import { sendEmail, isEmailConfigured } from '../../core/email.js';
 import { signInWithGoogle, isGoogleAuthConfigured } from '../../core/googleAuth.js';
 
@@ -26,46 +27,18 @@ export function init(navigateTo, state) {
     console.log(`[AUTH] ${getConnectionStatus()}`);
 
 
-    // --- PASSWORD HASHING UTILITY (SHA-256 with Fallback) ---
-    // Simple SHA-256 implementation for fallback (when Web Crypto API not available)
-    async function simpleHash(str) {
-        let hash = 0;
-        if (str.length === 0) return '0';
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
-        }
-        // Create a more deterministic hash by using the string itself as seed
-        const bytes = [];
-        for (let i = 0; i < str.length; i++) {
-            bytes.push(str.charCodeAt(i));
-        }
-        let hashStr = '';
-        for (let i = 0; i < bytes.length; i++) {
-            hashStr += bytes[i].toString(16).padStart(2, '0');
-        }
-        // Append repeated hash for consistent length
-        return (hashStr + hashStr + hashStr).substring(0, 64);
-    }
-
+    // --- PASSWORD HASHING UTILITY (SHA-256 using crypto-js) ---
+    // Uses crypto-js for consistent SHA-256 hashing across browser and Node.js
     async function hashPassword(password) {
         try {
-            // Try using Web Crypto API if available (preferred, more secure)
-            if (window.crypto && window.crypto.subtle) {
-                const encoder = new TextEncoder();
-                const data = encoder.encode(password);
-                const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            }
+            // Use crypto-js for consistent SHA-256 across all environments
+            const hash = CryptoJS.SHA256(password).toString();
+            console.log('[AUTH] Password hashed using crypto-js SHA-256');
+            return hash;
         } catch (e) {
-            console.warn('[AUTH] Web Crypto API failed, using fallback hash:', e.message);
+            console.error('[AUTH] Hash failed:', e.message);
+            throw e;
         }
-        
-        // Fallback: Use simple hash when Web Crypto unavailable
-        console.log('[AUTH] Using fallback password hashing (not available in secure context)');
-        return await simpleHash(password);
     }
 
     // --- SECURE OTP GENERATION ---
