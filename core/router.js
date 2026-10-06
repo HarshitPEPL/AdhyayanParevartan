@@ -95,6 +95,12 @@ export async function navigateTo(routeId, options = {}) {
 
     state.currentRoute = routeId;
 
+    // Lets the page being left (e.g. the lesson reader) save its final position first.
+    if (typeof window.__pageTeardown === 'function') {
+        try { window.__pageTeardown(); } catch (e) { console.warn('Page teardown failed:', e); }
+        window.__pageTeardown = null;
+    }
+
     const bottomNav = document.getElementById('bottom-nav');
     if(route.showNav) {
         bottomNav.classList.remove('hidden');

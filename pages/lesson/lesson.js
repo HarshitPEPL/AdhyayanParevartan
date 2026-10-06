@@ -55,7 +55,14 @@ function destroyActiveYouTubePlayer() {
     activeYouTubePlayer = null;
 }
 
-function renderYouTubePlayer(container, videoId, reportProgress) {
+// hooks (all provided by the lesson page):
+//   touch()               - record that the video was opened (refreshes last_accessed_at only)
+//   getStartAt()          - Promise<seconds> to resume from (0 = start)
+//   save({position, duration, force}) - throttled progress save
+//   ended() / flush()     - mark finished / push pending progress to the backend now
+//   onSnapshot(fn)        - register "save the exact position now" (tab hidden / lesson left)
+//   onCleanup(fn)         - register timer cleanup to run when the lesson is left
+function renderYouTubePlayer(container, videoId, hooks) {
     destroyActiveYouTubePlayer();
     const playerDivId = `yt-player-${videoId}-${Date.now()}`;
     const playerDiv = document.createElement('div');
@@ -63,14 +70,41 @@ function renderYouTubePlayer(container, videoId, reportProgress) {
     playerDiv.style.cssText = 'width:100%; height:100%;';
     container.appendChild(playerDiv);
 
-    loadYouTubeIframeAPI().then((YT) => {
+    hooks.touch();
+
+    loadYouTubeIframeAPI().then(async (YT) => {
         // The lesson may have been navigated away from before the API loaded.
         if (!document.getElementById(playerDivId)) return;
-        activeYouTubePlayer = new YT.Player(playerDivId, {
+        const startAt = Math.max(0, Math.floor(Number(await hooks.getStartAt()) || 0));
+        if (!document.getElementById(playerDivId)) return;
+
+        const POLL_MS = 5000;
+        let pollTimer = null;
+        let player = null;
+        const stopPolling = () => { clearInterval(pollTimer); pollTimer = null; };
+        const snapshot = (force) => {
+            if (!player || player !== activeYouTubePlayer || typeof player.getCurrentTime !== 'function') return;
+            hooks.save({ position: player.getCurrentTime(), duration: player.getDuration?.(), force });
+        };
+        const states = YT.PlayerState || { ENDED: 0, PLAYING: 1, PAUSED: 2 };
+
+        player = new YT.Player(playerDivId, {
             videoId,
-            playerVars: { rel: 0, modestbranding: 1 },
+            playerVars: { rel: 0, modestbranding: 1, start: startAt },
             events: {
-                onReady: () => reportProgress(100),
+                onStateChange: (e) => {
+                    if (e?.data === states.PLAYING) {
+                        snapshot(true);
+                        if (!pollTimer) pollTimer = setInterval(() => snapshot(false), POLL_MS);
+                    } else if (e?.data === states.ENDED) {
+                        stopPolling();
+                        hooks.ended(player?.getDuration?.());
+                    } else if (e?.data === states.PAUSED) {
+                        stopPolling();
+                        snapshot(true);
+                        hooks.flush();
+                    }
+                },
                 // Only fall back for codes that mean the video can NEVER play
                 // here: 100/101/150 = removed, private, or embedding disabled
                 // by the owner. Other codes (2 = bad param, 5 = HTML5 glitch)
@@ -78,18 +112,23 @@ function renderYouTubePlayer(container, videoId, reportProgress) {
                 // hiding a video that actually works.
                 onError: (e) => {
                     if ([100, 101, 150].includes(e?.data)) {
+                        stopPolling();
                         showYouTubeFallback(container, videoId);
                     }
                 }
             }
         });
+        activeYouTubePlayer = player;
+        hooks.onSnapshot(() => snapshot(true));
+        hooks.onCleanup(stopPolling);
     }).catch(() => showYouTubeFallback(container, videoId));
 }
 
 // Lazily loads Mozilla's PDF.js (only once) so PDFs can be rasterized onto a
 // <canvas> and shown right inside the app — Android's WebView has no built-in
 // PDF plugin, so a plain <iframe src="file.pdf"> just shows a blank page there.
-const PDFJS_VERSION = '4.7.76';
+// 3.x is the last line that ships a classic (non-module) pdf.min.js + worker on cdnjs.
+const PDFJS_VERSION = '3.11.174';
 let pdfjsLoadPromise = null;
 function loadPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -281,10 +320,17 @@ export function init(navigateTo, state) {
 
     function updatePdfPageUi(controller) {
         const current = controller.getCurrentPage();
-        if (readerPageBadge) readerPageBadge.textContent = `Page ${current}/${controller.numPages}`;
+        const total = controller.numPages;
+        if (readerPageBadge) readerPageBadge.textContent = `Page ${current}/${total}`;
         if (pageSelect) pageSelect.value = String(current);
         if (prevPageBtn) prevPageBtn.disabled = current <= 1;
-        if (nextPageBtn) nextPageBtn.disabled = current >= controller.numPages;
+        if (nextPageBtn) nextPageBtn.disabled = current >= total;
+        // Pages left behind count as completed; reaching the last page finishes the lesson.
+        reportProgress(0, {
+            lastPage: current,
+            totalPages: total,
+            pagesCompleted: current >= total ? total : current - 1
+        });
     }
 
     function updatePdfZoomUi(controller) {
@@ -398,9 +444,103 @@ export function init(navigateTo, state) {
     };
 
     const userId = state.currentUser?.user_id;
-    function reportProgress(percent) {
-        window.adhyayan?.setMaterialProgress?.(userId, mat, percent);
+    // Competitive-exam materials live in their own table, so their ids can
+    // collide with regular materials; they are not tracked in lesson progress.
+    const trackProgress = state.lastLibraryRoute !== 'competitive-exams';
+    function reportProgress(percent, extra) {
+        if (!trackProgress) return;
+        window.adhyayan?.setMaterialProgress?.(userId, mat, percent, extra);
     }
+
+    // Saved progress used to resume where the reader left off. Reads the
+    // backend copy (so it also works on a new device) but never waits long.
+    const savedProgressPromise = !trackProgress ? Promise.resolve(null) : Promise.race([
+        (async () => {
+            try {
+                const list = await window.adhyayan?.getMaterialProgressForUser?.(userId);
+                return list?.find((p) => Number(p.material_id) === Number(mat.material_id)) || null;
+            } catch (_) {
+                return null;
+            }
+        })(),
+        new Promise((resolve) => setTimeout(resolve, 2500, undefined))
+    ]).then((saved) => saved ?? window.adhyayan?.getMaterialProgress?.(userId, mat.material_id) ?? null);
+
+    // Resume a finished lesson from the start ("Revisit"); an unstarted one too.
+    const getResumePage = (saved, totalPages) => {
+        if (!saved || !(saved.percent > 0) || saved.percent >= 100) return 1;
+        const page = Math.floor(Number(saved.last_page));
+        return Number.isFinite(page) && page >= 1 ? Math.min(page, totalPages) : 1;
+    };
+
+    // Seeks a <video>/<audio> back to where the user stopped.
+    const resumeMediaPosition = (mediaEl) => {
+        mediaEl.addEventListener('loadedmetadata', () => {
+            savedProgressPromise.then((saved) => {
+                const position = Number(saved?.last_position_sec);
+                if (saved && saved.percent > 0 && saved.percent < 100 && position > 0 && position < mediaEl.duration) {
+                    mediaEl.currentTime = position;
+                }
+            });
+        }, { once: true });
+    };
+
+    // --- Shared position tracking for <video>, <audio> and YouTube ---------------
+    // Every content type writes into the same progress record, so last_accessed_at
+    // (which decides what "Continue learning" shows) is refreshed whatever is opened.
+    const MEDIA_SAVE_MIN_MS = 4500; // local save cadence while playing; the backend is rate-limited separately
+    let lastMediaSave = 0;
+    const snapshotHandlers = [];  // save the exact position now (tab hidden / lesson left)
+    const cleanupHandlers = [];   // stop timers (lesson left)
+    const registerSnapshot = (fn) => snapshotHandlers.push(fn);
+    const registerCleanup = (fn) => cleanupHandlers.push(fn);
+    const flushProgress = () => {
+        if (trackProgress) window.adhyayan?.flushMaterialProgress?.(userId, mat.material_id);
+    };
+    const validDuration = (d) => (Number.isFinite(Number(d)) && Number(d) > 0 ? Number(d) : undefined);
+    const saveMediaPosition = ({ position, duration, force = false }) => {
+        const pos = Number(position);
+        if (!Number.isFinite(pos) || pos < 0) return;
+        const now = Date.now();
+        if (!force && now - lastMediaSave < MEDIA_SAVE_MIN_MS) return;
+        lastMediaSave = now;
+        reportProgress(0, { position: pos, duration: validDuration(duration) });
+    };
+    const finishMedia = (duration) => {
+        reportProgress(100, { position: 0, duration: validDuration(duration) });
+        flushProgress();
+    };
+    const persistNow = () => {
+        snapshotHandlers.forEach((fn) => { try { fn(); } catch (_) { /* player already gone */ } });
+        flushProgress();
+    };
+    const onVisibilityChange = () => { if (document.visibilityState === 'hidden') persistNow(); };
+    window.addEventListener('pagehide', persistNow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.__pageTeardown = () => {
+        persistNow();
+        cleanupHandlers.forEach((fn) => { try { fn(); } catch (_) { /* ignore */ } });
+        window.removeEventListener('pagehide', persistNow);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+
+    const trackMediaElement = (el) => {
+        reportProgress(0); // opened: refreshes last_accessed_at only
+        resumeMediaPosition(el);
+        const snapshot = (force) => {
+            if (el.duration) saveMediaPosition({ position: el.currentTime, duration: el.duration, force });
+        };
+        el.addEventListener('play', () => reportProgress(0));
+        el.addEventListener('timeupdate', () => snapshot(false));
+        el.addEventListener('seeked', () => snapshot(true));
+        el.addEventListener('pause', () => {
+            if (el.ended) return; // 'ended' handles the finished case
+            snapshot(true);
+            flushProgress();
+        });
+        el.addEventListener('ended', () => finishMedia(el.duration));
+        registerSnapshot(() => snapshot(true));
+    };
 
     // Add a wrapper for fullscreen capabilities
     viewerContainer.innerHTML = '';
@@ -408,7 +548,19 @@ export function init(navigateTo, state) {
     wrapper.style.cssText = 'width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center;';
 
     if (youTubeVideoId) {
-        renderYouTubePlayer(wrapper, youTubeVideoId, reportProgress);
+        renderYouTubePlayer(wrapper, youTubeVideoId, {
+            touch: () => reportProgress(0),
+            getStartAt: async () => {
+                const saved = await savedProgressPromise;
+                const position = Number(saved?.last_position_sec);
+                return saved && saved.percent > 0 && saved.percent < 100 && position > 0 ? position : 0;
+            },
+            save: saveMediaPosition,
+            ended: finishMedia,
+            flush: flushProgress,
+            onSnapshot: registerSnapshot,
+            onCleanup: registerCleanup
+        });
     } else if (driveEmbedUrl) {
         if (isNativeAndroid && mat.format_name !== 'E-Book') {
             // Non-E-Book Drive content (video/audio) genuinely hits Google's
@@ -468,33 +620,11 @@ export function init(navigateTo, state) {
     } else if (ext === 'mp4' || ext === 'webm' || ext === 'ogg' || mat.format_name === 'Video Content' || (isDataUrl && mat.file_url.includes('video'))) {
         wrapper.innerHTML = `<video controls style="width: 100%; height: 100%; max-height: 100%;"><source src="${mat.file_url}">Your browser does not support the video tag.</video>`;
         const videoEl = wrapper.querySelector('video');
-        if (videoEl) {
-            reportProgress(1);
-            let lastReported = 0;
-            videoEl.addEventListener('timeupdate', () => {
-                if (!videoEl.duration) return;
-                const now = Date.now();
-                if (now - lastReported < 3000) return; // throttle writes
-                lastReported = now;
-                reportProgress((videoEl.currentTime / videoEl.duration) * 100);
-            });
-            videoEl.addEventListener('ended', () => reportProgress(100));
-        }
+        if (videoEl) trackMediaElement(videoEl);
     } else if (ext === 'mp3' || ext === 'wav' || mat.format_name === 'Audio Book' || (isDataUrl && mat.file_url.includes('audio'))) {
         wrapper.innerHTML = `<div style="text-align:center; width: 100%;"><i class="fa-solid fa-headphones" style="font-size: 4rem; color: #aaa; margin-bottom: 20px;"></i><br><audio controls style="width: 80%;"><source src="${mat.file_url}">Your browser does not support the audio tag.</audio></div>`;
         const audioEl = wrapper.querySelector('audio');
-        if (audioEl) {
-            reportProgress(1);
-            let lastReported = 0;
-            audioEl.addEventListener('timeupdate', () => {
-                if (!audioEl.duration) return;
-                const now = Date.now();
-                if (now - lastReported < 3000) return;
-                lastReported = now;
-                reportProgress((audioEl.currentTime / audioEl.duration) * 100);
-            });
-            audioEl.addEventListener('ended', () => reportProgress(100));
-        }
+        if (audioEl) trackMediaElement(audioEl);
     } else if (ext === 'pdf' || (isDataUrl && mat.file_url.includes('pdf'))) {
         let pdfUrl = getSafePdfUrl(mat.file_url);
         if (isDataUrl) {
@@ -540,10 +670,12 @@ export function init(navigateTo, state) {
         const inlineSrc = isDataUrl ? pdfUrl : getInlineRenderablePdfSrc(mat.file_url);
         wrapper.innerHTML = `<div style="color:#374151; font-size:0.85rem;">Loading…</div>`;
 
-        renderPdfInline(wrapper, inlineSrc).then((controller) => {
+        renderPdfInline(wrapper, inlineSrc).then(async (controller) => {
             if (controller) {
-                wirePdfControls(controller);
-                reportProgress(40);
+                const saved = await savedProgressPromise;
+                const resumePage = getResumePage(saved, controller.numPages);
+                if (resumePage > 1) await controller.goToPage(resumePage);
+                wirePdfControls(controller); // also records the page being opened
                 return;
             }
             if (isNativeAndroid) {

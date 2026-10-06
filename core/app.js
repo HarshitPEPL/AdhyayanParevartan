@@ -9,6 +9,7 @@ import {
     addQuizAttempt, getQuizAttemptsByUser, getQuizLeaderboard,
     getNotifications, addNotification, deleteNotification,
     setMaterialProgress, getRecentMaterialProgress, getAllMaterialProgress,
+    getMaterialProgress, getMaterialProgressForUser, flushMaterialProgress, calcProgressPercent, clampPercent,
     addToWishlist, removeFromWishlist, getWishlist, isInWishlist,
     getSiteContent, saveSiteContent,
     updateUserClass,
@@ -123,6 +124,7 @@ export async function initDB() {
                 state.db.run('ALTER TABLE users ADD COLUMN is_approved INTEGER DEFAULT 0;');
             } catch (_) { /* column exists */ }
             ensureSchema(state.db);
+            ensureProgressSchema(state.db);
             // Ensure test users exist even when restoring from saved database
             seedData();
             saveDatabase();
@@ -145,6 +147,7 @@ export async function initDB() {
             `CREATE TABLE IF NOT EXISTS notifications (notification_id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
         ];
         tables.forEach(t => state.db.run(t));
+        ensureProgressSchema(state.db);
         seedData();
         saveDatabase();
     } catch (e) {
@@ -195,6 +198,16 @@ function ensureSchema(db) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
     safeRun(`CREATE TABLE IF NOT EXISTS notifications (notification_id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+}
+
+// Resume/last-accessed columns on student_progress (added after the first release).
+function ensureProgressSchema(db) {
+    const safeRun = (sql) => {
+        try { db.run(sql); } catch (_) {}
+    };
+    safeRun(`CREATE TABLE IF NOT EXISTS student_progress (progress_id INTEGER PRIMARY KEY AUTOINCREMENT, student_id INTEGER NOT NULL, material_id INTEGER NOT NULL, completion_percentage INTEGER DEFAULT 0, is_completed BOOLEAN DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    ['last_page INTEGER', 'total_pages INTEGER', 'pages_completed INTEGER', 'last_position_sec INTEGER', 'duration_sec INTEGER', 'last_accessed_at TIMESTAMP']
+        .forEach(col => safeRun(`ALTER TABLE student_progress ADD COLUMN ${col}`));
 }
 
 function seedData() {
@@ -278,6 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         addQuizAttempt, getQuizAttemptsByUser, getQuizLeaderboard,
         getNotifications, addNotification, deleteNotification,
         setMaterialProgress, getRecentMaterialProgress, getAllMaterialProgress,
+        getMaterialProgress, getMaterialProgressForUser, flushMaterialProgress, calcProgressPercent, clampPercent,
         addToWishlist, removeFromWishlist, getWishlist, isInWishlist,
         getSiteContent, saveSiteContent,
         updateUserClass,

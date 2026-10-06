@@ -71,7 +71,7 @@
                         <div class="class-curriculum" id="home-class-meta">CBSE curriculum</div>
                     </div>
                 </div>
-                <button class="change-class-link" id="change-class-btn">Change class <span class="arrow">→</span></button>
+                <button class="change-class-link" id="change-class-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="class-modal">Change class <span class="arrow">→</span></button>
             </div>
         </section>
 
@@ -82,7 +82,7 @@
                     <h3>Prep for competitive</h3>
                     <p>A resource already featured on your homepage.</p>
                 </div>
-                <button class="see-all" id="home-competitive-explore">Browse formats <span class="arrow">→</span></button>
+                <button class="see-all" id="home-competitive-explore">See all <span class="arrow">→</span></button>
             </div>
             <div class="competitive-card" id="home-competitive-card">
                 <div class="competitive-icon">📖</div>
@@ -104,35 +104,74 @@
                 </div>
                 <button class="see-all" id="home-continue-explore">Explore learning <span class="arrow">→</span></button>
             </div>
-            <div class="continue-card" id="home-continue-card">
-                <div style="position: relative; z-index: 1;">
-                    <span class="continue-badge" id="home-continue-badge">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="5" y="3" width="14" height="18" rx="2"/>
-                            <path d="M9 8h6M9 12h6"/>
-                        </svg>
-                        E-Book
-                    </span>
-                    <div class="continue-meta" id="home-continue-subject">English • Class 2</div>
-                    <div class="continue-content">
-                        <h4 id="home-continue-title">Mridang Overview</h4>
-                        <p id="home-continue-info">Continue your English textbook</p>
-                    </div>
-                    <div class="continue-progress">
-                        <div class="continue-progress-label">
-                            <span>Lesson progress</span>
-                            <span id="home-continue-percent">0%</span>
+            <div class="continue-region" id="home-continue-region" aria-live="polite">
+                <!-- Loading skeleton (shown until the data arrives) -->
+                <div class="continue-card continue-skeleton" id="home-continue-skeleton" aria-hidden="true">
+                    <div class="continue-skeleton__line" style="width: 70px; height: 26px; border-radius: 14px;"></div>
+                    <div class="continue-skeleton__line" style="width: 150px; margin-top: 14px;"></div>
+                    <div class="continue-skeleton__line" style="width: 55%; height: 22px; margin-top: 18px;"></div>
+                    <div class="continue-skeleton__line" style="width: 35%; margin-top: 12px;"></div>
+                    <div class="continue-skeleton__line" style="width: 60%; height: 5px; margin-top: 22px;"></div>
+                </div>
+
+                <div class="continue-card" id="home-continue-card" hidden>
+                    <div style="position: relative; z-index: 1;">
+                        <span class="continue-badge" id="home-continue-badge"></span>
+                        <div class="continue-meta" id="home-continue-subject"></div>
+                        <div class="continue-content">
+                            <h4 id="home-continue-title"></h4>
+                            <p id="home-continue-info"></p>
                         </div>
-                        <div class="progress-bar" id="home-continue-bar"></div>
+                        <div class="continue-progress">
+                            <div class="continue-progress-label">
+                                <span>Lesson progress</span>
+                                <span id="home-continue-percent">0%</span>
+                            </div>
+                            <div class="progress-bar" id="home-continue-bar" role="progressbar" aria-label="Lesson progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                <span class="progress-bar__fill" id="home-continue-fill"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="continue-card-right" id="resume-lesson">
+                        <button type="button" class="continue-play-btn" id="home-continue-play" aria-label="Resume lesson">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </button>
+                        <div class="continue-action" id="home-continue-action">Resume</div>
+                        <div class="continue-pages" id="home-continue-pages"></div>
                     </div>
                 </div>
-                <div class="continue-card-right" id="resume-lesson">
-                    <button class="continue-play-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                    </button>
-                    <div class="continue-pages" id="home-continue-pages">14 pages</div>
+
+                <!-- Next unfinished lesson (shown after a completed lesson) -->
+                <div class="competitive-card continue-next" id="home-continue-next" hidden>
+                    <div class="competitive-icon">➜</div>
+                    <div class="competitive-content">
+                        <small class="competitive-meta" style="margin: 0 0 3px;">Up next</small>
+                        <b class="competitive-name" id="home-continue-next-title"></b>
+                        <small class="competitive-meta" id="home-continue-next-meta"></small>
+                    </div>
+                    <button type="button" class="ghost-btn" id="home-continue-next-btn">Start <span class="arrow">→</span></button>
+                </div>
+
+                <!-- Empty state: nothing started yet -->
+                <div class="competitive-card continue-message" id="home-continue-empty" hidden>
+                    <div class="competitive-icon">📚</div>
+                    <div class="competitive-content">
+                        <b class="competitive-name">No lesson in progress</b>
+                        <small class="competitive-meta">You haven't started a lesson yet. Pick a course to begin.</small>
+                    </div>
+                    <button type="button" class="ghost-btn" id="home-continue-browse">Browse courses <span class="arrow">→</span></button>
+                </div>
+
+                <!-- Error state -->
+                <div class="competitive-card continue-message" id="home-continue-error" role="alert" hidden>
+                    <div class="competitive-icon">⚠️</div>
+                    <div class="competitive-content">
+                        <b class="competitive-name">Couldn't load your lesson</b>
+                        <small class="competitive-meta">Something went wrong while loading. Check your connection and try again.</small>
+                    </div>
+                    <button type="button" class="ghost-btn" id="home-continue-retry">Retry</button>
                 </div>
             </div>
         </section>
@@ -215,21 +254,33 @@
             </div>
             <div class="progress-cards-grid">
                 <div class="progress-card-item">
+                    <span class="fcard__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-2-1.5-5-2-8-2v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14"/></svg>
+                    </span>
                     <span class="progress-label">Topics covered</span>
                     <i class="progress-indicator"></i>
                     <small class="progress-note">8 of 24 topics</small>
                 </div>
                 <div class="progress-card-item">
+                    <span class="fcard__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>
+                    </span>
                     <span class="progress-label">Quiz score</span>
                     <i class="progress-indicator"></i>
                     <small class="progress-note">78% average</small>
                 </div>
                 <div class="progress-card-item">
+                    <span class="fcard__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5.6 18.4a8 8 0 1 1 12.8 0"/><path d="M12 13.6l4-4"/><circle cx="12" cy="13.6" r="1" fill="currentColor"/></svg>
+                    </span>
                     <span class="progress-label">Reading speed</span>
                     <i class="progress-indicator"></i>
                     <small class="progress-note">325 words/min</small>
                 </div>
                 <div class="progress-card-item">
+                    <span class="fcard__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    </span>
                     <span class="progress-label">Time spent</span>
                     <i class="progress-indicator"></i>
                     <small class="progress-note">24 hours 15m</small>
@@ -391,6 +442,24 @@
         </div>
         <div class="notif-popup-empty" id="notif-popup-empty" style="display:none;">
             <p>No notifications yet</p>
+        </div>
+    </div>
+
+    <!-- Change Class Modal -->
+    <div class="class-modal" id="class-modal" hidden>
+        <div class="class-modal__dialog" id="class-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="class-modal-title" aria-describedby="class-modal-sub">
+            <div class="class-modal__header">
+                <div>
+                    <h3 class="class-modal__title" id="class-modal-title">Select your class</h3>
+                    <p class="class-modal__sub" id="class-modal-sub">Choose a class from 1 to 12</p>
+                </div>
+                <button type="button" class="notif-popup-close" id="class-modal-close" aria-label="Close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="class-modal__grid" id="class-modal-grid"></div>
         </div>
     </div>
 

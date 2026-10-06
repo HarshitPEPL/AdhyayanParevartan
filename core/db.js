@@ -1081,9 +1081,9 @@ export async function deleteNotification(notificationId) {
     return executeSQL(sqliteDb, sql, [notificationId]);
 }
 
-// 6. LOCAL LESSON PROGRESS (client-side; powers the "Continue Learning" card)
-// Progress is tracked per-device via localStorage since there is no reliable
-// cross-platform reading/watch-time column in the live schema yet.
+// 6. LESSON PROGRESS (powers the "Continue Learning" card)
+// Stored per-device in localStorage and mirrored to the backend (see the sync
+// helpers below) for logged-in users.
 const PROGRESS_CACHE_KEY = 'adhyayan_progress_v1';
 
 function loadProgressStore() {
@@ -1100,26 +1100,89 @@ function saveProgressStore(store) {
     try { localStorage.setItem(PROGRESS_CACHE_KEY, JSON.stringify(store)); } catch (_) {}
 }
 
-export function setMaterialProgress(userId, material, percent) {
-    if (!material || material.material_id == null) return;
+function toPositiveInt(value) {
+    const n = Math.floor(Number(value));
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// Always returns a whole number in 0..100 (never NaN, negative or above 100).
+export function clampPercent(value) {
+    const n = Math.round(Number(value));
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+}
+
+// Lesson progress = (pages completed / total pages) x 100, rounded.
+export function calcProgressPercent(pagesCompleted, totalPages) {
+    const total = Number(totalPages);
+    const done = Number(pagesCompleted);
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(done)) return 0;
+    return clampPercent((Math.min(Math.max(done, 0), total) / total) * 100);
+}
+
+// extra (all optional): { lastPage, totalPages, pagesCompleted, position, duration }
+//   - totalPages + pagesCompleted switch the entry to page-based progress (E-Books/Notes)
+//   - position + duration (seconds) drive time-based progress (Video/Audiobook); the
+//     percentage is derived here so every content type shares one calculation
+//   - lastPage / position are the resume points
+// Every call also refreshes last_accessed_at: this ONE timestamp, shared by every
+// content type, decides which item "Continue learning" shows.
+export function setMaterialProgress(userId, material, percent, extra = {}) {
+    if (!material || material.material_id == null) return null;
     const store = loadProgressStore();
     const key = String(userId || 'guest');
     if (!store[key]) store[key] = {};
 
     const existing = store[key][material.material_id];
-    const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+    const now = Date.now();
+    const totalPages = toPositiveInt(extra.totalPages) ?? existing?.total_pages ?? null;
+    const durationSec = toPositiveInt(extra.duration) ?? existing?.duration_sec ?? null;
 
-    store[key][material.material_id] = {
+    let pagesCompleted = existing?.pages_completed ?? null;
+    let nextPercent;
+    if (totalPages != null && extra.pagesCompleted != null) {
+        const reached = Math.max(Math.floor(Number(extra.pagesCompleted)) || 0, 0);
+        // Never let progress go backwards when the reader flips back a page.
+        pagesCompleted = Math.min(Math.max(existing?.pages_completed ?? 0, reached), totalPages);
+        nextPercent = calcProgressPercent(pagesCompleted, totalPages);
+    } else if (existing?.total_pages) {
+        nextPercent = existing.percent; // page-tracked lessons only advance via page data
+    } else {
+        let safePercent = clampPercent(percent);
+        if (extra.position != null && durationSec) {
+            // Whole seconds, the same value that is stored/shown, so text and bar always agree.
+            safePercent = Math.max(safePercent, clampPercent((Math.floor(Number(extra.position)) / durationSec) * 100));
+        }
+        // Never let progress go backwards from a stray/lower reading.
+        nextPercent = existing ? Math.max(clampPercent(existing.percent), safePercent) : safePercent;
+    }
+
+    const lastPage = toPositiveInt(extra.lastPage) ?? existing?.last_page ?? null;
+    const entry = {
         material_id: material.material_id,
         title: material.title,
         subject_name: material.subject_name,
         format_name: material.format_name,
         duration_lessons: material.duration_lessons,
-        // Never let progress go backwards from a stray/lower reading.
-        percent: existing ? Math.max(existing.percent, safePercent) : safePercent,
-        updated_at: Date.now()
+        percent: nextPercent,
+        pages_completed: pagesCompleted,
+        total_pages: totalPages,
+        last_page: lastPage != null && totalPages != null ? Math.min(lastPage, totalPages) : lastPage,
+        last_position_sec: extra.position != null
+            ? Math.max(0, Math.floor(Number(extra.position)) || 0)
+            : (existing?.last_position_sec ?? null),
+        duration_sec: durationSec,
+        last_accessed_at: now,
+        updated_at: now
     };
+    store[key][material.material_id] = entry;
     saveProgressStore(store);
+    queueProgressSync(userId, entry.material_id);
+    return entry;
+}
+
+export function getMaterialProgress(userId, materialId) {
+    const store = loadProgressStore();
+    return store[String(userId || 'guest')]?.[materialId] || null;
 }
 
 export function getRecentMaterialProgress(userId) {
@@ -1136,6 +1199,194 @@ export function getAllMaterialProgress(userId) {
     const store = loadProgressStore();
     const entries = Object.values(store[String(userId || 'guest')] || {});
     return entries.sort((a, b) => b.updated_at - a.updated_at);
+}
+
+// --- Backend sync for lesson progress -------------------------------------
+// localStorage above is the always-available fallback. When a real user is
+// logged in the same record is also written to the `student_progress` table
+// (Supabase or the local SQL.js DB) so it follows the account across devices
+// and survives logout/login. If that table/columns are missing on a live
+// Supabase project, sync quietly disables itself for the session.
+let progressBackendUnavailable = false;
+// duration_sec was added after the first release; if the live table lacks it we keep
+// syncing everything else instead of disabling cloud sync altogether.
+let durationColumnMissing = false;
+const PROGRESS_FETCH_TIMEOUT_MS = 6000;
+// Media position is saved every few seconds locally, but the backend only gets a
+// write at most this often per item (pause / ended / leaving the page flush at once).
+const PROGRESS_MIN_SYNC_GAP_MS = 15000;
+const progressSyncTimers = new Map();
+const progressLastSyncAt = new Map();
+
+function isSyncableUser(userId) {
+    return userId != null && Number.isFinite(parseInt(userId, 10));
+}
+
+function progressEntryToRow(userId, entry) {
+    return {
+        student_id: parseInt(userId, 10),
+        material_id: parseInt(entry.material_id, 10),
+        completion_percentage: clampPercent(entry.percent),
+        is_completed: clampPercent(entry.percent) >= 100,
+        last_page: entry.last_page ?? null,
+        total_pages: entry.total_pages ?? null,
+        pages_completed: entry.pages_completed ?? null,
+        last_position_sec: entry.last_position_sec ?? null,
+        duration_sec: entry.duration_sec ?? null,
+        last_accessed_at: new Date(entry.last_accessed_at || entry.updated_at || Date.now()).toISOString(),
+        updated_at: new Date().toISOString()
+    };
+}
+
+function progressRowToEntry(row) {
+    const accessed = Date.parse(row.last_accessed_at || row.updated_at || '') || 0;
+    return {
+        material_id: Number(row.material_id),
+        percent: clampPercent(row.completion_percentage),
+        pages_completed: row.pages_completed ?? null,
+        total_pages: row.total_pages ?? null,
+        last_page: row.last_page ?? null,
+        last_position_sec: row.last_position_sec ?? null,
+        duration_sec: row.duration_sec ?? null,
+        last_accessed_at: accessed,
+        updated_at: accessed
+    };
+}
+
+async function pushProgress(userId, entry) {
+    const row = progressEntryToRow(userId, entry);
+    const withoutDuration = (r) => { const { duration_sec, ...rest } = r; return rest; };
+
+    if (dbType === 'supabase') {
+        const upsert = (r) => supabaseClient
+            .from('student_progress')
+            .upsert([r], { onConflict: 'student_id,material_id' });
+
+        let { error } = await upsert(durationColumnMissing ? withoutDuration(row) : row);
+        if (error && !durationColumnMissing && isMissingColumnErrorGeneric(error) && /duration_sec/.test(error.message || '')) {
+            durationColumnMissing = true;
+            console.warn('student_progress.duration_sec column not found; "time left" will only be remembered on this device. Run: alter table public.student_progress add column if not exists duration_sec integer;');
+            ({ error } = await upsert(withoutDuration(row)));
+        }
+        if (error) {
+            if (isMissingTableError(error) || isMissingColumnErrorGeneric(error)) {
+                progressBackendUnavailable = true;
+                console.warn('Supabase `student_progress` table/columns not found; progress is kept on this device only. Run the migration in supabase_schema.sql to enable cloud sync.');
+                return;
+            }
+            throw error;
+        }
+        return;
+    }
+
+    if (!sqliteDb) return;
+    const found = queryAll(sqliteDb,
+        `SELECT progress_id FROM student_progress WHERE student_id = ? AND material_id = ?`,
+        [row.student_id, row.material_id]);
+    const values = [
+        row.completion_percentage, row.is_completed ? 1 : 0, row.last_page, row.total_pages,
+        row.pages_completed, row.last_position_sec, row.duration_sec, row.last_accessed_at, row.updated_at
+    ];
+    if (found.length) {
+        executeSQL(sqliteDb, `UPDATE student_progress SET completion_percentage = ?, is_completed = ?, last_page = ?, total_pages = ?, pages_completed = ?, last_position_sec = ?, duration_sec = ?, last_accessed_at = ?, updated_at = ? WHERE progress_id = ?`,
+            [...values, found[0].progress_id]);
+    } else {
+        executeSQL(sqliteDb, `INSERT INTO student_progress (completion_percentage, is_completed, last_page, total_pages, pages_completed, last_position_sec, duration_sec, last_accessed_at, updated_at, student_id, material_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [...values, row.student_id, row.material_id]);
+    }
+}
+
+// Debounced and rate-limited so page flips and playback ticks never flood the
+// backend: the first write goes out after 1s, later ones at most every 15s.
+// { immediate: true } skips the wait (used for pause, ended and leaving the page).
+function queueProgressSync(userId, materialId, { immediate = false } = {}) {
+    if (!isSyncableUser(userId) || progressBackendUnavailable) return;
+    const timerKey = `${userId}:${materialId}`;
+    clearTimeout(progressSyncTimers.get(timerKey));
+    const last = progressLastSyncAt.get(timerKey) || 0;
+    const wait = immediate ? 0 : Math.max(1000, last + PROGRESS_MIN_SYNC_GAP_MS - Date.now());
+    progressSyncTimers.set(timerKey, setTimeout(() => {
+        progressSyncTimers.delete(timerKey);
+        const entry = getMaterialProgress(userId, materialId);
+        if (!entry) return;
+        progressLastSyncAt.set(timerKey, Date.now());
+        pushProgress(userId, entry).catch(err => console.warn('Failed to sync lesson progress:', err));
+    }, wait));
+}
+
+// Sends any pending progress for this user right now (one item, or all of them when
+// materialId is omitted). Called when playback pauses/ends and when a lesson is left.
+export function flushMaterialProgress(userId, materialId) {
+    if (!isSyncableUser(userId)) return;
+    const prefix = `${userId}:`;
+    [...progressSyncTimers.keys()]
+        .filter(k => (materialId == null ? k.startsWith(prefix) : k === `${userId}:${materialId}`))
+        .forEach(k => queueProgressSync(userId, k.slice(prefix.length), { immediate: true }));
+}
+
+async function fetchProgressRows(userId) {
+    if (dbType === 'supabase') {
+        const { data, error } = await supabaseClient
+            .from('student_progress')
+            .select('*')
+            .eq('student_id', parseInt(userId, 10));
+        if (error) {
+            if (isMissingTableError(error) || isMissingColumnErrorGeneric(error)) {
+                progressBackendUnavailable = true;
+                return [];
+            }
+            throw error;
+        }
+        return data || [];
+    }
+    if (!sqliteDb) return [];
+    return queryAll(sqliteDb, `SELECT * FROM student_progress WHERE student_id = ?`, [parseInt(userId, 10)]);
+}
+
+// Newest-first progress for a user, merged with the backend copy (the more
+// recently accessed record wins). Falls back to localStorage if the backend
+// can't be reached, so it never rejects.
+export async function getMaterialProgressForUser(userId) {
+    if (!isSyncableUser(userId) || progressBackendUnavailable) return getAllMaterialProgress(userId);
+
+    try {
+        // A backend that never answers must not leave the UI waiting forever.
+        const rows = await Promise.race([
+            fetchProgressRows(userId),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timed out')), PROGRESS_FETCH_TIMEOUT_MS))
+        ]);
+        const store = loadProgressStore();
+        const key = String(userId);
+        if (!store[key]) store[key] = {};
+        let changed = false;
+        const remoteIds = new Set();
+
+        rows.forEach(row => {
+            const remote = progressRowToEntry(row);
+            remoteIds.add(remote.material_id);
+            const mine = store[key][remote.material_id];
+            const mineAccessed = mine ? (mine.last_accessed_at ?? mine.updated_at ?? 0) : -1;
+            if (remote.last_accessed_at > mineAccessed) {
+                // The newer copy wins, but a missing (null) field never erases a known local value.
+                const merged = { ...(mine || {}) };
+                Object.entries(remote).forEach(([field, value]) => { if (value != null) merged[field] = value; });
+                store[key][remote.material_id] = merged;
+                changed = true;
+            } else if (remote.last_accessed_at < mineAccessed) {
+                queueProgressSync(userId, remote.material_id);
+            }
+        });
+
+        // Back-fill progress that only exists on this device so far.
+        Object.keys(store[key]).forEach(id => {
+            if (!remoteIds.has(Number(id))) queueProgressSync(userId, Number(id));
+        });
+
+        if (changed) saveProgressStore(store);
+    } catch (err) {
+        console.warn('Could not load lesson progress from the backend, using local copy:', err);
+    }
+    return getAllMaterialProgress(userId);
 }
 
 // 6b. WISHLIST (client-side; per-device saved lessons)

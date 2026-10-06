@@ -1192,10 +1192,16 @@ button:focus-visible {
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.progress-card-item:nth-child(1) { --c: #2f9560; }
-.progress-card-item:nth-child(2) { --c: #4a62a8; }
-.progress-card-item:nth-child(3) { --c: #e0922b; }
-.progress-card-item:nth-child(4) { --c: #8a5cc0; }
+.progress-card-item:nth-child(1) { --c: #2f9560; --icon: #1f6144; --tint: #e3f2e9; }
+.progress-card-item:nth-child(2) { --c: #4a62a8; --icon: #4a62a8; --tint: #e8edf8; }
+.progress-card-item:nth-child(3) { --c: #e0922b; --icon: #e0922b; --tint: #fcf1de; }
+.progress-card-item:nth-child(4) { --c: #8a5cc0; --icon: #8a5cc0; --tint: #f0e9f8; }
+
+/* Reuses the .fcard__icon tile from "Choose how you learn"; only colour and spacing differ here */
+.progress-card-item .fcard__icon {
+    color: var(--icon);
+    margin-bottom: 10px;
+}
 
 .progress-card-item:hover {
     transform: translateY(-3px);
@@ -1829,5 +1835,210 @@ button:focus-visible {
     * {
         animation: none !important;
         transition: none !important;
+    }
+}
+
+/* ============================================================================
+   CHANGE CLASS MODAL
+   ============================================================================ */
+
+.class-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(20, 35, 31, 0.5);
+    backdrop-filter: blur(4px);
+    overscroll-behavior: contain;
+}
+
+.class-modal[hidden] {
+    display: none;
+}
+
+.class-modal__dialog {
+    width: 100%;
+    max-width: 380px;
+    max-height: 100%;
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 24px;
+    background: var(--card);
+    box-shadow: 0 20px 50px rgba(20, 35, 31, 0.3);
+    animation: class-modal-in 0.22s ease-out;
+}
+
+.class-modal__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.class-modal__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.class-modal__sub {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--mute);
+}
+
+.class-modal__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.class-modal__btn {
+    min-height: 48px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 700;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.class-modal__btn:hover {
+    border-color: #217a52;
+    background: var(--tint);
+}
+
+.class-modal__btn.is-active,
+.class-modal__btn.is-active:hover {
+    background: #217a52;
+    border-color: #217a52;
+    color: #fff;
+}
+
+.class-modal__btn:focus-visible,
+.class-modal .notif-popup-close:focus-visible {
+    outline: 2px solid #217a52;
+    outline-offset: 2px;
+}
+
+@keyframes class-modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (max-width: 360px) {
+    .class-modal__dialog {
+        padding: 16px;
+    }
+
+    .class-modal__grid {
+        gap: 6px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .class-modal__dialog {
+        animation: none;
+    }
+
+    .class-modal__btn {
+        transition: none;
+    }
+}
+
+/* ============================================================================
+   CONTINUE LEARNING - DYNAMIC STATES
+   ============================================================================ */
+
+/* Classes above set display, which would otherwise beat the [hidden] attribute */
+.continue-region [hidden] {
+    display: none !important;
+}
+
+/* The old fixed 6% sliver is replaced by a real fill that matches the % text */
+.continue-progress .progress-bar::before {
+    content: none;
+}
+
+.progress-bar__fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: #ffd36e;
+    border-radius: 5px;
+    transition: width 0.4s ease;
+}
+
+#home-continue-card > div:first-child {
+    padding-right: 96px;
+}
+
+.continue-content h4 {
+    overflow-wrap: anywhere;
+}
+
+.continue-badge {
+    white-space: nowrap;
+}
+
+.continue-action {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 2px;
+}
+
+.continue-pages:empty {
+    display: none;
+}
+
+.continue-skeleton {
+    min-height: 150px;
+}
+
+.continue-skeleton__line {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.12) 25%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0.12) 75%);
+    background-size: 200% 100%;
+    animation: continue-shimmer 1.4s linear infinite;
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes continue-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+.continue-message,
+.continue-next {
+    cursor: default;
+}
+
+.continue-message:hover,
+.continue-next:hover {
+    transform: none;
+    box-shadow: 0 8px 22px rgba(31, 97, 68, 0.1);
+}
+
+@media (max-width: 480px) {
+    #home-continue-card > div:first-child {
+        padding-right: 84px;
+    }
+
+    .continue-progress {
+        max-width: 100%;
     }
 }
