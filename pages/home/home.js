@@ -149,7 +149,7 @@ function generateFormatCards() {
             title: 'Quizzes',
             desc: 'Test your knowledge with quizzes.',
             label: 'Explore',
-            route: 'courses'
+            route: 'quiz-center'
         },
         {
             icon: '📚',
