@@ -848,5 +848,5 @@ export function init(navigateTo, state) {
     }
 
     // Gear icon menu (topbar + bottom toolbar): wishlist / open externally.
-    wireSettingsMenu(toggleWishlist, isDataUrl ? null : () => openExternalLink(mat.file_url), isWishlisted, () => !inlineReaderActive);
+    wireSettingsMenu(toggleWishlist, isDataUrl ? null : () => openExternalLink(mat.file_url), isWishlisted, () => !inlineReaderActive && mat.format_name !== 'E-Book');
 }

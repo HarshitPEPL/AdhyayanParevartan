@@ -8,6 +8,8 @@
 // JWT with the service account's private key, exchanges it for an OAuth
 // access token, fetches the file via the Drive API, and re-serves the bytes
 // from our own domain with CORS wide open (so PDF.js's in-app fetch works).
+// Errors must never be cached (a transient failure would otherwise stick for an hour).
+const NO_CACHE_HEADERS = { 'Cache-Control': 'no-store' };
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -119,12 +121,12 @@ function fileResponse(res) {
 
 export default async (request) => {
     if (request.method === 'OPTIONS') {
-        return new Response(null, { status: 204, headers: CORS_HEADERS });
+        return new Response(null, { status: 204, headers: { ...CORS_HEADERS, ...NO_CACHE_HEADERS } });
     }
 
     const id = new URL(request.url).searchParams.get('id');
     if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
-        return new Response('Missing or invalid Drive file id.', { status: 400, headers: CORS_HEADERS });
+        return new Response('Missing or invalid Drive file id.', { status: 400, headers: { ...CORS_HEADERS, ...NO_CACHE_HEADERS } });
     }
 
     // 1) Optional: Drive API as a service account (only when its credentials are configured).
@@ -146,10 +148,10 @@ export default async (request) => {
         if (res) return fileResponse(res);
         return new Response(
             'This file could not be downloaded. Make sure it is shared as "Anyone with the link can view".',
-            { status: 502, headers: CORS_HEADERS }
+            { status: 502, headers: { ...CORS_HEADERS, ...NO_CACHE_HEADERS } }
         );
     } catch (err) {
-        return new Response(`Proxy error: ${err.message}`, { status: 500, headers: CORS_HEADERS });
+        return new Response(`Proxy error: ${err.message}`, { status: 500, headers: { ...CORS_HEADERS, ...NO_CACHE_HEADERS } });
     }
 };
 
