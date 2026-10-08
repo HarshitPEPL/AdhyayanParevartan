@@ -182,14 +182,6 @@
             </div>
         </section>
 
-        <!-- Class Selection Section -->
-        <section class="my-class">
-            <h2 class="my-class__title">My class</h2>
-            <p class="my-class__sub">Choose a class to explore its learning materials.</p>
-            <div class="my-class__panel" id="classPanel" role="radiogroup" aria-label="Choose class"></div>
-            <p class="my-class__note" id="clsNote">Showing the Class 2 subjects visible in your current homepage.</p>
-        </section>
-
         <!-- Explore Subjects Section -->
         <section class="explore-subjects-section" style="padding-top: 26px;">
             <div class="section-header">
@@ -310,7 +302,6 @@
                     });
                     el.classList.add('on');
                     document.getElementById('home-class-badge').textContent = 'Class ' + n;
-                    document.getElementById('clsNote').textContent = 'Showing the Class ' + n + ' subjects visible in your current homepage.';
                     document.getElementById('subNote').textContent = 'Jump straight into a subject for Class ' + n + '.';
                     document.getElementById('qTitle').textContent = 'Class ' + n + ' Hindi';
                     document.querySelectorAll('.cn').forEach(function(c) {

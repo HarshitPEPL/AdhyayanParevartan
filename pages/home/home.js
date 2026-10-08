@@ -93,44 +93,6 @@ function computeStreak(attempts) {
     return streak;
 }
 
-function setupClassSelection(currentClass, navigateTo, state) {
-    const panel = document.getElementById('classPanel');
-    const note = document.getElementById('clsNote');
-    if (!panel) return;
-
-    // Clear existing buttons
-    panel.innerHTML = '';
-
-    // Create buttons for classes 1-12
-    for (let i = 1; i <= 12; i++) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'my-class__btn' + (i === currentClass ? ' is-active' : '');
-        btn.textContent = 'Class ' + i;
-        btn.setAttribute('role', 'radio');
-        btn.setAttribute('aria-checked', i === currentClass);
-
-        btn.addEventListener('click', () => {
-            // Update active state
-            panel.querySelectorAll('.my-class__btn').forEach((b, idx) => {
-                const isActive = idx + 1 === i;
-                b.classList.toggle('is-active', isActive);
-                b.setAttribute('aria-checked', isActive);
-            });
-
-            // Update state and content
-            state.selectedClass = i;
-            state.userSelectedClass = true;
-            note.textContent = `Showing the Class ${i} subjects visible in your current homepage.`;
-            document.getElementById('subNote').textContent = `Jump straight into a subject for Class ${i}.`;
-            document.getElementById('qTitle').textContent = `Class ${i} Hindi`;
-            document.querySelectorAll('.cn').forEach(el => el.textContent = `Class ${i}`);
-        });
-
-        panel.appendChild(btn);
-    }
-}
-
 async function renderStreakAndMotivation(user) {
     if (!user?.user_id) return;
 
