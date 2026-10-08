@@ -24,6 +24,19 @@
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" id="courses-search-input" placeholder="Search courses..." aria-label="Search courses">
             </div>
+            <div class="type-filter" id="type-filter">
+                <button type="button" class="type-filter-btn" id="type-filter-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Content type filter">
+                    <i class="fa-solid fa-layer-group" id="type-filter-icon"></i>
+                    <span class="type-filter-label" id="type-filter-label">Content Type</span>
+                    <i class="fa-solid fa-chevron-down type-filter-caret"></i>
+                </button>
+                <div class="type-filter-menu hidden" id="type-filter-menu" role="listbox" aria-label="Content type">
+                    <button type="button" class="type-filter-option active" role="option" aria-selected="true" data-type="All"><i class="fa-solid fa-layer-group"></i><span>All Types</span></button>
+                    <button type="button" class="type-filter-option" role="option" aria-selected="false" data-type="E-Book"><i class="fa-solid fa-file-pdf"></i><span>E-Book</span></button>
+                    <button type="button" class="type-filter-option" role="option" aria-selected="false" data-type="Video Content"><i class="fa-solid fa-circle-play"></i><span>Video Content</span></button>
+                    <button type="button" class="type-filter-option" role="option" aria-selected="false" data-type="Audio Book"><i class="fa-solid fa-headphones"></i><span>Audio Book</span></button>
+                </div>
+            </div>
             <button type="button" class="library-search-filter-btn" id="courses-search-filter-icon" title="Filter">
                 <i class="fa-solid fa-filter"></i>
             </button>

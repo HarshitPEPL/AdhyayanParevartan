@@ -80,19 +80,16 @@
             <div class="section-header">
                 <div>
                     <h3>Prep for competitive</h3>
-                    <p>A resource already featured on your homepage.</p>
+                    <p>Study material for competitive exams.</p>
                 </div>
                 <button class="see-all" id="home-competitive-explore">See all <span class="arrow">→</span></button>
             </div>
-            <div class="competitive-card" id="home-competitive-card">
-                <div class="competitive-icon">📖</div>
-                <div class="competitive-content">
-                    <b class="competitive-name" id="home-competitive-title">Bihar General Knowledge</b>
-                    <small class="competitive-meta" id="home-competitive-meta">Competitive Exams • BPSC</small>
-                    <small class="competitive-meta">43 pages • From your current homepage</small>
-                </div>
-                <button class="ghost-btn">Explore resource <span class="arrow">→</span></button>
+            <div class="comp-carousel" id="home-competitive-carousel">
+                <button type="button" class="comp-arrow comp-prev" id="home-competitive-prev" aria-label="Previous resource" disabled hidden>‹</button>
+                <div class="comp-track" id="home-competitive-track" aria-live="polite"></div>
+                <button type="button" class="comp-arrow comp-next" id="home-competitive-next" aria-label="Next resource" hidden>›</button>
             </div>
+            <div class="comp-dots" id="competitive-dots" hidden></div>
         </section>
 
         <!-- Continue Learning Section -->

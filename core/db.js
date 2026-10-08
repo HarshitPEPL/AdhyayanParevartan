@@ -179,22 +179,39 @@ const QUIZ_BASE_COLUMNS = `
         created_at
     `;
 
+// Supabase/PostgREST caps a single response at 1000 rows by default, so
+// tables larger than that must be read page by page. `buildQuery` must return
+// a fresh, deterministically ordered query each call.
+const SUPABASE_PAGE_SIZE = 1000;
+async function fetchAllRows(buildQuery) {
+    const rows = [];
+    for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+        const { data, error } = await buildQuery().range(from, from + SUPABASE_PAGE_SIZE - 1);
+        if (error) return { data: null, error };
+        rows.push(...(data || []));
+        if (!data || data.length < SUPABASE_PAGE_SIZE) break;
+    }
+    return { data: rows, error: null };
+}
+
 async function fetchSupabaseQuizzesRows(classNumber = null) {
     const requestedClass = classNumber !== null && classNumber !== undefined ? parseInt(classNumber) : null;
 
-    let query;
-    if (requestedClass !== null) {
-        query = supabaseClient
+    const buildQuery = () => {
+        if (requestedClass !== null) {
+            return supabaseClient
+                .from('quizzes')
+                .select(`${QUIZ_BASE_COLUMNS}, subjects!inner(subject_name, class_number)`)
+                .eq('subjects.class_number', requestedClass)
+                .order('quiz_id', { ascending: true });
+        }
+        return supabaseClient
             .from('quizzes')
-            .select(`${QUIZ_BASE_COLUMNS}, subjects!inner(subject_name, class_number)`)
-            .eq('subjects.class_number', requestedClass);
-    } else {
-        query = supabaseClient
-            .from('quizzes')
-            .select(`${QUIZ_BASE_COLUMNS}, subjects(subject_name, class_number)`);
-    }
+            .select(`${QUIZ_BASE_COLUMNS}, subjects(subject_name, class_number)`)
+            .order('quiz_id', { ascending: true });
+    };
 
-    const result = await query.order('quiz_id', { ascending: true });
+    const result = await fetchAllRows(buildQuery);
     if (result.error) throw result.error;
     return result.data || [];
 }
@@ -465,17 +482,20 @@ export async function getMaterials() {
                     format_name
                 )
             `;
-        let { data, error } = await supabaseClient.from('learning_materials').select(selectWithChapter);
+        let { data, error } = await fetchAllRows(() => supabaseClient
+            .from('learning_materials')
+            .select(selectWithChapter)
+            .order('material_id', { ascending: true }));
         if (error && isMissingColumnErrorGeneric(error)) {
             // chapter_number/thumbnail_url migration not run yet - fall back without them
-            ({ data, error } = await supabaseClient.from('learning_materials').select(`
+            ({ data, error } = await fetchAllRows(() => supabaseClient.from('learning_materials').select(`
                 material_id,
                 title,
                 duration_lessons,
                 instructor_name,
                 subjects ( subject_name ),
                 content_formats ( format_name )
-            `));
+            `).order('material_id', { ascending: true })));
         }
         if (error) throw error;
         return data.map(m => ({
@@ -651,14 +671,15 @@ export async function getMaterialsByClass(classNumber) {
                     format_name
                 )
             `;
-        let { data, error } = await supabaseClient
+        let { data, error } = await fetchAllRows(() => supabaseClient
             .from('learning_materials')
             .select(selectWithChapter)
-            .eq('subjects.class_number', parseInt(classNumber));
+            .eq('subjects.class_number', parseInt(classNumber))
+            .order('material_id', { ascending: true }));
 
         if (error && isMissingColumnErrorGeneric(error)) {
             // chapter_number/thumbnail_url migration not run yet - fall back without them
-            ({ data, error } = await supabaseClient
+            ({ data, error } = await fetchAllRows(() => supabaseClient
                 .from('learning_materials')
                 .select(`
                     material_id,
@@ -669,7 +690,8 @@ export async function getMaterialsByClass(classNumber) {
                     subjects!inner ( subject_name, class_number ),
                     content_formats ( format_name )
                 `)
-                .eq('subjects.class_number', parseInt(classNumber)));
+                .eq('subjects.class_number', parseInt(classNumber))
+                .order('material_id', { ascending: true })));
         }
 
         if (error) throw error;

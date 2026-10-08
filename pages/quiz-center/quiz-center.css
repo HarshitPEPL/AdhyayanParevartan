@@ -892,3 +892,119 @@
     }
 }
 
+
+
+/* ============================================================================
+   RESPONSIVE LAYOUT (tablet / desktop)
+   See progress.css: `.screen { margin: 0 auto }` shrinks a flex item to its
+   content width, so width is forced and the column centered via padding.
+   The inner blocks keep their own 20px gutters on phones.
+   ============================================================================ */
+.screen.quiz-center-screen {
+    width: 100%;
+    box-sizing: border-box;
+    max-width: none;
+    margin: 0;
+    padding-top: 20px;
+    padding-bottom: 36px;
+    padding-left: max(0px, calc((100% - 1100px) / 2));
+    padding-right: max(0px, calc((100% - 1100px) / 2));
+}
+
+.quick-practice-left {
+    min-width: 0;
+}
+
+.quick-practice-card .btn {
+    width: auto;
+    flex: 0 0 auto;
+    padding-left: 28px;
+    padding-right: 28px;
+}
+
+@media (max-width: 768px) {
+    .quick-practice-card .btn {
+        width: 100%;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .quiz-center-header {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .subject-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .quiz-summary-card,
+    .quick-practice-card {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .summary-progress {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .quick-practice-card .btn {
+        width: auto;
+    }
+}
+
+@media (min-width: 900px) {
+    .quiz-center-header h2 {
+        font-size: 28px;
+    }
+
+    .qc-tab-panel[data-panel="practice"]:not(.hidden) {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 20px;
+        padding: 0 20px;
+        align-items: stretch;
+    }
+
+    .qc-tab-panel[data-panel="practice"] > * {
+        grid-column: 1 / -1;
+    }
+
+    .qc-tab-panel[data-panel="practice"] > .quiz-summary-card,
+    .qc-tab-panel[data-panel="practice"] > .quick-practice-card {
+        grid-column: auto;
+    }
+
+    .qc-tab-panel[data-panel="practice"] .subject-grid-header,
+    .qc-tab-panel[data-panel="practice"] .recent-scores-header,
+    .qc-tab-panel[data-panel="practice"] .subject-grid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .qc-tab-panel[data-panel="practice"] .subject-grid {
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    }
+
+    .qc-tab-panel[data-panel="practice"] .chapter-select-card {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .qc-tab-panel[data-panel="practice"] .recent-scores {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 16px;
+        padding: 0 0 20px;
+    }
+
+    .qc-tab-panel[data-panel="stats"],
+    .qc-tab-panel[data-panel="leaderboard"] {
+        width: 100%;
+        max-width: 760px;
+        margin-left: auto;
+        margin-right: auto;
+        box-sizing: border-box;
+    }
+}

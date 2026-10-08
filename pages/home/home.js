@@ -518,12 +518,7 @@ export async function init(navigateTo, state) {
     generateFormatCards();
 
     // --- Load competitive exams (not class specific) ---
-    try {
-        const competitiveExams = await window.adhyayan.getCompetitiveMaterials?.() || [];
-        await renderCompetitiveExams(competitiveExams, navigateTo);
-    } catch (err) {
-        console.error('Failed to load competitive exams:', err);
-    }
+    renderCompetitiveCarousel(navigateTo, state);
 
     // --- Continue learning: most recent lesson for the selected class ---
     let continueToken = 0;
@@ -780,17 +775,53 @@ function setupClassModal(getCurrentClass, onSelect) {
     });
 }
 
-async function renderCompetitiveExams(exams, navigateTo) {
-    const card = document.getElementById('home-competitive-card');
-    if (!card || !exams || exams.length === 0) return;
+function renderCompetitiveCarousel(navigateTo, state) {
+    const track = document.getElementById('home-competitive-track');
+    const dotsEl = document.getElementById('competitive-dots');
+    const prevBtn = document.getElementById('home-competitive-prev');
+    const nextBtn = document.getElementById('home-competitive-next');
+    if (!track || !dotsEl) return;
 
-    const exam = exams[0];
-    
-    document.getElementById('home-competitive-title').textContent = exam.title || exam.exam_name || 'Competitive exam';
-    document.getElementById('home-competitive-meta').textContent = `${exam.exam_name || 'Competitive'} • ${exam.duration_lessons || 'Study material'}`;
+    window._homeCompetitiveCleanup?.();
 
-    card.addEventListener('click', () => {
-        const material = {
+    const MAX_DOTS = 8;
+    let items = [];
+    let cards = [];
+    let activeIndex = 0;
+    let rafId = 0;
+    let resizeTimer;
+    let dotCount = 0;
+    const abort = new AbortController();
+    const { signal } = abort;
+
+    const setNote = (text, className) => {
+        track.replaceChildren();
+        track.classList.add('is-empty');
+        const note = document.createElement('div');
+        note.className = className;
+        note.textContent = text;
+        track.appendChild(note);
+        dotsEl.hidden = true;
+        dotsEl.replaceChildren();
+        if (prevBtn) prevBtn.hidden = true;
+        if (nextBtn) nextBtn.hidden = true;
+    };
+
+    const showSkeleton = () => {
+        track.replaceChildren();
+        for (let i = 0; i < 3; i++) {
+            const sk = document.createElement('div');
+            sk.className = 'comp-card comp-card-skeleton';
+            sk.setAttribute('aria-hidden', 'true');
+            track.appendChild(sk);
+        }
+        dotsEl.hidden = true;
+        if (prevBtn) prevBtn.hidden = true;
+        if (nextBtn) nextBtn.hidden = true;
+    };
+
+    const openItem = (exam) => {
+        state.activeMaterial = {
             material_id: exam.material_id,
             title: exam.title || exam.exam_name || 'Competitive exam',
             subject_name: exam.exam_name || 'Competitive Exam',
@@ -799,10 +830,204 @@ async function renderCompetitiveExams(exams, navigateTo) {
             instructor_name: exam.instructor_name || 'Competitive Exam',
             file_url: exam.file_url || '',
         };
-        navigateTo('competitive-exams');
-    });
-}
+        state.lastLibraryRoute = 'home';
+        navigateTo('lesson');
+    };
 
+    const buildCard = (exam) => {
+        const card = document.createElement('div');
+        card.className = 'comp-card';
+        card.setAttribute('role', 'button');
+        card.tabIndex = 0;
+
+        const icon = document.createElement('div');
+        icon.className = 'comp-card-icon';
+        icon.textContent = '📖';
+
+        const body = document.createElement('div');
+        body.className = 'comp-card-body';
+
+        const tag = document.createElement('span');
+        tag.className = 'comp-card-tag';
+        tag.textContent = exam.exam_name || 'Competitive';
+
+        const title = document.createElement('b');
+        title.className = 'comp-card-title';
+        title.textContent = exam.title || exam.exam_name || 'Competitive exam';
+
+        const meta = document.createElement('small');
+        meta.className = 'comp-card-meta';
+        meta.textContent = [exam.duration_lessons, exam.format_name].filter(Boolean).join(' • ') || 'Study material';
+
+        body.append(tag, title, meta);
+
+        const cta = document.createElement('span');
+        cta.className = 'comp-card-cta';
+        cta.textContent = 'Explore resource →';
+
+        card.setAttribute('aria-label', `${title.textContent} — explore resource`);
+        card.append(icon, body, cta);
+
+        const open = () => openItem(exam);
+        card.addEventListener('click', open);
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                open();
+            }
+        });
+        return card;
+    };
+
+    const dotForCard = (idx) => dotCount >= cards.length
+        ? idx
+        : Math.min(dotCount - 1, Math.floor(idx * dotCount / cards.length));
+    const cardForDot = (dot) => dotCount >= cards.length
+        ? dot
+        : Math.floor(dot * cards.length / dotCount);
+
+    const updateActive = (idx) => {
+        activeIndex = idx;
+        const dots = dotsEl.querySelectorAll('button');
+        const activeDot = dotForCard(idx);
+        dots.forEach((d, i) => {
+            const on = i === activeDot;
+            d.classList.toggle('active', on);
+            if (on) d.setAttribute('aria-current', 'true');
+            else d.removeAttribute('aria-current');
+        });
+        if (prevBtn) prevBtn.disabled = idx <= 0;
+        if (nextBtn) nextBtn.disabled = idx >= cards.length - 1;
+    };
+
+    const closestCardIndex = () => {
+        if (cards.length < 2) return 0;
+        if (track.scrollLeft >= track.scrollWidth - track.clientWidth - 2) return cards.length - 1;
+        const step = cards[1].offsetLeft - cards[0].offsetLeft;
+        return Math.max(0, Math.min(cards.length - 1, Math.round(track.scrollLeft / step)));
+    };
+
+    const goTo = (idx) => {
+        const card = cards[Math.max(0, Math.min(cards.length - 1, idx))];
+        if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    };
+
+    const buildDots = () => {
+        dotsEl.replaceChildren();
+        dotCount = Math.min(cards.length, MAX_DOTS);
+        for (let i = 0; i < dotCount; i++) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.setAttribute('aria-label', `Go to card ${cardForDot(i) + 1}`);
+            b.addEventListener('click', () => goTo(cardForDot(i)), { signal });
+            dotsEl.appendChild(b);
+        }
+        dotsEl.hidden = cards.length <= 1;
+    };
+
+    const renderCards = () => {
+        const prevIdx = activeIndex;
+        track.classList.remove('is-empty');
+        track.replaceChildren(...items.map(buildCard));
+        cards = Array.from(track.querySelectorAll('.comp-card'));
+        buildDots();
+        const multi = cards.length > 1;
+        if (prevBtn) prevBtn.hidden = !multi;
+        if (nextBtn) nextBtn.hidden = !multi;
+        const idx = Math.min(prevIdx, cards.length - 1);
+        if (idx > 0) {
+            track.style.scrollBehavior = 'auto';
+            cards[idx].scrollIntoView({ inline: 'start', block: 'nearest' });
+            track.style.scrollBehavior = '';
+        }
+        updateActive(idx);
+    };
+
+    // Keep the active dot in sync while swiping, throttled to one update per frame
+    track.addEventListener('scroll', () => {
+        if (rafId || !cards.length) return;
+        rafId = requestAnimationFrame(() => {
+            rafId = 0;
+            const idx = closestCardIndex();
+            if (idx !== activeIndex) updateActive(idx);
+        });
+    }, { passive: true, signal });
+
+    prevBtn?.addEventListener('click', () => goTo(activeIndex - 1), { signal });
+    nextBtn?.addEventListener('click', () => goTo(activeIndex + 1), { signal });
+
+    // Mouse drag-to-scroll; a drag must not open the card under the pointer
+    let dragging = false;
+    let dragMoved = false;
+    let startX = 0;
+    let startScroll = 0;
+
+    track.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'mouse' || e.button !== 0) return;
+        dragging = true;
+        dragMoved = false;
+        startX = e.clientX;
+        startScroll = track.scrollLeft;
+    }, { signal });
+
+    window.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        if (!dragMoved && Math.abs(dx) > 5) {
+            dragMoved = true;
+            track.classList.add('is-dragging');
+        }
+        if (dragMoved) track.scrollLeft = startScroll - dx;
+    }, { signal });
+
+    const endDrag = () => {
+        if (!dragging) return;
+        dragging = false;
+        if (dragMoved) {
+            track.classList.remove('is-dragging');
+            goTo(closestCardIndex());
+        }
+    };
+    window.addEventListener('pointerup', endDrag, { signal });
+    window.addEventListener('pointercancel', endDrag, { signal });
+
+    track.addEventListener('click', (e) => {
+        if (dragMoved) {
+            e.stopPropagation();
+            e.preventDefault();
+            dragMoved = false;
+        }
+    }, { capture: true, signal });
+
+    track.addEventListener('dragstart', (e) => e.preventDefault(), { signal });
+
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => { if (items.length) renderCards(); }, 150);
+    }, { signal });
+
+    window._homeCompetitiveCleanup = () => {
+        abort.abort();
+        clearTimeout(resizeTimer);
+        cancelAnimationFrame(rafId);
+    };
+
+    showSkeleton();
+    Promise.resolve(window.adhyayan?.getCompetitiveMaterials?.() || [])
+        .then((list) => {
+            if (signal.aborted) return;
+            items = Array.isArray(list) ? list : [];
+            if (items.length === 0) {
+                setNote('No competitive courses yet', 'comp-empty');
+                return;
+            }
+            renderCards();
+        })
+        .catch((err) => {
+            console.error('Failed to load competitive exams:', err);
+            if (!signal.aborted) setNote('Couldn\'t load competitive courses', 'comp-empty');
+        });
+}
 function buildSearchIndex(navigateTo, state, subjects, materials, quizzes, classNumber) {
     searchIndex = [];
 
@@ -859,6 +1084,7 @@ function setupSearch(navigateTo, state) {
     const content = dropdown?.querySelector('.search-dropdown-content');
     
     if (!input || !dropdown || !content) return;
+    const searchBox = input.closest('.search-engine') || input;
 
     let debounceTimer;
     let currentKeyboardIndex = -1;
@@ -866,9 +1092,8 @@ function setupSearch(navigateTo, state) {
 
     // Position dropdown under search input
     const positionDropdown = () => {
-        const rect = input.getBoundingClientRect();
-        const isMobile = window.innerWidth <= 640;
-        
+        const rect = searchBox.getBoundingClientRect();
+
         content.style.position = 'fixed';
         content.style.top = (rect.bottom + 8) + 'px';
         content.style.left = rect.left + 'px';
@@ -1029,9 +1254,10 @@ function setupSearch(navigateTo, state) {
                 const matches = searchIndex.filter(item =>
                     item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
                 );
+                clearTimeout(debounceTimer);
+                closeSearchDropdown();
                 if (matches.length > 0) {
                     matches[0].action();
-                    closeSearchDropdown();
                 }
             }
         }
@@ -1041,23 +1267,54 @@ function setupSearch(navigateTo, state) {
     if (searchBtn) {
         searchBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            clearTimeout(debounceTimer);
             const q = (input.value || '').trim().toLowerCase();
             const matches = searchIndex.filter(item =>
                 item.label.toLowerCase().includes(q) || (item.subtitle || '').toLowerCase().includes(q)
             );
+            closeSearchDropdown();
             if (matches.length > 0) {
                 matches[0].action();
-                closeSearchDropdown();
             }
         });
     }
 
-    // Close dropdown on outside click
-    document.addEventListener('click', (e) => {
-        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+    // Close on outside press (mousedown/touchstart fire before the click, which is not swallowed)
+    const onOutsidePress = (e) => {
+        if (!dropdown.classList.contains('show')) return;
+        if (searchBox.contains(e.target) || dropdown.contains(e.target)) return;
+        closeSearchDropdown();
+    };
+    document.addEventListener('mousedown', onOutsidePress);
+    document.addEventListener('touchstart', onOutsidePress, { passive: true });
+
+    // Close on Escape from anywhere (e.g. focus on a suggestion)
+    const onEscape = (e) => {
+        if (e.key === 'Escape' && dropdown.classList.contains('show')) {
             closeSearchDropdown();
+            if (dropdown.contains(document.activeElement)) input.focus();
         }
-    });
+    };
+    document.addEventListener('keydown', onEscape);
+
+    // Remove document/window listeners from a previous Home render
+    window._homeSearchCleanup?.();
+    window._homeSearchCleanup = () => {
+        document.removeEventListener('mousedown', onOutsidePress);
+        document.removeEventListener('touchstart', onOutsidePress);
+        document.removeEventListener('keydown', onEscape);
+        window.removeEventListener('resize', repositionOnEvent);
+        window.removeEventListener('scroll', repositionOnEvent, true);
+    };
+
+    // Reopen suggestions when the input is focused/clicked again
+    const reopenIfQuery = () => {
+        if (input.value.trim() && !dropdown.classList.contains('show')) {
+            renderSearchResults(input.value);
+        }
+    };
+    input.addEventListener('focus', reopenIfQuery);
+    input.addEventListener('click', reopenIfQuery);
 
     // Close when input is cleared
     input.addEventListener('input', (e) => {

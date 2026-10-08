@@ -222,3 +222,85 @@
         height: 38px;
     }
 }
+
+
+/* ============================================================================
+   RESPONSIVE LAYOUT (tablet / desktop)
+   `.screen` gets `margin: 0 auto` from style.css, which makes a flex item
+   shrink to its content width (phone-width column). Force full width and
+   center the readable column with padding instead.
+   ============================================================================ */
+.screen.progress-screen {
+    --page-max: 1100px;
+    width: 100%;
+    box-sizing: border-box;
+    max-width: none;
+    margin: 0;
+    padding-left: max(16px, calc((100% - var(--page-max)) / 2));
+    padding-right: max(16px, calc((100% - var(--page-max)) / 2));
+}
+
+.progress-screen > * {
+    flex-shrink: 0;
+}
+
+.progress-trace-row .top h4 {
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .progress-page-header {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .stats-dashboard {
+        flex-direction: row;
+    }
+
+    .progress-trace-row,
+    .audit-log-block {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .progress-trace-row .top {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+    }
+}
+
+@media (min-width: 900px) {
+    .progress-page-header h2 {
+        font-size: 30px;
+    }
+
+    .stats-dashboard {
+        gap: 20px;
+    }
+
+    .stat-frame {
+        padding: 24px 16px;
+    }
+
+    .stat-val {
+        font-size: 34px;
+    }
+
+    #dynamic-subject-progress,
+    #dynamic-recent-activity {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 40px;
+    }
+
+    #dynamic-recent-activity {
+        gap: 12px 20px;
+    }
+
+    #dynamic-subject-progress > :only-child,
+    #dynamic-recent-activity > :only-child {
+        grid-column: 1 / -1;
+    }
+}

@@ -228,3 +228,62 @@
     border-color: var(--primary-green);
     color: #FFF;
 }
+
+
+/* ============================================================================
+   RESPONSIVE LAYOUT (tablet / desktop)
+   See progress.css: `.screen { margin: 0 auto }` shrinks a flex item to its
+   content width, so width is forced and the column centered via padding.
+   ============================================================================ */
+.screen.profile-screen {
+    --page-max: 640px;
+    width: 100%;
+    box-sizing: border-box;
+    max-width: none;
+    margin: 0;
+    padding-left: max(16px, calc((100% - var(--page-max)) / 2));
+    padding-right: max(16px, calc((100% - var(--page-max)) / 2));
+}
+
+/* The screen is a scrolling flex column; without this the rounded,
+   overflow:hidden preferences card is squashed and its rows get clipped. */
+.profile-screen > * {
+    flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+    .screen.profile-screen {
+        --page-max: 980px;
+        display: grid;
+        grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+        grid-template-rows: auto auto auto;
+        column-gap: 28px;
+        align-content: start;
+    }
+
+    .profile-screen .master-card {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .profile-screen .gamification-board {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .profile-screen .preferences-stack {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: start;
+    }
+
+    .profile-screen > div:last-child {
+        grid-column: 2;
+        grid-row: 3;
+        margin-top: 0 !important;
+    }
+
+    .pref-row {
+        padding: 18px 22px;
+    }
+}
