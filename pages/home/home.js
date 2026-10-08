@@ -767,6 +767,28 @@ function competitiveTheme(exam) {
     return pick(exam.exam_name) || pick(exam.title) || 'default';
 }
 
+// Decorative illustrations drawn behind the text of cards that have no thumbnail
+// (or whose thumbnail failed to load). Static markup, never built from user data.
+const COMP_ART = {
+    bpsc: '<g transform="translate(-25,-34)" fill="#fff"><circle cx="257" cy="95" r="52" fill-opacity=".16"/>'
+        + '<polygon points="200,175 200,152 214,152 214,128 229,128 229,104 243,104 243,76 250,48 257,76 257,104 271,104 271,128 286,128 286,152 300,152 300,175" fill-opacity=".5"/>'
+        + '<polygon points="228,175 228,160 235,160 235,175" fill="#000" fill-opacity=".3"/>'
+        + '<circle cx="214" cy="146" r="3" fill-opacity=".6"/><circle cx="300" cy="146" r="3" fill-opacity=".6"/><circle cx="250" cy="44" r="4" fill-opacity=".7"/>'
+        + '<path d="M150 150 q16 -34 34 -8 q-16 34 -34 8 Z" fill-opacity=".4"/><path d="M152 148 q14 -14 30 -8" stroke="#fff" stroke-opacity=".6" fill="none"/></g>',
+    history: '<g transform="translate(-25,-34)" fill="#fff"><circle cx="250" cy="90" r="46" fill-opacity=".14"/>'
+        + '<path d="M190 175 V110 h10 v-10 h10 v10 h10 v-10 h10 v10 h10 v-10 h10 v10 h10 v-10 h10 v10 h10 v-10 h10 v10 h10 V175 Z" fill-opacity=".5"/>'
+        + '<path d="M240 175 V146 a10 10 0 0 1 20 0 V175 Z" fill="#000" fill-opacity=".3"/>'
+        + '<path d="M205 140 v-10 a6 6 0 0 1 12 0 v10 Z M283 140 v-10 a6 6 0 0 1 12 0 v10 Z" fill="#000" fill-opacity=".3"/>'
+        + '<rect x="146" y="96" width="8" height="79" fill-opacity=".55"/><rect x="140" y="88" width="20" height="8" rx="2" fill-opacity=".6"/>'
+        + '<circle cx="150" cy="76" r="9" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2"/><circle cx="150" cy="76" r="2" fill-opacity=".7"/></g>',
+    geography: '<g transform="translate(-25,-34)" fill="#fff"><circle cx="258" cy="95" r="50" fill-opacity=".14" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>'
+        + '<ellipse cx="258" cy="95" rx="22" ry="50" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="1.5"/>'
+        + '<path d="M208 95 H308 M214 70 Q258 80 302 70 M214 120 Q258 130 302 120" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="1.5"/>'
+        + '<path d="M232 62 q10 -8 18 2 q-2 10 -12 12 q-10 -2 -6 -14 Z M262 98 q12 -6 20 6 q-6 12 -16 8 Z" fill-opacity=".45"/>'
+        + '<polygon points="170,175 205,126 224,152 250,112 290,175" fill-opacity=".5"/>'
+        + '<polygon points="250,112 241,127 250,123 258,129" fill-opacity=".9"/><polygon points="205,126 198,136 205,133 211,138" fill-opacity=".9"/></g>'
+};
+
 function renderCompetitiveCarousel(navigateTo, state) {
     const track = document.getElementById('home-competitive-track');
     const dotsEl = document.getElementById('competitive-dots');
@@ -832,8 +854,19 @@ function renderCompetitiveCarousel(navigateTo, state) {
         card.setAttribute('role', 'button');
         card.tabIndex = 0;
 
-        // Optional admin-set background image. The themed gradient is always the card's
-        // own background, so if there is no image or it fails to load, it simply shows through.
+        // Themed illustration: the card's look when there is no thumbnail,
+        // and what shows through if the thumbnail fails to load.
+        const theme = competitiveTheme(exam);
+        if (COMP_ART[theme]) {
+            const art = document.createElement('div');
+            art.className = 'comp-card-art';
+            art.setAttribute('aria-hidden', 'true');
+            art.innerHTML = `<svg viewBox="0 0 340 240" preserveAspectRatio="xMaxYMid slice" focusable="false">${COMP_ART[theme]}</svg>`;
+            card.appendChild(art);
+        }
+
+        // Optional admin-set background image, drawn over the illustration. If it fails
+        // to load it removes itself and the illustration/gradient shows through.
         if (exam.bg_thumbnail_url) {
             const bg = document.createElement('img');
             bg.className = 'comp-card-bgimg';

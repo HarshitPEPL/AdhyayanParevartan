@@ -2065,7 +2065,7 @@ button:focus-visible {
     overflow: hidden;
     height: 240px;
     min-height: 240px;
-    padding: 14px;
+    padding: 18px;
     justify-content: space-between;
     gap: 12px;
     border: 0;
@@ -2073,10 +2073,49 @@ button:focus-visible {
     background: var(--comp-grad, linear-gradient(135deg, #4c8c72 0%, #2f5c4b 100%));
 }
 
-.comp-card--bpsc      { --comp-grad: linear-gradient(135deg, #2f9560 0%, #1f6144 100%); }
-.comp-card--history   { --comp-grad: linear-gradient(135deg, #e3a93f 0%, #a8691d 100%); }
-.comp-card--geography { --comp-grad: linear-gradient(135deg, #2a9bb0 0%, #1e5f8c 100%); }
-.comp-card--default   { --comp-grad: linear-gradient(135deg, #4c8c72 0%, #2f5c4b 100%); }
+.comp-card--bpsc {
+    --comp-tag: #14573a;
+    --comp-grad:
+        radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.28) 0, rgba(255, 255, 255, 0) 38%),
+        radial-gradient(circle at 95% 70%, rgba(255, 255, 255, 0.12) 0, rgba(255, 255, 255, 0) 30%),
+        linear-gradient(135deg, #2fb479, #0f5a3b);
+}
+
+.comp-card--history {
+    --comp-tag: #7a4217;
+    --comp-grad:
+        radial-gradient(circle at 80% 22%, rgba(255, 255, 255, 0.3) 0, rgba(255, 255, 255, 0) 36%),
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 14px, rgba(255, 255, 255, 0) 14px 28px),
+        linear-gradient(135deg, #d9a441, #8a4b1f);
+}
+
+.comp-card--geography {
+    --comp-tag: #14495e;
+    --comp-grad:
+        radial-gradient(circle at 78% 30%,
+            rgba(255, 255, 255, 0) 0 40px, rgba(255, 255, 255, 0.18) 41px 43px, rgba(255, 255, 255, 0) 44px 70px,
+            rgba(255, 255, 255, 0.14) 71px 73px, rgba(255, 255, 255, 0) 74px 100px,
+            rgba(255, 255, 255, 0.1) 101px 103px, rgba(255, 255, 255, 0) 104px),
+        linear-gradient(135deg, #2b9fb8, #14495e);
+}
+
+.comp-card--default {
+    --comp-tag: #1f6144;
+    --comp-grad: linear-gradient(135deg, #4c8c72 0%, #2f5c4b 100%);
+}
+
+.comp-card-art {
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    pointer-events: none;
+}
+
+.comp-card-art svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 
 .comp-card-bgimg {
     position: absolute;
@@ -2111,21 +2150,24 @@ button:focus-visible {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 4px 10px;
-    background: #fff;
-    color: #1f6144;
+    padding: 5px 11px;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--comp-tag, #1f6144);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
 }
 
 .comp-card-badge {
     flex: none;
-    padding: 4px 10px;
+    padding: 5px 11px;
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(0, 0, 0, 0.35);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     color: #fff;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.3;
     white-space: nowrap;
 }
@@ -2134,24 +2176,27 @@ button:focus-visible {
     flex: none;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0;
+    padding: 0 2px;
 }
 
 .comp-card--bg .comp-card-title {
     margin-top: 0;
     color: #fff;
-    font-size: 16px;
+    font-size: 19px;
     font-weight: 700;
+    line-height: 1.2;
     text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 .comp-card--bg .comp-card-meta {
-    margin-top: 0;
-    color: rgba(255, 255, 255, 0.82);
+    margin: 5px 0 12px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .comp-card--bg .comp-card-cta {
-    margin-top: 6px;
+    margin-top: 0;
     border: 0;
     background: #fff;
     color: #1f6144;
