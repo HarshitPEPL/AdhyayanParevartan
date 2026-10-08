@@ -39,6 +39,23 @@ const BANNER_PALETTE = [
     'linear-gradient(135deg, #FFE4C4 0%, #FDBA74 100%)',
 ];
 
+const TYPE_OPTIONS = {
+    'E-Book':        { icon: 'fa-file-pdf' },
+    'Video Content': { icon: 'fa-circle-play' },
+    'Audio Book':    { icon: 'fa-headphones' },
+};
+
+// Maps whatever the data source stores (format_name variants) to one of the
+// three canonical types, so filtering never depends on display text.
+function normalizeContentType(raw) {
+    const v = String(raw || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (!v) return '';
+    if (v.includes('audio') || v === 'podcast') return 'Audio Book';
+    if (v.includes('video')) return 'Video Content';
+    if (v.includes('ebook') || v === 'pdf' || v === 'book' || v === 'document') return 'E-Book';
+    return '';
+}
+
 // Cards shown per pagination page.
 const PAGE_SIZE = 20;
 
@@ -115,8 +132,10 @@ export async function init(navigateTo, state) {
     }
 
     let materials     = [];
+    let materialsLoaded = false;
     let activeChapter  = 'All';
     let activeSubject  = 'All';
+    let activeType     = 'All';
     // Selections staged inside the modal until "Apply Filters" is pressed
     let pendingChapter = 'All';
     let pendingSubject = 'All';
@@ -143,7 +162,11 @@ export async function init(navigateTo, state) {
         if (cached) renderSubjectPills(cached);
     }
 
-    function renderSubjectPills(subjects) {
+    // Only subjects that actually have course content are offered as filters.
+    function renderSubjectPills(allSubjects) {
+        if (!materialsLoaded) return;
+        const withContent = new Set(materials.map(m => m.subject_name));
+        const subjects = allSubjects.filter(s => withContent.has(s.subject_name));
         const pillsHTML = [`<div class="subject-pill active" data-subject="All">All Subjects</div>`];
         subjects.forEach(s => {
             const icon = SUBJECT_ICONS[s.subject_name] || 'fa-book';
@@ -154,7 +177,7 @@ export async function init(navigateTo, state) {
             `);
         });
 
-        if (subjectSlider && subjects.length > 0) {
+        if (subjectSlider) {
             subjectSlider.innerHTML = pillsHTML.join('');
             subjectSlider.querySelectorAll('.subject-pill').forEach(pill => {
                 pill.addEventListener('click', () => {
@@ -168,7 +191,7 @@ export async function init(navigateTo, state) {
             });
         }
 
-        if (modalSubjectRow && subjects.length > 0) {
+        if (modalSubjectRow) {
             modalSubjectRow.innerHTML = pillsHTML.join('');
             modalSubjectRow.querySelectorAll('.subject-pill').forEach(pill => {
                 pill.addEventListener('click', () => {
@@ -188,7 +211,10 @@ export async function init(navigateTo, state) {
             const fetchedMaterials = await withRetry(() => getMaterialsByClass(classNumber));
             if (isStale()) return;
             materials = fetchedMaterials;
+            materialsLoaded = true;
             materialsCache.set(classNumber, fetchedMaterials);
+            const knownSubjects = subjectsCache.get(classNumber);
+            if (knownSubjects) renderSubjectPills(knownSubjects);
             renderFiltered();
         } catch (err) {
             if (isStale()) return;
@@ -198,6 +224,9 @@ export async function init(navigateTo, state) {
             const cached = materialsCache.get(classNumber);
             if (cached) {
                 materials = cached;
+                materialsLoaded = true;
+                const knownSubjects = subjectsCache.get(classNumber);
+                if (knownSubjects) renderSubjectPills(knownSubjects);
                 renderFiltered();
                 return;
             }
@@ -339,27 +368,35 @@ export async function init(navigateTo, state) {
         });
     }
 
-    // --- Show a removable chip when a chapter filter is applied ---
+    // --- Removable chips for the applied filters + a "Clear Filters" action ---
+    // Subject is only echoed here while a content type is active, so the
+    // combined (AND) selection is visible; the subject row itself is unchanged.
     function renderActiveFilterChip() {
         if (!activeFiltersRow) return;
-        if (activeChapter === 'All') {
+        if (activeChapter === 'All' && activeType === 'All') {
             activeFiltersRow.classList.add('hidden');
             activeFiltersRow.innerHTML = '';
             return;
         }
-        const chapters = getSubjectChapters(activeSubject);
-        const idx = chapters.findIndex(c => c.title === activeChapter);
-        const matchedChapter = idx >= 0 ? chapters[idx] : null;
-        const chapterLabel = matchedChapter?.chapter_number
-            ? `Chapter ${matchedChapter.chapter_number}`
-            : (idx >= 0 ? `Chapter ${idx + 1}` : escapeHTML(activeChapter));
+        const chips = [];
+        if (activeType !== 'All' && activeSubject !== 'All') {
+            chips.push(`<div class="active-filter-chip">Subject: ${escapeHTML(activeSubject)}</div>`);
+        }
+        if (activeType !== 'All') {
+            chips.push(`<div class="active-filter-chip">Content Type: ${escapeHTML(activeType)}<i class="fa-solid fa-xmark" id="clear-type-filter" role="button" aria-label="Clear content type"></i></div>`);
+        }
+        if (activeChapter !== 'All') {
+            const chapters = getSubjectChapters(activeSubject);
+            const idx = chapters.findIndex(c => c.title === activeChapter);
+            const matchedChapter = idx >= 0 ? chapters[idx] : null;
+            const chapterLabel = matchedChapter?.chapter_number
+                ? `Chapter ${matchedChapter.chapter_number}`
+                : (idx >= 0 ? `Chapter ${idx + 1}` : escapeHTML(activeChapter));
+            chips.push(`<div class="active-filter-chip">${chapterLabel}<i class="fa-solid fa-xmark" id="clear-chapter-filter"></i></div>`);
+        }
+        chips.push(`<button type="button" class="active-filter-clear" id="clear-all-filters">Clear Filters</button>`);
         activeFiltersRow.classList.remove('hidden');
-        activeFiltersRow.innerHTML = `
-            <div class="active-filter-chip">
-                ${chapterLabel}
-                <i class="fa-solid fa-xmark" id="clear-chapter-filter"></i>
-            </div>
-        `;
+        activeFiltersRow.innerHTML = chips.join('');
         document.getElementById('clear-chapter-filter')?.addEventListener('click', () => {
             activeChapter = pendingChapter = 'All';
             currentPage = 1;
@@ -367,8 +404,78 @@ export async function init(navigateTo, state) {
             renderActiveFilterChip();
             renderFiltered();
         });
+        document.getElementById('clear-type-filter')?.addEventListener('click', () => setContentType('All'));
+        document.getElementById('clear-all-filters')?.addEventListener('click', () => {
+            activeSubject = pendingSubject = 'All';
+            activeChapter = pendingChapter = 'All';
+            activeType = 'All';
+            currentPage = 1;
+            syncSubjectPills();
+            renderChapterChips();
+            syncTypeFilterUI();
+            renderActiveFilterChip();
+            renderFiltered();
+        });
     }
 
+    // --- Content type dropdown ---
+    const typeFilterEl   = document.getElementById('type-filter');
+    const typeBtn        = document.getElementById('type-filter-btn');
+    const typeMenu       = document.getElementById('type-filter-menu');
+    const typeBtnIcon    = document.getElementById('type-filter-icon');
+    const typeBtnLabel   = document.getElementById('type-filter-label');
+
+    function syncTypeFilterUI() {
+        const active = activeType !== 'All';
+        if (typeBtnLabel) typeBtnLabel.textContent = active ? activeType : 'Content Type';
+        if (typeBtnIcon) typeBtnIcon.className = `fa-solid ${active ? TYPE_OPTIONS[activeType].icon : 'fa-layer-group'}`;
+        typeBtn?.classList.toggle('active', active);
+        typeMenu?.querySelectorAll('.type-filter-option').forEach(o => {
+            const on = o.dataset.type === activeType;
+            o.classList.toggle('active', on);
+            o.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+    }
+
+    function setTypeMenuOpen(open) {
+        typeMenu?.classList.toggle('hidden', !open);
+        typeBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function setContentType(type) {
+        activeType = type;
+        currentPage = 1;
+        syncTypeFilterUI();
+        renderActiveFilterChip();
+        renderFiltered();
+    }
+
+    typeBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setTypeMenuOpen(typeMenu?.classList.contains('hidden'));
+    });
+    typeMenu?.querySelectorAll('.type-filter-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            setContentType(opt.dataset.type);
+            setTypeMenuOpen(false);
+        });
+    });
+
+    // Outside press / Escape close the popover; replaced on every init() so
+    // remounting the page never stacks duplicate listeners.
+    window._coursesTypeFilterCleanup?.();
+    const onOutsidePress = (e) => {
+        if (typeFilterEl && !typeFilterEl.contains(e.target)) setTypeMenuOpen(false);
+    };
+    const onTypeKey = (e) => { if (e.key === 'Escape') setTypeMenuOpen(false); };
+    document.addEventListener('mousedown', onOutsidePress);
+    document.addEventListener('touchstart', onOutsidePress, { passive: true });
+    document.addEventListener('keydown', onTypeKey);
+    window._coursesTypeFilterCleanup = () => {
+        document.removeEventListener('mousedown', onOutsidePress);
+        document.removeEventListener('touchstart', onOutsidePress);
+        document.removeEventListener('keydown', onTypeKey);
+    };
     // --- Render function ---
     function renderFiltered() {
         if (!container) return;
@@ -380,6 +487,9 @@ export async function init(navigateTo, state) {
         if (activeChapter !== 'All') {
             filtered = filtered.filter(m => m.title === activeChapter);
         }
+        if (activeType !== 'All') {
+            filtered = filtered.filter(m => normalizeContentType(m.format_name) === activeType);
+        }
         if (searchTerm) {
             filtered = filtered.filter(m => m.title?.toLowerCase().includes(searchTerm));
         }
@@ -389,7 +499,7 @@ export async function init(navigateTo, state) {
                 <div class="empty-state">
                     <i class="fa-solid fa-book-open"></i>
                     <p>No materials found for this filter.</p>
-                    <span>Try selecting a different subject or chapter.</span>
+                    <span>Try selecting a different subject, chapter or content type.</span>
                 </div>
             `;
             renderPagination(0, 1);
@@ -411,7 +521,8 @@ export async function init(navigateTo, state) {
 
             // Prefer the admin-uploaded cover image; fall back to the gradient + format icon.
             const bannerHTML = mat.thumbnail_url
-                ? `<img src="${escapeHTML(mat.thumbnail_url)}" alt="" loading="lazy">`
+                ? `<img class="course-card-thumb-bg" src="${escapeHTML(mat.thumbnail_url)}" alt="" aria-hidden="true" loading="lazy">
+                   <img class="course-card-thumb" src="${escapeHTML(mat.thumbnail_url)}" alt="" loading="lazy">`
                 : `<div class="course-card-banner-icon"><i class="fa-solid ${fmt.icon}"></i></div>`;
 
             const progressHTML = percent > 0 ? `
@@ -423,7 +534,7 @@ export async function init(navigateTo, state) {
 
             return `
                 <div class="course-card" onclick="window.viewMaterial(${mat.material_id})">
-                    <div class="course-card-banner" style="${mat.thumbnail_url ? '' : `background:${banner};`}">
+                    <div class="course-card-banner${mat.thumbnail_url ? ' has-thumb' : ''}" style="${mat.thumbnail_url ? '' : `background:${banner};`}">
                         ${bannerHTML}
                     </div>
                     <div class="course-card-body">

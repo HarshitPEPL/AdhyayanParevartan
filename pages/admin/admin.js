@@ -692,7 +692,7 @@ async function renderMaterials() {
         tableBody.innerHTML = pageItems.map(mat => `
             <tr>
                 <td>${mat.material_id}</td>
-                <td>${mat.thumbnail_url ? `<img src="${escapeHTML(mat.thumbnail_url)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:6px;">` : `<span style="color:#BBB;font-size:11px;">None</span>`}</td>
+                <td>${mat.thumbnail_url ? `<img src="${escapeHTML(mat.thumbnail_url)}" alt="" style="width:36px;height:36px;object-fit:contain;background:#F3F4F6;border-radius:6px;">` : `<span style="color:#BBB;font-size:11px;">None</span>`}</td>
                 <td>${escapeHTML(mat.title)}</td>
                 <td>${escapeHTML(mat.subject_name || 'Unknown')}</td>
                 <td>${mat.chapter_number ? 'Chapter ' + mat.chapter_number : '—'}</td>
