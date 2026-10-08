@@ -510,54 +510,6 @@
     font-size: 13px;
 }
 
-@media (max-width: 768px) {
-    .quiz-center-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 16px;
-    }
-
-    .quiz-summary-card,
-    .quick-practice-card {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 16px;
-    }
-
-    .summary-progress {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .subject-grid {
-        grid-template-columns: 1fr;
-        padding: 0 14px;
-    }
-
-    .quiz-center-subject {
-        padding: 16px;
-    }
-
-    .recent-scores,
-    .subject-grid,
-    .quiz-summary-card,
-    .quick-practice-card {
-        padding-left: 14px;
-        padding-right: 14px;
-    }
-
-    .recent-score-card {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .score-icon {
-        width: 48px;
-        height: 48px;
-    }
-}
-
 .score-timestamp {
     color: #9CA3AF;
     font-size: 12px;
@@ -876,135 +828,231 @@
     flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
-    .qc-stats-row {
-        padding: 0 14px;
-    }
-
-    .qc-bar-chart,
-    .qc-lb-toggle,
-    .qc-podium,
-    .qc-lb-list {
-        margin-left: 0;
-        margin-right: 0;
-        padding-left: 14px;
-        padding-right: 14px;
-    }
-}
-
-
-
 /* ============================================================================
-   RESPONSIVE LAYOUT (tablet / desktop)
-   See progress.css: `.screen { margin: 0 auto }` shrinks a flex item to its
-   content width, so width is forced and the column centered via padding.
-   The inner blocks keep their own 20px gutters on phones.
+   RESPONSIVE LAYOUT
+   One container for the whole page: full width up to --qc-max, centered, with a
+   single side gutter (--qc-gutter) that grows with the screen. Every block
+   inside runs edge-to-edge of that container (no per-block side padding or
+   margin), so the header, search bar, tabs and cards always line up.
+     < 640px   phone   : 1 column, 16px gutter
+     640-1024  tablet  : 2 columns, 24px gutter
+     > 1024    desktop : 3 columns, 32px gutter, container capped at 1200px
    ============================================================================ */
 .screen.quiz-center-screen {
-    width: 100%;
+    --qc-gutter: 16px;
+    --qc-max: 1200px;
     box-sizing: border-box;
+    width: 100%;
     max-width: none;
     margin: 0;
-    padding-top: 20px;
-    padding-bottom: 36px;
-    padding-left: max(0px, calc((100% - 1100px) / 2));
-    padding-right: max(0px, calc((100% - 1100px) / 2));
+    gap: 16px;
+    padding: 20px max(var(--qc-gutter), calc((100% - var(--qc-max)) / 2)) 36px;
 }
 
-.quick-practice-left {
+.screen.quiz-center-screen > *,
+.screen.quiz-center-screen .qc-tab-panel > * {
     min-width: 0;
 }
 
-.quick-practice-card .btn {
-    width: auto;
+.screen.quiz-center-screen .qc-tab-panel {
+    gap: 16px;
+}
+
+/* Blocks that used a 14-20px side gutter of their own now sit flush with the container */
+.screen.quiz-center-screen .quiz-center-header,
+.screen.quiz-center-screen .subject-grid-header,
+.screen.quiz-center-screen .recent-scores-header,
+.screen.quiz-center-screen .subject-grid,
+.screen.quiz-center-screen .recent-scores,
+.screen.quiz-center-screen .qc-stats-hero,
+.screen.quiz-center-screen .qc-stats-row,
+.screen.quiz-center-screen .qc-podium,
+.screen.quiz-center-screen .qc-lb-list {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.screen.quiz-center-screen .qc-search-bar,
+.screen.quiz-center-screen .qc-active-filters-row,
+.screen.quiz-center-screen .qc-tabs,
+.screen.quiz-center-screen .qc-lb-toggle,
+.screen.quiz-center-screen .qc-bar-chart,
+.screen.quiz-center-screen .chapter-select-card {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.screen.quiz-center-screen .qc-search-bar,
+.screen.quiz-center-screen .qc-tabs {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.screen.quiz-center-screen .qc-search-bar input {
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .quiz-center-header {
+    flex-direction: row;
+    align-items: center;
+}
+
+.screen.quiz-center-screen .qc-user-row {
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .quiz-center-header h2 {
+    overflow-wrap: anywhere;
+}
+
+/* Recommended card: text + progress bar grow, play button keeps its size */
+.screen.quiz-center-screen .quiz-summary-card,
+.screen.quiz-center-screen .quick-practice-card {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 16px;
+}
+
+.screen.quiz-center-screen .quiz-summary-card {
+    flex-direction: row;
+    align-items: center;
+}
+
+.screen.quiz-center-screen .summary-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .summary-title {
+    overflow-wrap: anywhere;
+}
+
+.screen.quiz-center-screen .summary-progress {
+    flex-direction: row;
+    align-items: center;
+}
+
+.screen.quiz-center-screen .summary-progress-bar {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .quiz-center-play {
     flex: 0 0 auto;
+}
+
+/* Quick Practice: text block and button always stay inside the card.
+   Phone: stacked, full-width button. Larger: side by side, button on the right. */
+.screen.quiz-center-screen .quick-practice-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 12px 16px;
+}
+
+.screen.quiz-center-screen .quick-practice-left {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .quick-practice-title,
+.screen.quiz-center-screen .quick-practice-meta {
+    overflow-wrap: anywhere;
+}
+
+.screen.quiz-center-screen .quick-practice-card .btn {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
     padding-left: 28px;
     padding-right: 28px;
+    white-space: nowrap;
 }
 
-@media (max-width: 768px) {
-    .quick-practice-card .btn {
-        width: 100%;
-    }
+/* Subject cards + recent scores */
+.screen.quiz-center-screen .subject-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
-    .quiz-center-header {
+.screen.quiz-center-screen .quiz-center-subject {
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .subject-name {
+    overflow-wrap: anywhere;
+}
+
+.screen.quiz-center-screen .recent-scores {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding-bottom: 20px;
+}
+
+.screen.quiz-center-screen .recent-score-card {
+    flex-direction: row;
+    align-items: center;
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .recent-score-card > * {
+    min-width: 0;
+}
+
+.screen.quiz-center-screen .score-icon {
+    flex: 0 0 auto;
+}
+
+/* Tablet */
+@media (min-width: 640px) {
+    .screen.quiz-center-screen {
+        --qc-gutter: 24px;
+    }
+
+    .screen.quiz-center-screen .quiz-summary-card,
+    .screen.quiz-center-screen .quick-practice-card {
+        padding: 20px;
+    }
+
+    .screen.quiz-center-screen .quick-practice-card {
         flex-direction: row;
         align-items: center;
     }
 
-    .subject-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .quiz-summary-card,
-    .quick-practice-card {
-        flex-direction: row;
-        align-items: center;
-    }
-
-    .summary-progress {
-        flex-direction: row;
-        align-items: center;
-    }
-
-    .quick-practice-card .btn {
+    .screen.quiz-center-screen .quick-practice-card .btn {
         width: auto;
+        margin-left: auto;
+    }
+
+    .screen.quiz-center-screen .subject-grid,
+    .screen.quiz-center-screen .recent-scores {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
     }
 }
 
-@media (min-width: 900px) {
-    .quiz-center-header h2 {
+/* Desktop */
+@media (min-width: 1025px) {
+    .screen.quiz-center-screen {
+        --qc-gutter: 32px;
+        gap: 20px;
+    }
+
+    .screen.quiz-center-screen .qc-tab-panel {
+        gap: 20px;
+    }
+
+    .screen.quiz-center-screen .quiz-center-header h2 {
         font-size: 28px;
     }
 
-    .qc-tab-panel[data-panel="practice"]:not(.hidden) {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px 20px;
-        padding: 0 20px;
-        align-items: stretch;
-    }
-
-    .qc-tab-panel[data-panel="practice"] > * {
-        grid-column: 1 / -1;
-    }
-
-    .qc-tab-panel[data-panel="practice"] > .quiz-summary-card,
-    .qc-tab-panel[data-panel="practice"] > .quick-practice-card {
-        grid-column: auto;
-    }
-
-    .qc-tab-panel[data-panel="practice"] .subject-grid-header,
-    .qc-tab-panel[data-panel="practice"] .recent-scores-header,
-    .qc-tab-panel[data-panel="practice"] .subject-grid {
-        padding-left: 0;
-        padding-right: 0;
-    }
-
-    .qc-tab-panel[data-panel="practice"] .subject-grid {
-        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    }
-
-    .qc-tab-panel[data-panel="practice"] .chapter-select-card {
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    .qc-tab-panel[data-panel="practice"] .recent-scores {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px 16px;
-        padding: 0 0 20px;
-    }
-
-    .qc-tab-panel[data-panel="stats"],
-    .qc-tab-panel[data-panel="leaderboard"] {
-        width: 100%;
-        max-width: 760px;
-        margin-left: auto;
-        margin-right: auto;
-        box-sizing: border-box;
+    .screen.quiz-center-screen .subject-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+        gap: 18px;
     }
 }
