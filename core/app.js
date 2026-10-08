@@ -195,8 +195,10 @@ function ensureSchema(db) {
         duration_lessons VARCHAR(50),
         chapter_number INTEGER,
         file_url VARCHAR(512) NOT NULL,
+        bg_thumbnail_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
+    safeRun(`ALTER TABLE competitive_exam_materials ADD COLUMN bg_thumbnail_url TEXT`);
     safeRun(`CREATE TABLE IF NOT EXISTS notifications (notification_id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 }
 

@@ -746,9 +746,137 @@ function formatCompetitivePartLabel(chapterNumber) {
     return `Part ${numericValue}`;
 }
 
+const BG_THUMB_MAX_BYTES = 2 * 1024 * 1024;
+const BG_THUMB_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// "Background Thumbnail" field of the competitive-material form: file picker or
+// pasted URL, live preview with Replace/Remove, and 2 MB / jpg-png-webp validation.
+function setupBgThumbnailField() {
+    const $ = (id) => document.getElementById(id);
+    const fileInput = $('competitive-bg-file');
+    const urlInput = $('competitive-bg-url');
+    const preview = $('competitive-bg-preview');
+    const previewImg = $('competitive-bg-preview-img');
+    const previewName = $('competitive-bg-preview-name');
+    const errorEl = $('competitive-bg-error');
+    if (!fileInput || !urlInput) return { hasBlockingError: () => false, resolveUrl: async () => null, reset() {} };
+
+    let objectUrl = null;
+    let blocking = false;
+
+    const releaseObjectUrl = () => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+    };
+    const showError = (message, isBlocking = true) => {
+        blocking = !!message && isBlocking;
+        errorEl.textContent = message;
+        errorEl.style.display = message ? 'block' : 'none';
+    };
+    const showPreview = (src, label) => {
+        previewImg.src = src;
+        previewName.textContent = label;
+        preview.style.display = 'flex';
+    };
+    const hidePreview = () => {
+        preview.style.display = 'none';
+        previewImg.removeAttribute('src');
+        previewName.textContent = '';
+    };
+    const reset = () => {
+        fileInput.value = '';
+        urlInput.value = '';
+        releaseObjectUrl();
+        hidePreview();
+        showError('');
+    };
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        showError('');
+        if (!file) {
+            if (!urlInput.value.trim()) hidePreview();
+            return;
+        }
+        if (!BG_THUMB_TYPES.includes(file.type)) {
+            fileInput.value = '';
+            releaseObjectUrl();
+            hidePreview();
+            showError('Only JPG, PNG or WebP images are allowed.');
+            return;
+        }
+        if (file.size > BG_THUMB_MAX_BYTES) {
+            fileInput.value = '';
+            releaseObjectUrl();
+            hidePreview();
+            showError(`This image is ${(file.size / (1024 * 1024)).toFixed(1)} MB. The maximum size is 2 MB.`);
+            return;
+        }
+        urlInput.value = '';
+        releaseObjectUrl();
+        objectUrl = URL.createObjectURL(file);
+        showPreview(objectUrl, `${file.name} (${Math.max(1, Math.round(file.size / 1024))} KB)`);
+    });
+
+    urlInput.addEventListener('input', debounce(() => {
+        const raw = urlInput.value.trim();
+        showError('');
+        if (!raw) {
+            if (!(fileInput.files && fileInput.files.length)) hidePreview();
+            return;
+        }
+        if (!/^https?:\/\//i.test(raw)) {
+            hidePreview();
+            showError('Enter a valid image URL starting with http:// or https://');
+            return;
+        }
+        fileInput.value = '';
+        releaseObjectUrl();
+        showPreview(convertThumbnailLink(raw), raw);
+    }, 300));
+
+    // A file/URL that doesn't decode as an image is only a warning;
+    // the homepage falls back to the default gradient for it.
+    previewImg.addEventListener('error', () => {
+        if (!previewImg.getAttribute('src')) return;
+        const fromFile = !!(fileInput.files && fileInput.files.length);
+        showError(fromFile
+            ? "This file couldn't be read as an image. Try a different JPG, PNG or WebP."
+            : "This link didn't load as an image. Check the URL or upload a file instead.", false);
+    });
+    previewImg.addEventListener('load', () => { if (!blocking) showError(''); });
+
+    $('competitive-bg-replace')?.addEventListener('click', () => fileInput.click());
+    $('competitive-bg-remove')?.addEventListener('click', reset);
+
+    return {
+        hasBlockingError: () => blocking,
+        reset,
+        // Uploads a picked file (Supabase Storage, or base64 for the local sqlite
+        // fallback) or returns the pasted URL. Resolves to null when nothing was chosen.
+        async resolveUrl() {
+            const file = fileInput.files && fileInput.files[0];
+            if (file) {
+                if (window.adhyayan.dbType === 'supabase') return await window.adhyayan.uploadMaterialFile(file);
+                return await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => reject(new Error('Error reading thumbnail image.'));
+                    reader.readAsDataURL(file);
+                });
+            }
+            const raw = urlInput.value.trim();
+            if (!raw) return null;
+            if (!/^https?:\/\//i.test(raw)) throw new Error('The background thumbnail URL must start with http:// or https://');
+            return convertThumbnailLink(raw);
+        }
+    };
+}
+
 function setupCompetitiveExamCRUD() {
     const form = document.getElementById('form-add-competitive');
     if (!form) return;
+    const bgThumb = setupBgThumbnailField();
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -763,10 +891,15 @@ function setupCompetitiveExamCRUD() {
 
         const proceedWithSubmit = async (finalUrl) => {
             try {
-                await window.adhyayan.addCompetitiveMaterial(examName, formatId, title, duration, instructor, finalUrl, chapterNumber);
+                const bgThumbnailUrl = await bgThumb.resolveUrl();
+                const result = await window.adhyayan.addCompetitiveMaterial(examName, formatId, title, duration, instructor, finalUrl, chapterNumber, bgThumbnailUrl);
                 form.reset();
+                bgThumb.reset();
                 if (fileInput) fileInput.value = '';
                 await renderCompetitiveExams();
+                if (result === 'thumbnail-skipped') {
+                    alert('The material was published, but its background thumbnail could not be saved because the database is missing the "bg_thumbnail_url" column.\n\nRun the SQL from competitive_exam_schema_fix.sql in the Supabase SQL Editor, then add the thumbnail again.');
+                }
             } catch (error) {
                 console.error('Error adding competitive material:', error);
                 alert('Database Error: ' + error.message);
@@ -778,6 +911,10 @@ function setupCompetitiveExamCRUD() {
             return;
         }
 
+        if (bgThumb.hasBlockingError()) {
+            alert('Please fix the Background Thumbnail first (JPG, PNG or WebP, max 2 MB) or remove it.');
+            return;
+        }
         if (fileInput && fileInput.files.length > 0) {
             const file = fileInput.files[0];
             if (window.adhyayan.dbType === 'supabase') {
@@ -828,8 +965,8 @@ function setupCompetitiveExamBulkUpload() {
     };
 
     btnDownloadTemplate?.addEventListener('click', () => {
-        const headers = ['Exam Name', 'Title', 'Format', 'Instructor', 'Duration', 'Part', 'File URL'];
-        const sampleRow = ['JEE Main', 'Aptitude Practice Set', 'Video Content', 'Mr. Sharma', '20 mins', 'Part 1', 'https://drive.google.com/file/d/FILE_ID/view?usp=sharing'];
+        const headers = ['Exam Name', 'Title', 'Format', 'Instructor', 'Duration', 'Part', 'File URL', 'Background Thumbnail URL'];
+        const sampleRow = ['JEE Main', 'Aptitude Practice Set', 'Video Content', 'Mr. Sharma', '20 mins', 'Part 1', 'https://drive.google.com/file/d/FILE_ID/view?usp=sharing', 'https://example.com/cover-340x240.jpg'];
         const worksheet = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
         worksheet['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 22) }));
         const workbook = XLSX.utils.book_new();
@@ -888,6 +1025,8 @@ function setupCompetitiveExamBulkUpload() {
                 const chapterNumberRaw = pick(row, 'part', 'chapter', 'chapternumber', 'chapterno');
                 const chapterNumber = resolveCompetitivePartValue(chapterNumberRaw);
                 const fileUrl = convertGoogleDriveLink(pick(row, 'fileurl', 'url', 'link', 'drivelink', 'gdrivelink'));
+                const bgThumbRaw = pick(row, 'backgroundthumbnailurl', 'backgroundthumbnail', 'bgthumbnailurl', 'bgthumbnail', 'thumbnailurl', 'thumbnail', 'image', 'imageurl', 'cover', 'coverurl').toString().trim();
+                const bgThumbnailUrl = /^https?:\/\//i.test(bgThumbRaw) ? convertThumbnailLink(bgThumbRaw) : null;
 
                 if (!examName || !title || !fileUrl) {
                     errors.push(`Row ${rowNum}: missing required Exam Name/Title/File URL — skipped.`);
@@ -895,7 +1034,7 @@ function setupCompetitiveExamBulkUpload() {
                 }
 
                 try {
-                    await window.adhyayan.addCompetitiveMaterial(examName, formatId, title, duration, instructor, fileUrl, chapterNumber);
+                    await window.adhyayan.addCompetitiveMaterial(examName, formatId, title, duration, instructor, fileUrl, chapterNumber, bgThumbnailUrl);
                     successCount++;
                 } catch (err) {
                     errors.push(`Row ${rowNum} (${escapeHTML(title)}): ${err.message}`);

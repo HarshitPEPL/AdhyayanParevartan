@@ -580,11 +580,12 @@ export async function getCompetitiveMaterials() {
             instructor_name: m.instructor_name,
             chapter_number: m.chapter_number ?? null,
             file_url: m.file_url,
+            bg_thumbnail_url: m.bg_thumbnail_url ?? null,
             format_name: m.format_name || (m.format_id === 2 ? 'Audio Book' : m.format_id === 3 ? 'Video Content' : 'E-Book')
         }));
     } else {
         const sql = `
-            SELECT m.material_id, m.title, m.exam_name, m.duration_lessons, m.instructor_name, m.chapter_number, m.file_url, f.format_name
+            SELECT m.material_id, m.title, m.exam_name, m.duration_lessons, m.instructor_name, m.chapter_number, m.file_url, m.bg_thumbnail_url, f.format_name
             FROM competitive_exam_materials m
             JOIN content_formats f ON m.format_id = f.format_id
             ORDER BY m.material_id ASC
@@ -593,7 +594,9 @@ export async function getCompetitiveMaterials() {
     }
 }
 
-export async function addCompetitiveMaterial(examName, formatId, title, durationLessons, instructorName, fileUrl = '/vids/math1.mp4', chapterNumber = null) {
+// Returns true when everything was saved, or 'thumbnail-skipped' when the material
+// was saved but the live database has no `bg_thumbnail_url` column yet (migration pending).
+export async function addCompetitiveMaterial(examName, formatId, title, durationLessons, instructorName, fileUrl = '/vids/math1.mp4', chapterNumber = null, bgThumbnailUrl = null) {
     if (dbType === 'supabase') {
         const row = {
             exam_name: examName,
@@ -602,9 +605,17 @@ export async function addCompetitiveMaterial(examName, formatId, title, duration
             duration_lessons: durationLessons,
             instructor_name: instructorName,
             file_url: fileUrl,
-            chapter_number: chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null
+            chapter_number: chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null,
+            bg_thumbnail_url: bgThumbnailUrl || null
         };
-        const { error } = await supabaseClient.from('competitive_exam_materials').insert([row]);
+        let { error } = await supabaseClient.from('competitive_exam_materials').insert([row]);
+        let thumbnailSkipped = false;
+        if (error && isMissingColumnErrorGeneric(error) && /bg_thumbnail_url/i.test(error.message || '')) {
+            // bg_thumbnail_url migration not run yet - save everything else so the upload isn't lost
+            const { bg_thumbnail_url, ...rowWithoutThumb } = row;
+            ({ error } = await supabaseClient.from('competitive_exam_materials').insert([rowWithoutThumb]));
+            thumbnailSkipped = !!bgThumbnailUrl;
+        }
         if (error) {
             if (isMissingTableError(error)) {
                 console.warn('Supabase `competitive_exam_materials` table is missing. Saving only to the local browser cache until the schema migration is applied in Supabase SQL Editor.');
@@ -618,6 +629,7 @@ export async function addCompetitiveMaterial(examName, formatId, title, duration
                     instructor_name: instructorName,
                     chapter_number: row.chapter_number,
                     file_url: fileUrl,
+                    bg_thumbnail_url: row.bg_thumbnail_url,
                     format_name: formatId === 2 ? 'Audio Book' : formatId === 3 ? 'Video Content' : 'E-Book'
                 });
                 saveLocalCompetitiveMaterials(list);
@@ -625,10 +637,10 @@ export async function addCompetitiveMaterial(examName, formatId, title, duration
             }
             throw error;
         }
-        return true;
+        return thumbnailSkipped ? 'thumbnail-skipped' : true;
     } else {
-        const sql = `INSERT INTO competitive_exam_materials (exam_name, format_id, title, duration_lessons, instructor_name, file_url, chapter_number) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-        return executeSQL(sqliteDb, sql, [examName, formatId, title, durationLessons, instructorName, fileUrl, chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null]);
+        const sql = `INSERT INTO competitive_exam_materials (exam_name, format_id, title, duration_lessons, instructor_name, file_url, chapter_number, bg_thumbnail_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        return executeSQL(sqliteDb, sql, [examName, formatId, title, durationLessons, instructorName, fileUrl, chapterNumber != null && chapterNumber !== '' ? parseInt(chapterNumber) : null, bgThumbnailUrl || null]);
     }
 }
 

@@ -285,6 +285,24 @@
                     <label for="competitive-file" style="grid-column: span 2; font-size: 0.9em; margin-bottom: -10px;">Upload File (E-Book, Audio, Video):</label>
                     <input type="file" id="competitive-file" class="admin-input" style="grid-column: span 2;" accept="video/*,audio/*,.pdf,.epub">
                     <input type="text" id="competitive-url" placeholder="Or enter File URL manually (e.g., https://drive.google.com/file/d/.../view)" class="admin-input" style="grid-column: span 2;">
+
+                    <div id="competitive-bg-field" style="grid-column: span 2; display: flex; flex-direction: column; gap: 8px;">
+                        <label for="competitive-bg-file" style="font-size: 0.9em;">Background Thumbnail (optional, shown behind the card on the homepage):</label>
+                        <input type="file" id="competitive-bg-file" class="admin-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
+                        <input type="text" id="competitive-bg-url" placeholder="Or paste an image URL (https://...)" class="admin-input" autocomplete="off">
+                        <div id="competitive-bg-preview" hidden style="display: none; align-items: center; gap: 12px; padding: 10px; border: 1px solid #E5E7EB; border-radius: 12px; background: #F9FAFB;">
+                            <img id="competitive-bg-preview-img" alt="Background thumbnail preview" style="width: 136px; height: 96px; object-fit: cover; border-radius: 10px; background: #E5E7EB; flex: none;">
+                            <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0;">
+                                <span id="competitive-bg-preview-name" style="font-size: 12px; color: #4B5563; overflow-wrap: anywhere;"></span>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button type="button" id="competitive-bg-replace" class="btn btn-outline" style="width: auto; padding: 6px 12px;">Replace</button>
+                                    <button type="button" id="competitive-bg-remove" class="btn btn-outline btn-delete" style="width: auto; padding: 6px 12px;">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        <small style="font-size: 11px; color: #6B7280;">Recommended size 340 &times; 240 px (3:2). JPG, PNG or WebP, max 2&nbsp;MB.</small>
+                        <small id="competitive-bg-error" role="alert" style="display: none; font-size: 12px; color: #DC2626;"></small>
+                    </div>
                     <button type="submit" id="btn-add-competitive" class="btn btn-primary" style="grid-column: span 2; margin-top: 16px;">Publish Competitive Material</button>
                 </form>
             </div>
@@ -312,6 +330,7 @@
                         <li><strong>Duration</strong> — optional (pages/minutes)</li>
                         <li><strong>Part</strong> — Part 1, Part 2, ... or Full Course</li>
                         <li><strong>File URL</strong> — direct link or Google Drive link (required)</li>
+                        <li><strong>Background Thumbnail URL</strong> — optional image link (340 &times; 240 px works best); used as the homepage card background</li>
                     </ol>
                 </div>
             </div>

@@ -15,6 +15,9 @@ create table if not exists public.competitive_exam_materials (
 
 alter table public.competitive_exam_materials add column if not exists chapter_number integer;
 
+-- Optional card background image shown on the homepage "Prep for competitive" cards
+alter table public.competitive_exam_materials add column if not exists bg_thumbnail_url text;
+
 -- This app uses the public anon key for admin operations, so the table must allow
 -- insert/select/update/delete from the public role while the project is in MVP mode.
 alter table public.competitive_exam_materials enable row level security;

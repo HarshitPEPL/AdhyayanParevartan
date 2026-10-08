@@ -754,6 +754,19 @@ function setupClassModal(getCurrentClass, onSelect) {
     });
 }
 
+// Picks the default gradient for a competitive card from its exam/subject name
+// (falls back to the title) when it has no thumbnail or the image fails to load.
+function competitiveTheme(exam) {
+    const pick = (text) => {
+        const t = String(text || '').toLowerCase();
+        if (t.includes('bpsc')) return 'bpsc';
+        if (t.includes('history')) return 'history';
+        if (t.includes('geograph')) return 'geography';
+        return null;
+    };
+    return pick(exam.exam_name) || pick(exam.title) || 'default';
+}
+
 function renderCompetitiveCarousel(navigateTo, state) {
     const track = document.getElementById('home-competitive-track');
     const dotsEl = document.getElementById('competitive-dots');
@@ -815,20 +828,44 @@ function renderCompetitiveCarousel(navigateTo, state) {
 
     const buildCard = (exam) => {
         const card = document.createElement('div');
-        card.className = 'comp-card';
+        card.className = `comp-card comp-card--bg comp-card--${competitiveTheme(exam)}`;
         card.setAttribute('role', 'button');
         card.tabIndex = 0;
 
-        const icon = document.createElement('div');
-        icon.className = 'comp-card-icon';
-        icon.textContent = '📖';
+        // Optional admin-set background image. The themed gradient is always the card's
+        // own background, so if there is no image or it fails to load, it simply shows through.
+        if (exam.bg_thumbnail_url) {
+            const bg = document.createElement('img');
+            bg.className = 'comp-card-bgimg';
+            bg.alt = '';
+            bg.setAttribute('aria-hidden', 'true');
+            bg.loading = 'lazy';
+            bg.decoding = 'async';
+            bg.width = 340;
+            bg.height = 240;
+            bg.draggable = false;
+            bg.addEventListener('error', () => bg.remove(), { once: true });
+            bg.src = exam.bg_thumbnail_url;
+            card.appendChild(bg);
+        }
 
-        const body = document.createElement('div');
-        body.className = 'comp-card-body';
+        const top = document.createElement('div');
+        top.className = 'comp-card-top';
 
         const tag = document.createElement('span');
         tag.className = 'comp-card-tag';
         tag.textContent = exam.exam_name || 'Competitive';
+        top.appendChild(tag);
+
+        if (exam.format_name) {
+            const badge = document.createElement('span');
+            badge.className = 'comp-card-badge';
+            badge.textContent = exam.format_name;
+            top.appendChild(badge);
+        }
+
+        const body = document.createElement('div');
+        body.className = 'comp-card-body';
 
         const title = document.createElement('b');
         title.className = 'comp-card-title';
@@ -838,14 +875,15 @@ function renderCompetitiveCarousel(navigateTo, state) {
         meta.className = 'comp-card-meta';
         meta.textContent = [exam.duration_lessons, exam.format_name].filter(Boolean).join(' • ') || 'Study material';
 
-        body.append(tag, title, meta);
-
         const cta = document.createElement('span');
         cta.className = 'comp-card-cta';
         cta.textContent = 'Explore resource →';
 
-        card.setAttribute('aria-label', `${title.textContent} — explore resource`);
-        card.append(icon, body, cta);
+        body.append(title, meta, cta);
+
+        const label = [title.textContent, exam.exam_name, exam.format_name].filter(Boolean).join(', ');
+        card.setAttribute('aria-label', `${label} — explore resource`);
+        card.append(top, body);
 
         const open = () => openItem(exam);
         card.addEventListener('click', open);
