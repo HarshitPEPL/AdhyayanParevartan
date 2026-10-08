@@ -148,19 +148,29 @@ function loadPdfJs() {
 }
 
 // Renders a PDF page-by-page inside the shared reader shell used elsewhere on this
-// page (see pdf-reader.js for the fit / pinch / pan / zoom engine). On success returns
-// a controller the caller uses to wire up the shared page/zoom toolbar; on any failure
-// (e.g. the host blocks cross-origin fetches) it returns false so the caller can fall
-// back to an "open externally" screen (or, on web, the Drive iframe).
-async function renderPdfInline(container, pdfUrl) {
+// page (see pdf-reader.js for the fit / pinch / pan / zoom engine). `pdfUrls` is one URL
+// or a list of candidates tried in order. On success returns a controller the caller uses
+// to wire up the shared page/zoom toolbar; if none of them can be read as a PDF it returns
+// false so the caller can fall back (Drive iframe on web, "open" screen on the native app).
+async function renderPdfInline(container, pdfUrls) {
+    const candidates = (Array.isArray(pdfUrls) ? pdfUrls : [pdfUrls]).filter(Boolean);
+    let pdfjsLib;
     try {
-        const pdfjsLib = await loadPdfJs();
-        const pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-        return await createPdfReader(container, pdfDoc);
+        pdfjsLib = await loadPdfJs();
     } catch (err) {
-        console.error('Inline PDF render failed, falling back to external open:', err);
+        console.error('PDF renderer failed to load:', err);
         return false;
     }
+    for (const url of candidates) {
+        try {
+            // The proxy streams the whole file in one response, so range requests are skipped.
+            const pdfDoc = await pdfjsLib.getDocument({ url, disableRange: url.startsWith(DRIVE_PROXY_ENDPOINT) }).promise;
+            return await createPdfReader(container, pdfDoc);
+        } catch (err) {
+            console.warn('Inline PDF source failed, trying the next one:', url.slice(0, 80), err?.message || err);
+        }
+    }
+    return false;
 }
 
 // Converts any Google Drive share/view/preview link into Drive's embeddable
@@ -190,19 +200,19 @@ function getSafePdfUrl(fileUrl) {
     return fileUrl;
 }
 
-// Google Drive's file-serving endpoints never send Access-Control-Allow-Origin,
-// so PDF.js's in-browser fetch() can never read the bytes directly — route
-// Drive-hosted PDFs through our own CORS-enabled proxy (netlify/edge-functions/
-// drive-proxy.js) instead, which fetches the file server-side (unaffected by
-// CORS) and re-serves it with CORS open. Non-Drive URLs pass through unchanged.
+// Google Drive refuses to hand file bytes to a browser: the legacy `uc?export=download` link has no
+// CORS headers and `drive.usercontent.google.com/download` answers 403 to cross-site browser fetches.
+// So Drive-hosted PDFs are read through our own Netlify function (netlify/edge-functions/
+// drive-proxy.js), which downloads them server-side and re-serves them with CORS open.
+// Non-Drive URLs pass through unchanged.
 const DRIVE_PROXY_ENDPOINT = 'https://parevartanadhayayan.in/api/drive-proxy';
-function getInlineRenderablePdfSrc(fileUrl) {
-    if (!fileUrl) return '';
+function getInlineRenderablePdfSources(fileUrl) {
+    if (!fileUrl) return [];
     if (fileUrl.includes('drive.google.com')) {
         const match = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || fileUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-        if (match) return `${DRIVE_PROXY_ENDPOINT}?id=${match[1]}`;
+        if (match) return [`${DRIVE_PROXY_ENDPOINT}?id=${match[1]}`];
     }
-    return fileUrl;
+    return [fileUrl];
 }
 
 
@@ -337,7 +347,7 @@ export function init(navigateTo, state) {
 
     // --- Settings ("gear") popover menu: houses the less-frequent actions
     // (wishlist / open externally) so the toolbar itself stays uncluttered.
-    function wireSettingsMenu(onToggleWishlist, onOpenExternal, getIsWishlisted) {
+    function wireSettingsMenu(onToggleWishlist, onOpenExternal, getIsWishlisted, canOpenExternal = () => true) {
         document.querySelectorAll('.reader-settings-wrap').forEach((wrap) => {
             const trigger = wrap.querySelector('.reader-icon-settings');
             if (!trigger) return;
@@ -345,11 +355,13 @@ export function init(navigateTo, state) {
                 event.stopPropagation();
                 document.querySelectorAll('.reader-settings-menu').forEach((m) => m.remove());
                 const isWishlisted = !!getIsWishlisted?.();
+                // The book itself never leaves the app: no "Open Externally" while it is in our viewer.
+                const showExternal = !!onOpenExternal && canOpenExternal();
                 const menu = document.createElement('div');
                 menu.className = 'reader-settings-menu';
                 menu.innerHTML = `
                     <button type="button" data-action="wishlist"><i class="fa-${isWishlisted ? 'solid' : 'regular'} fa-heart"></i> ${isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}</button>
-                    ${onOpenExternal ? '<button type="button" data-action="external"><i class="fa-solid fa-up-right-from-square"></i> Open Externally</button>' : ''}
+                    ${showExternal ? '<button type="button" data-action="external"><i class="fa-solid fa-up-right-from-square"></i> Open Externally</button>' : ''}
                 `;
                 menu.querySelector('[data-action="wishlist"]')?.addEventListener('click', () => {
                     menu.remove();
@@ -503,6 +515,28 @@ export function init(navigateTo, state) {
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center;';
 
+    // True once the book is shown in our own viewer; the gear menu then hides "Open Externally"
+    // so the book content never leaves the app / website.
+    let inlineReaderActive = false;
+
+    // Resumes at the saved page and hooks the page/zoom toolbar up to a freshly built viewer.
+    const attachPdfController = async (controller) => {
+        const saved = await savedProgressPromise;
+        const resumePage = getResumePage(saved, controller.numPages);
+        if (resumePage > 1) await controller.goToPage(resumePage, { instant: true });
+        inlineReaderActive = true;
+        wirePdfControls(controller); // also records the page being opened
+    };
+
+    // Google's embedded viewers carry a pop-out button (top-right) that opens the file in a new
+    // tab. A cross-origin iframe can't be modified, so a transparent shield swallows clicks there.
+    const shieldIframePopout = () => {
+        const shield = document.createElement('div');
+        shield.className = 'reader-popout-shield';
+        shield.setAttribute('aria-hidden', 'true');
+        wrapper.appendChild(shield);
+    };
+
     if (youTubeVideoId) {
         renderYouTubePlayer(wrapper, youTubeVideoId, {
             touch: () => reportProgress(0),
@@ -535,15 +569,32 @@ export function init(navigateTo, state) {
             });
             reportProgress(40);
         } else {
-            // Google Drive links are HTML pages, not playable media files — embed
-            // via iframe instead of a <video>/<audio> tag (which would fail to load it).
-            // E-Book PDFs render fine this way in the native WebView too (Drive's
-            // sign-in wall only triggers for video/audio pages, not the PDF preview),
-            // so avoid the PDF.js/CORS-proxy pipeline here — it depends on a
-            // server-side Google service account that may not be configured.
-            wrapper.innerHTML = `<iframe src="${driveEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-            // No reliable playback-progress API for cross-origin embeds, so just mark it viewed.
-            reportProgress(100);
+            // Google's embedded viewer (Drive "/preview") is the last-resort fallback: it has its own
+            // chrome, including a pop-out button that would open the book in a new tab and take the
+            // reader out of the app. The cross-origin iframe can't be changed, so that corner is shielded.
+            const showDriveIframe = () => {
+                wrapper.innerHTML = `<iframe src="${driveEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                shieldIframePopout();
+                // No reliable playback-progress API for cross-origin embeds, so just mark it viewed.
+                reportProgress(100);
+            };
+
+            if (mat.format_name === 'E-Book') {
+                // Read Drive PDFs inside our own viewer (fit-to-page, pinch / drag zoom, in-app
+                // fullscreen) instead of Google's. Drive's download host is CORS-enabled for
+                // "anyone with the link" files, so this works on the website and in the APK.
+                wrapper.innerHTML = `<div style="color:#374151; font-size:0.85rem;">Loading…</div>`;
+                renderPdfInline(wrapper, getInlineRenderablePdfSources(mat.file_url)).then(async (controller) => {
+                    if (controller) {
+                        await attachPdfController(controller);
+                        return;
+                    }
+                    showDriveIframe(); // not a plain PDF (e.g. very large file) — keep the old viewer
+                });
+            } else {
+                // Drive video/audio are HTML pages, not media files — embed via iframe.
+                showDriveIframe();
+            }
         }
     } else if (driveFolderEmbedUrl) {
         if (isNativeAndroid) {
@@ -623,15 +674,12 @@ export function init(navigateTo, state) {
         // Try the custom PDF.js/canvas UI first everywhere (matches the
         // reader's shared page/zoom toolbar); only degrade to a fallback when
         // it genuinely can't render (blocked cross-origin fetch, etc.).
-        const inlineSrc = isDataUrl ? pdfUrl : getInlineRenderablePdfSrc(mat.file_url);
+        const inlineSrc = isDataUrl ? pdfUrl : getInlineRenderablePdfSources(mat.file_url);
         wrapper.innerHTML = `<div style="color:#374151; font-size:0.85rem;">Loading…</div>`;
 
         renderPdfInline(wrapper, inlineSrc).then(async (controller) => {
             if (controller) {
-                const saved = await savedProgressPromise;
-                const resumePage = getResumePage(saved, controller.numPages);
-                if (resumePage > 1) await controller.goToPage(resumePage, { instant: true });
-                wirePdfControls(controller); // also records the page being opened
+                await attachPdfController(controller);
                 return;
             }
             if (isNativeAndroid) {
@@ -647,6 +695,7 @@ export function init(navigateTo, state) {
                 ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(resolvedPdfSrc)}`
                 : resolvedPdfSrc;
             wrapper.innerHTML = `<iframe src="${pdfViewerSrc}" class="reader-iframe" allowfullscreen title="PDF Viewer"></iframe>`;
+            shieldIframePopout();
             reportProgress(40);
         });
     } else {
@@ -673,94 +722,104 @@ export function init(navigateTo, state) {
         .filter(Boolean)
         .map((el) => ({ el, parent: el.parentNode, next: el.nextSibling }));
 
-    if (fullScreenToggles.length) {
-        const toggleFullscreen = async () => {
-            // The whole reader card goes fullscreen (viewer + page/zoom toolbar),
-            // so navigation and zoom stay reachable.
-            const container = document.querySelector('.reader-viewer-card');
-            if (!container) return;
+    const readerCard = document.querySelector('.reader-viewer-card');
+    const nativeFullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+    // "Fullscreen" falls back to filling the app window when the platform has no element
+    // fullscreen (some Android WebViews, iPhone Safari): the book still opens on this same page.
+    let fakeFullscreen = false;
+    const movedOverlays = [];
+    const isFullscreenActive = () => !!nativeFullscreenElement() || fakeFullscreen;
 
-            try {
-                if (!document.fullscreenElement) {
-                    if (container.requestFullscreen) {
-                        await container.requestFullscreen();
-                    } else if (container.webkitRequestFullscreen) {
-                        await container.webkitRequestFullscreen();
-                    }
-                } else if (document.exitFullscreen) {
-                    await document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    await document.webkitExitFullscreen();
-                }
-            } catch (err) {
-                console.error('Fullscreen toggle failed:', err);
-            }
-        };
-
-        // Handle fullscreenchange event to show/hide exit button
-        const movedOverlays = [];
-        const handleFullscreenChange = () => {
-            const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement;
-            if (fullscreenEl) {
-                // Entered fullscreen: overlay buttons that live outside the fullscreen
-                // element move inside it so they render on top.
-                overlayHomes.forEach((home) => {
-                    if (!fullscreenEl.contains(home.el)) {
-                        fullscreenEl.appendChild(home.el);
-                        movedOverlays.push(home);
-                    }
-                });
-                if (fullscreenExitBtn) {
-                    fullscreenExitBtn.style.display = 'flex';
-                    fullscreenExitBtn.setAttribute('aria-hidden', 'false');
-                }
-            } else {
-                // Exited fullscreen: restore moved overlay buttons to their original spot.
-                movedOverlays.splice(0).forEach(({ el, parent, next }) => parent.insertBefore(el, next));
-                if (fullscreenExitBtn) {
-                    fullscreenExitBtn.style.display = 'none';
-                    fullscreenExitBtn.setAttribute('aria-hidden', 'true');
-                }
-            }
-        };
-
-        // Listen for fullscreen changes
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-
-        fullScreenToggles.forEach((toggle) => {
-            toggle.addEventListener('click', toggleFullscreen);
-            toggle.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    toggleFullscreen();
+    // Keeps the exit button visible: elements outside the fullscreen element aren't painted while
+    // it's active, so the overlay buttons move inside it and are put back once fullscreen ends.
+    const syncFullscreenUi = () => {
+        const fullscreenEl = nativeFullscreenElement() || (fakeFullscreen ? readerCard : null);
+        if (fullscreenEl) {
+            overlayHomes.forEach((home) => {
+                if (!fullscreenEl.contains(home.el)) {
+                    fullscreenEl.appendChild(home.el);
+                    movedOverlays.push(home);
                 }
             });
-        });
-    }
+            if (fullscreenExitBtn) {
+                fullscreenExitBtn.style.display = 'flex';
+                fullscreenExitBtn.setAttribute('aria-hidden', 'false');
+            }
+        } else {
+            movedOverlays.splice(0).forEach(({ el, parent, next }) => parent.insertBefore(el, next));
+            if (fullscreenExitBtn) {
+                fullscreenExitBtn.style.display = 'none';
+                fullscreenExitBtn.setAttribute('aria-hidden', 'true');
+            }
+        }
+    };
 
-    // Exit fullscreen button handler
-    if (fullscreenExitBtn) {
-        fullscreenExitBtn.addEventListener('click', async () => {
+    const enterFullscreen = async () => {
+        if (!readerCard) return;
+        // The whole reader card goes fullscreen (page + page/zoom toolbar), so navigation and zoom stay reachable.
+        const request = readerCard.requestFullscreen || readerCard.webkitRequestFullscreen;
+        if (request) {
             try {
-                if (document.exitFullscreen) {
-                    await document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    await document.webkitExitFullscreen();
-                }
+                await request.call(readerCard);
+                return;
+            } catch (err) {
+                console.warn('Native fullscreen unavailable, using in-page fullscreen:', err);
+            }
+        }
+        fakeFullscreen = true;
+        readerCard.classList.add('is-fake-fullscreen');
+        syncFullscreenUi();
+    };
+
+    const exitFullscreen = async () => {
+        if (nativeFullscreenElement()) {
+            try {
+                if (document.exitFullscreen) await document.exitFullscreen();
+                else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
             } catch (err) {
                 console.error('Exit fullscreen failed:', err);
             }
-        });
+        }
+        if (fakeFullscreen) {
+            fakeFullscreen = false;
+            readerCard?.classList.remove('is-fake-fullscreen');
+            syncFullscreenUi();
+        }
+    };
 
+    const toggleFullscreen = () => (isFullscreenActive() ? exitFullscreen() : enterFullscreen());
+
+    const onFakeFullscreenKey = (event) => {
+        if (fakeFullscreen && event.key === 'Escape') exitFullscreen();
+    };
+    document.addEventListener('fullscreenchange', syncFullscreenUi);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenUi);
+    document.addEventListener('keydown', onFakeFullscreenKey);
+    registerCleanup(() => {
+        document.removeEventListener('fullscreenchange', syncFullscreenUi);
+        document.removeEventListener('webkitfullscreenchange', syncFullscreenUi);
+        document.removeEventListener('keydown', onFakeFullscreenKey);
+    });
+
+    fullScreenToggles.forEach((toggle) => {
+        toggle.addEventListener('click', toggleFullscreen);
+        toggle.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleFullscreen();
+            }
+        });
+    });
+
+    if (fullscreenExitBtn) {
+        fullscreenExitBtn.addEventListener('click', exitFullscreen);
         fullscreenExitBtn.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                fullscreenExitBtn.click();
+                exitFullscreen();
             }
         });
     }
-
 
     const wishlistBtn = document.getElementById('lesson-wishlist-btn');
     const wishlistIcon = document.getElementById('lesson-wishlist-icon');
@@ -789,5 +848,5 @@ export function init(navigateTo, state) {
     }
 
     // Gear icon menu (topbar + bottom toolbar): wishlist / open externally.
-    wireSettingsMenu(toggleWishlist, isDataUrl ? null : () => openExternalLink(mat.file_url), isWishlisted);
+    wireSettingsMenu(toggleWishlist, isDataUrl ? null : () => openExternalLink(mat.file_url), isWishlisted, () => !inlineReaderActive);
 }

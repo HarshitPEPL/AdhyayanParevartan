@@ -401,15 +401,37 @@
 
 /* Fullscreen shows the whole reader card (page + toolbar) edge to edge */
 .reader-viewer-card:fullscreen,
-.reader-viewer-card:-webkit-full-screen {
+.reader-viewer-card:-webkit-full-screen,
+.reader-viewer-card.is-fake-fullscreen {
     width: 100vw;
     height: 100vh;
     border-radius: 0;
     background: #fff;
 }
 
+/* In-page fullscreen (platforms without the Fullscreen API): fills the app window, same page */
+.reader-viewer-card.is-fake-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    box-shadow: none;
+}
+
+/* The reader area takes all remaining height in fullscreen, whatever the stacked layout set */
+.reader-viewer-card:fullscreen #lesson-viewer-container,
+.reader-viewer-card:-webkit-full-screen #lesson-viewer-container,
+.reader-viewer-card.is-fake-fullscreen #lesson-viewer-container {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+}
+
 .reader-viewer-card:fullscreen .fullscreen-exit-btn,
-.reader-viewer-card:-webkit-full-screen .fullscreen-exit-btn {
+.reader-viewer-card:-webkit-full-screen .fullscreen-exit-btn,
+.reader-viewer-card.is-fake-fullscreen .fullscreen-exit-btn {
     position: absolute;
     top: 6px;
     right: 8px;
@@ -417,6 +439,19 @@
     height: 36px;
     font-size: 16px;
     border-radius: 999px;
+}
+
+/* Embedded Google viewers have a pop-out button at their top-right that opens the book in a new
+   tab. A cross-origin iframe can't be edited, so this transparent shield swallows clicks there. */
+.reader-popout-shield {
+    position: absolute;
+    top: 0;
+    right: 18px;
+    width: 56px;
+    height: 56px;
+    z-index: 2;
+    background: transparent;
+    cursor: default;
 }
 
 /* Bottom toolbar: Previous / page jump / Next + zoom + icon actions */

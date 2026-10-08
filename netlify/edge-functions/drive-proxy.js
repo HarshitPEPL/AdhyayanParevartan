@@ -84,6 +84,39 @@ async function getAccessToken() {
     return cachedToken;
 }
 
+// Anonymous path, used when no service account is configured (or it can't read the file).
+// Drive's download host serves "anyone with the link" files to plain server-side requests, but it
+// refuses browser cross-site fetches (no CORS), so this function fetches the bytes server-side and
+// re-serves them from our own domain with CORS open. Files too big for Drive's virus scan answer
+// with an HTML confirmation page; its hidden form is submitted to get the real file.
+const DRIVE_DOWNLOAD_URL = 'https://drive.usercontent.google.com/download';
+
+async function fetchDriveAnonymously(id) {
+    let res = await fetch(`${DRIVE_DOWNLOAD_URL}?id=${encodeURIComponent(id)}&export=download`, { redirect: 'follow' });
+    const type = (res.headers.get('content-type') || '').toLowerCase();
+    if (res.ok && type.includes('text/html')) {
+        const html = await res.text();
+        const fields = [...html.matchAll(/<input[^>]*type="hidden"[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g)];
+        if (!fields.length) return null; // sign-in wall / quota page, not a downloadable file
+        const params = new URLSearchParams();
+        for (const [, name, value] of fields) params.set(name, value.replace(/&amp;/g, '&'));
+        res = await fetch(`${DRIVE_DOWNLOAD_URL}?${params.toString()}`, { redirect: 'follow' });
+        if ((res.headers.get('content-type') || '').toLowerCase().includes('text/html')) return null;
+    }
+    return res.ok && res.body ? res : null;
+}
+
+function fileResponse(res) {
+    const upstreamType = res.headers.get('content-type') || '';
+    return new Response(res.body, {
+        status: 200,
+        headers: {
+            ...CORS_HEADERS,
+            'Content-Type': !upstreamType || upstreamType.includes('octet-stream') ? 'application/pdf' : upstreamType
+        }
+    });
+}
+
 export default async (request) => {
     if (request.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -94,29 +127,27 @@ export default async (request) => {
         return new Response('Missing or invalid Drive file id.', { status: 400, headers: CORS_HEADERS });
     }
 
+    // 1) Optional: Drive API as a service account (only when its credentials are configured).
+    if (Deno.env.get('GDRIVE_SA_CLIENT_EMAIL') && Deno.env.get('GDRIVE_SA_PRIVATE_KEY')) {
+        try {
+            const accessToken = await getAccessToken();
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, {
+                headers: { Authorization: 'Bearer ' + accessToken }
+            });
+            if (res.ok && res.body) return fileResponse(res);
+        } catch (err) {
+            console.warn('Service-account fetch failed, trying the anonymous download:', err.message);
+        }
+    }
+
+    // 2) Anonymous download of public "anyone with the link" files.
     try {
-        const accessToken = await getAccessToken();
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-
-        if (res.status === 403 || res.status === 404) {
-            return new Response(
-                'This file is not accessible to the app. Make sure the Drive folder is shared with the service account as Viewer.',
-                { status: 502, headers: CORS_HEADERS }
-            );
-        }
-        if (!res.ok || !res.body) {
-            return new Response('Failed to fetch file from Google Drive.', { status: res.status || 502, headers: CORS_HEADERS });
-        }
-
-        return new Response(res.body, {
-            status: 200,
-            headers: {
-                ...CORS_HEADERS,
-                'Content-Type': res.headers.get('content-type') || 'application/pdf'
-            }
-        });
+        const res = await fetchDriveAnonymously(id);
+        if (res) return fileResponse(res);
+        return new Response(
+            'This file could not be downloaded. Make sure it is shared as "Anyone with the link can view".',
+            { status: 502, headers: CORS_HEADERS }
+        );
     } catch (err) {
         return new Response(`Proxy error: ${err.message}`, { status: 500, headers: CORS_HEADERS });
     }
