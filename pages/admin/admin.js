@@ -495,6 +495,15 @@ function convertGoogleDriveLink(url) {
     return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
 }
 
+// Turns a Drive share link into a directly embeddable image URL so the
+// thumbnail renders in <img>; other URLs are passed through unchanged.
+function convertThumbnailLink(url) {
+    const raw = (url || '').toString().trim();
+    if (!raw || !raw.includes('drive.google.com')) return raw;
+    const idMatch = raw.match(/\/d\/([a-zA-Z0-9_-]+)/) || raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    return idMatch ? `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w600` : raw;
+}
+
 function setupBulkMaterialUpload() {
     const btnDownloadTemplate = document.getElementById('btn-download-material-template');
     const fileInput = document.getElementById('bulk-material-file');
@@ -522,8 +531,8 @@ function setupBulkMaterialUpload() {
     };
 
     btnDownloadTemplate?.addEventListener('click', () => {
-        const headers = ['Title', 'Class', 'Subject', 'Format', 'Instructor', 'Duration', 'Chapter', 'File URL'];
-        const sampleRow = ['Accountancy Chapter 1 Notes', 11, 'Accountancy', 'E-Book', 'Mr. Sharma', '24 pages', 1, 'https://drive.google.com/file/d/FILE_ID/view?usp=sharing'];
+        const headers = ['Title', 'Class', 'Subject', 'Format', 'Instructor', 'Duration', 'Chapter', 'File URL', 'Thumbnail URL'];
+        const sampleRow = ['Accountancy Chapter 1 Notes', 11, 'Accountancy', 'E-Book', 'Mr. Sharma', '24 pages', 1, 'https://drive.google.com/file/d/FILE_ID/view?usp=sharing', 'https://drive.google.com/file/d/IMAGE_FILE_ID/view?usp=sharing'];
         const worksheet = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
         worksheet['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 22) }));
         const workbook = XLSX.utils.book_new();
@@ -611,6 +620,7 @@ function setupBulkMaterialUpload() {
                 const chapterNumberRaw = pick(row, 'chapter', 'chapternumber', 'chapterno');
                 const chapterNumber = chapterNumberRaw !== '' ? parseInt(chapterNumberRaw, 10) : null;
                 const fileUrl = convertGoogleDriveLink(pick(row, 'fileurl', 'url', 'link', 'drivelink', 'gdrivelink'));
+                const thumbnailUrl = convertThumbnailLink(pick(row, 'thumbnailurl', 'thumbnail', 'thumb', 'thumbnaillink', 'image', 'imageurl', 'cover', 'coverurl', 'coverimage')) || null;
 
                 if (!title || !classNumber || !subjectName || !fileUrl) {
                     errors.push(`Row ${rowNum}: missing required Title/Class/Subject/File URL — skipped.`);
@@ -630,7 +640,7 @@ function setupBulkMaterialUpload() {
                 }
 
                 try {
-                    await window.adhyayan.addMaterial(subjectId, formatId, title, duration, instructor, fileUrl, chapterNumber);
+                    await window.adhyayan.addMaterial(subjectId, formatId, title, duration, instructor, fileUrl, chapterNumber, thumbnailUrl);
                     successCount++;
                 } catch (err) {
                     errors.push(`Row ${rowNum} (${escapeHTML(title)}): ${err.message}`);
@@ -650,7 +660,7 @@ function setupBulkMaterialUpload() {
             if (successCount === 0 && errors.length === rows.length) {
                 const detectedHeaders = Object.keys(rows[0]).join(', ') || '(none found)';
                 summaryParts.push(`<br><br>⚠️ <strong>Detected columns in your file:</strong> ${escapeHTML(detectedHeaders)}` +
-                    `<br>Expected columns: Title, Class, Subject, Format, Instructor, Duration, Chapter, File URL.` +
+                    `<br>Expected columns: Title, Class, Subject, Format, Instructor, Duration, Chapter, File URL, Thumbnail URL.` +
                     `<br>Download the template above and copy your data into it, or rename your columns to match.`);
             }
             showStatus(summaryParts.join(''), errors.length ? 'error' : 'success');
