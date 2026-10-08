@@ -45,6 +45,28 @@ const TYPE_OPTIONS = {
     'Audio Book':    { icon: 'fa-headphones' },
 };
 
+// URL slug <-> content type, used by the ?type= route parameter
+// (e.g. #courses?type=ebook) so a filter survives refresh and shared links.
+const TYPE_SLUGS = {
+    'E-Book':        'ebook',
+    'Audio Book':    'audio',
+    'Video Content': 'video',
+};
+const TYPE_PLURAL_LABELS = {
+    'E-Book':        'E-Books',
+    'Audio Book':    'Audio Books',
+    'Video Content': 'Video Lessons',
+};
+
+// Unknown or missing values fall back to "All" (show everything).
+function typeFromSlug(slug) {
+    const key = String(slug || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (key === 'ebook' || key === 'ebooks') return 'E-Book';
+    if (key === 'audio' || key === 'audiobook' || key === 'audiobooks') return 'Audio Book';
+    if (key === 'video' || key === 'videos' || key === 'videolessons' || key === 'videocontent') return 'Video Content';
+    return 'All';
+}
+
 // Maps whatever the data source stores (format_name variants) to one of the
 // three canonical types, so filtering never depends on display text.
 function normalizeContentType(raw) {
@@ -135,7 +157,7 @@ export async function init(navigateTo, state) {
     let materialsLoaded = false;
     let activeChapter  = 'All';
     let activeSubject  = 'All';
-    let activeType     = 'All';
+    let activeType     = typeFromSlug(state.routeParams?.type);
     // Selections staged inside the modal until "Apply Filters" is pressed
     let pendingChapter = 'All';
     let pendingSubject = 'All';
@@ -435,6 +457,17 @@ export async function init(navigateTo, state) {
             o.classList.toggle('active', on);
             o.setAttribute('aria-selected', on ? 'true' : 'false');
         });
+        syncTypeToUrl();
+    }
+
+    // Mirrors the active type into the URL (replaceState: no extra back-button
+    // stops per filter click) so refresh / copy-paste keeps the same filter.
+    function syncTypeToUrl() {
+        if (state.currentRoute !== 'courses') return;
+        const slug = TYPE_SLUGS[activeType];
+        const route = slug ? `courses?type=${slug}` : 'courses';
+        state.routeParams = slug ? { type: slug } : {};
+        history.replaceState({ routeId: route }, '', '#' + route);
     }
 
     function setTypeMenuOpen(open) {
@@ -476,6 +509,11 @@ export async function init(navigateTo, state) {
         document.removeEventListener('touchstart', onOutsidePress);
         document.removeEventListener('keydown', onTypeKey);
     };
+    // Apply a content type that arrived through the route (home cards, refresh, shared link).
+    // The list itself was already filtered by activeType when materials loaded.
+    syncTypeFilterUI();
+    renderActiveFilterChip();
+
     // --- Render function ---
     function renderFiltered() {
         if (!container) return;
@@ -495,13 +533,26 @@ export async function init(navigateTo, state) {
         }
 
         if (filtered.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fa-solid fa-book-open"></i>
-                    <p>No materials found for this filter.</p>
-                    <span>Try selecting a different subject, chapter or content type.</span>
-                </div>
-            `;
+            const typeHasContent = activeType === 'All'
+                || materials.some(m => normalizeContentType(m.format_name) === activeType);
+            if (activeType !== 'All' && !typeHasContent) {
+                const label = TYPE_PLURAL_LABELS[activeType];
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid ${TYPE_OPTIONS[activeType].icon}"></i>
+                        <p>No ${escapeHTML(label)} available for Class ${classNumber} yet.</p>
+                        <span>New content is on the way. Check back soon or browse another content type.</span>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-book-open"></i>
+                        <p>No materials found for this filter.</p>
+                        <span>Try selecting a different subject, chapter or content type.</span>
+                    </div>
+                `;
+            }
             renderPagination(0, 1);
             return;
         }

@@ -808,6 +808,35 @@ button:focus-visible {
     --tint: #e6efec;
 }
 
+/* Digital Library: visible but not available yet */
+.fcard__badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #fff1d6;
+    border: 1px solid #f3dcae;
+    color: #a06a22;
+    font: 700 9.5px/1.2 "DM Sans", sans-serif;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.fcard--disabled,
+.fcard--disabled:hover {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 8px 22px rgba(31, 97, 68, 0.09);
+}
+
+.fcard--disabled .fcard__cta {
+    color: #9aa5a1;
+}
+
 @media (max-width: 360px) {
     .formats__grid {
         grid-template-columns: repeat(2, 1fr);

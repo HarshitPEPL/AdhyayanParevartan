@@ -338,6 +338,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // A refresh or pasted link such as #courses?type=ebook should land back on that
+    // page (after the splash/login guard) instead of always dropping on Home.
+    const initialRoute = decodeURIComponent(location.hash.slice(1));
+    if (initialRoute.split('?')[0] === 'courses') state.pendingRoute = initialRoute;
+
     // Start app
     navigateTo('splash', { replace: true });
 });

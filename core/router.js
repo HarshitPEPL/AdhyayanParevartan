@@ -48,8 +48,19 @@ function installPopstateHandler() {
     });
 }
 
+// Routes accept an optional query string ("courses?type=ebook"). It is kept in
+// the URL hash so a refresh or a pasted link restores the same view, and is
+// exposed to the page as state.routeParams.
+function splitRoute(route) {
+    const [id, query = ''] = String(route).split('?');
+    return { id, query, params: Object.fromEntries(new URLSearchParams(query)) };
+}
+
 export async function navigateTo(routeId, options = {}) {
     const { replace = false, fromPopState = false } = options;
+    const parsed = splitRoute(routeId);
+    routeId = parsed.id;
+    let routeQuery = parsed.query;
     const requestedRouteId = routeId;
 
     // Expose globally for inline onclicks in HTML
@@ -80,16 +91,20 @@ export async function navigateTo(routeId, options = {}) {
     const route = routes[routeId];
     if(!route) return;
 
+    const wasForcedRedirect = routeId !== requestedRouteId;
+    if (wasForcedRedirect) routeQuery = ''; // parameters belong to the page originally asked for
+    const fullRoute = routeQuery ? `${routeId}?${routeQuery}` : routeId;
+    state.routeParams = splitRoute(fullRoute).params;
+
     // Keep the browser/native history stack in sync with in-app navigation
     // so the hardware/gesture back button steps back through app screens.
     if (!fromPopState) {
-        const wasForcedRedirect = routeId !== requestedRouteId;
         const useReplace = replace || wasForcedRedirect;
-        const url = '#' + routeId;
+        const url = '#' + fullRoute;
         if (useReplace) {
-            history.replaceState({ routeId }, '', url);
+            history.replaceState({ routeId: fullRoute }, '', url);
         } else {
-            history.pushState({ routeId }, '', url);
+            history.pushState({ routeId: fullRoute }, '', url);
         }
     }
 

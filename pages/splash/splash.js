@@ -10,8 +10,10 @@ export function init(navigateTo, state) {
         const elapsed = Date.now() - startTime;
 
         const isAdminUser = state.currentUser && [1, 2].includes(Number(state.currentUser.role_id));
+        const studentRoute = state.pendingRoute || 'home'; // set by app.js for deep links like #courses?type=ebook
+        state.pendingRoute = null;
         const targetRoute = state.currentUser
-            ? (isAdminUser ? 'admin' : 'home')
+            ? (isAdminUser ? 'admin' : studentRoute)
             : 'auth';
 
         if (elapsed >= MAX_DISPLAY) {

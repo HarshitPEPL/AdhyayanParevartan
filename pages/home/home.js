@@ -159,7 +159,8 @@ function generateFormatCards() {
             textColor: '#1f6144',
             title: 'E-Books',
             desc: 'Read textbooks and learning materials.',
-            label: 'Explore'
+            label: 'Explore',
+            route: 'courses?type=ebook'
         },
         {
             icon: '🎧',
@@ -167,7 +168,8 @@ function generateFormatCards() {
             textColor: '#a06a22',
             title: 'Audio Books',
             desc: 'Listen to engaging lessons on the go.',
-            label: 'Explore'
+            label: 'Explore',
+            route: 'courses?type=audio'
         },
         {
             icon: '🎥',
@@ -175,7 +177,8 @@ function generateFormatCards() {
             textColor: '#4a62a8',
             title: 'Video Lessons',
             desc: 'Watch expertly made video tutorials.',
-            label: 'Explore'
+            label: 'Explore',
+            route: 'courses?type=video'
         },
         {
             icon: '✍️',
@@ -183,7 +186,8 @@ function generateFormatCards() {
             textColor: '#7a52a8',
             title: 'Quizzes',
             desc: 'Test your knowledge with quizzes.',
-            label: 'Explore'
+            label: 'Explore',
+            route: 'courses'
         },
         {
             icon: '📚',
@@ -191,7 +195,8 @@ function generateFormatCards() {
             textColor: '#4a6b63',
             title: 'Digital Library',
             desc: 'Explore our vast collection of resources.',
-            label: 'Explore'
+            label: 'Explore',
+            comingSoon: true
         }
     ];
 
@@ -210,11 +215,23 @@ function generateFormatCards() {
     grid.innerHTML = '';
     formats.forEach((fmt, idx) => {
         const card = document.createElement('button');
+        card.type = 'button';
         card.className = 'fcard ' + fcardClasses[idx];
         card.innerHTML = '<span class="fcard__icon">' + fcardIcons[idx] + '</span>' +
                         '<span class="fcard__name">' + fmt.title + '</span>' +
                         '<span class="fcard__desc">' + fmt.desc + '</span>' +
                         '<span class="fcard__cta">' + fmt.label + '<span>→</span></span>';
+        if (fmt.comingSoon) {
+            // A disabled <button> is skipped by Tab and ignores click/Enter/Space,
+            // so nothing can trigger it by mouse, touch or keyboard.
+            card.disabled = true;
+            card.setAttribute('aria-disabled', 'true');
+            card.tabIndex = -1;
+            card.classList.add('fcard--disabled');
+            card.insertAdjacentHTML('afterbegin', '<span class="fcard__badge">Coming Soon</span>');
+        } else if (fmt.route) {
+            card.dataset.route = fmt.route;
+        }
         grid.appendChild(card);
     });
 }
@@ -661,8 +678,8 @@ export async function init(navigateTo, state) {
     // --- Event listeners for navigation ---
     el('home-competitive-explore')?.addEventListener('click', () => navigateTo('competitive-exams'));
     el('home-continue-explore')?.addEventListener('click', () => navigateTo('courses'));
-    document.querySelectorAll('.fcard').forEach(card => {
-        card.addEventListener('click', () => navigateTo('courses'));
+    document.querySelectorAll('.fcard[data-route]').forEach(card => {
+        card.addEventListener('click', () => navigateTo(card.dataset.route));
     });
 
     document.querySelector('.start-quiz-btn')?.addEventListener('click', (e) => {
