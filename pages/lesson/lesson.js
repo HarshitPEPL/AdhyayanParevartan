@@ -1,5 +1,6 @@
 // Logic for lesson
 import { Browser } from '@capacitor/browser';
+import { createPdfReader } from './pdf-reader.js';
 
 // Extracts a YouTube video ID from any common URL shape (watch?v=, youtu.be/,
 // embed/, shorts/), ignoring extra query params like `si`/`feature`/`t`.
@@ -146,64 +147,16 @@ function loadPdfJs() {
     return pdfjsLoadPromise;
 }
 
-// Renders a PDF page-by-page onto a <canvas>, inside the shared reader shell
-// used elsewhere on this page. On success returns a controller object the
-// caller uses to wire up the shared page/zoom toolbar; on any failure (e.g.
-// the host blocks cross-origin fetches) it returns false so the caller can
-// fall back to an "open externally" screen (or, on web, the Drive iframe).
+// Renders a PDF page-by-page inside the shared reader shell used elsewhere on this
+// page (see pdf-reader.js for the fit / pinch / pan / zoom engine). On success returns
+// a controller the caller uses to wire up the shared page/zoom toolbar; on any failure
+// (e.g. the host blocks cross-origin fetches) it returns false so the caller can fall
+// back to an "open externally" screen (or, on web, the Drive iframe).
 async function renderPdfInline(container, pdfUrl) {
     try {
         const pdfjsLib = await loadPdfJs();
         const pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-
-        container.innerHTML = `
-            <div class="pdf-canvas-scroll">
-                <canvas id="pdf-render-canvas"></canvas>
-            </div>
-        `;
-
-        const canvas = container.querySelector('#pdf-render-canvas');
-        const ctx = canvas.getContext('2d');
-        const scrollEl = container.querySelector('.pdf-canvas-scroll');
-        let currentPage = 1;
-        let zoomFactor = 1;
-        let renderTask = null;
-
-        const renderPage = async (num) => {
-            const page = await pdfDoc.getPage(num);
-            const unscaledViewport = page.getViewport({ scale: 1 });
-            const targetWidth = Math.max(scrollEl.clientWidth - 16, 100);
-            const fitScale = targetWidth / unscaledViewport.width;
-            const viewport = page.getViewport({ scale: fitScale * zoomFactor });
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-
-            renderTask?.cancel();
-            renderTask = page.render({ canvasContext: ctx, viewport });
-            await renderTask.promise;
-            scrollEl.scrollTop = 0;
-        };
-
-        await renderPage(currentPage);
-
-        return {
-            numPages: pdfDoc.numPages,
-            getCurrentPage: () => currentPage,
-            getZoom: () => zoomFactor,
-            goToPage: async (num) => {
-                const target = Math.min(Math.max(1, num), pdfDoc.numPages);
-                if (target !== currentPage) {
-                    currentPage = target;
-                    await renderPage(currentPage);
-                }
-                return currentPage;
-            },
-            setZoom: async (factor) => {
-                zoomFactor = Math.min(Math.max(0.5, factor), 3);
-                await renderPage(currentPage);
-                return zoomFactor;
-            }
-        };
+        return await createPdfReader(container, pdfDoc);
     } catch (err) {
         console.error('Inline PDF render failed, falling back to external open:', err);
         return false;
@@ -253,6 +206,18 @@ function getInlineRenderablePdfSrc(fileUrl) {
 }
 
 
+// "12" for an e-book means 12 pages; text that already has a unit ("43 pages", "20 mins")
+// is kept as written. Other formats are shown unchanged.
+function formatMaterialDuration(mat) {
+    const raw = String(mat.duration_lessons ?? '').trim();
+    if (!raw || /^(na|n\/a|tbd|pending|-)$/i.test(raw)) return 'N/A';
+    if (mat.format_name === 'E-Book' && /^\d+$/.test(raw)) {
+        const pages = Number(raw);
+        return `${pages} ${pages === 1 ? 'page' : 'pages'}`;
+    }
+    return raw;
+}
+
 export function init(navigateTo, state) {
     const mat = state.activeMaterial;
     if (!mat) {
@@ -270,9 +235,9 @@ export function init(navigateTo, state) {
     document.getElementById('lesson-meta-class').textContent = classNum;
     document.getElementById('lesson-meta-subject').textContent = mat.subject_name;
     document.getElementById('lesson-format').textContent = mat.format_name;
-    document.getElementById('lesson-duration').textContent = mat.duration_lessons || 'N/A';
+    document.getElementById('lesson-duration').textContent = formatMaterialDuration(mat);
     document.getElementById('lesson-instructor').textContent = mat.instructor_name || 'Unknown Author';
-    document.getElementById('lesson-chapter').textContent = mat.chapter_number ? `Chapter ${mat.chapter_number}` : '-';
+    document.getElementById('lesson-chapter').textContent = mat.chapter_number ? String(mat.chapter_number) : '-';
 
     // Top-left overlay back button: exits fullscreen first (if active) so the
     // user always lands back in the normal view before navigating away.
@@ -334,8 +299,11 @@ export function init(navigateTo, state) {
     }
 
     function updatePdfZoomUi(controller) {
-        const pct = Math.round(controller.getZoom() * 100);
+        const zoom = controller.getZoom();
+        const pct = Math.round(zoom * 100);
         document.querySelectorAll('.reader-zoom-level').forEach((el) => { el.textContent = `${pct}%`; });
+        document.querySelectorAll('.reader-zoom-in').forEach((btn) => { btn.disabled = zoom >= controller.maxZoom - 0.001; });
+        document.querySelectorAll('.reader-zoom-out').forEach((btn) => { btn.disabled = zoom <= controller.minZoom + 0.001; });
     }
 
     function wirePdfControls(controller) {
@@ -353,30 +321,18 @@ export function init(navigateTo, state) {
         updatePdfPageUi(controller);
         updatePdfZoomUi(controller);
 
-        prevPageBtn?.addEventListener('click', async () => {
-            await controller.goToPage(controller.getCurrentPage() - 1);
-            updatePdfPageUi(controller);
-        });
-        nextPageBtn?.addEventListener('click', async () => {
-            await controller.goToPage(controller.getCurrentPage() + 1);
-            updatePdfPageUi(controller);
-        });
-        pageSelect?.addEventListener('change', async (event) => {
-            await controller.goToPage(parseInt(event.target.value, 10));
-            updatePdfPageUi(controller);
-        });
-        document.querySelectorAll('.reader-zoom-in').forEach((btn) => btn.addEventListener('click', async () => {
-            await controller.setZoom(controller.getZoom() + 0.1);
-            updatePdfZoomUi(controller);
-        }));
-        document.querySelectorAll('.reader-zoom-out').forEach((btn) => btn.addEventListener('click', async () => {
-            await controller.setZoom(controller.getZoom() - 0.1);
-            updatePdfZoomUi(controller);
-        }));
-        fitButtons.forEach((btn) => btn.addEventListener('click', async () => {
-            await controller.setZoom(1);
-            updatePdfZoomUi(controller);
-        }));
+        // Gestures, wheel and keyboard change page/zoom inside the viewer, so the
+        // toolbar (page counter, selector, % label) listens to the viewer, not the buttons.
+        controller.onPageChange(() => updatePdfPageUi(controller));
+        controller.onZoomChange(() => updatePdfZoomUi(controller));
+        registerCleanup(() => controller.destroy());
+
+        prevPageBtn?.addEventListener('click', () => controller.goToPage(controller.getCurrentPage() - 1));
+        nextPageBtn?.addEventListener('click', () => controller.goToPage(controller.getCurrentPage() + 1));
+        pageSelect?.addEventListener('change', (event) => controller.goToPage(parseInt(event.target.value, 10)));
+        document.querySelectorAll('.reader-zoom-in').forEach((btn) => btn.addEventListener('click', () => controller.zoomIn()));
+        document.querySelectorAll('.reader-zoom-out').forEach((btn) => btn.addEventListener('click', () => controller.zoomOut()));
+        fitButtons.forEach((btn) => btn.addEventListener('click', () => controller.fit()));
     }
 
     // --- Settings ("gear") popover menu: houses the less-frequent actions
@@ -674,7 +630,7 @@ export function init(navigateTo, state) {
             if (controller) {
                 const saved = await savedProgressPromise;
                 const resumePage = getResumePage(saved, controller.numPages);
-                if (resumePage > 1) await controller.goToPage(resumePage);
+                if (resumePage > 1) await controller.goToPage(resumePage, { instant: true });
                 wirePdfControls(controller); // also records the page being opened
                 return;
             }
@@ -719,7 +675,9 @@ export function init(navigateTo, state) {
 
     if (fullScreenToggles.length) {
         const toggleFullscreen = async () => {
-            const container = document.getElementById('lesson-viewer-container');
+            // The whole reader card goes fullscreen (viewer + page/zoom toolbar),
+            // so navigation and zoom stay reachable.
+            const container = document.querySelector('.reader-viewer-card');
             if (!container) return;
 
             try {
@@ -740,18 +698,25 @@ export function init(navigateTo, state) {
         };
 
         // Handle fullscreenchange event to show/hide exit button
+        const movedOverlays = [];
         const handleFullscreenChange = () => {
             const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement;
             if (fullscreenEl) {
-                // Entered fullscreen: move overlay buttons inside so they render on top.
-                overlayHomes.forEach(({ el }) => fullscreenEl.appendChild(el));
+                // Entered fullscreen: overlay buttons that live outside the fullscreen
+                // element move inside it so they render on top.
+                overlayHomes.forEach((home) => {
+                    if (!fullscreenEl.contains(home.el)) {
+                        fullscreenEl.appendChild(home.el);
+                        movedOverlays.push(home);
+                    }
+                });
                 if (fullscreenExitBtn) {
                     fullscreenExitBtn.style.display = 'flex';
                     fullscreenExitBtn.setAttribute('aria-hidden', 'false');
                 }
             } else {
-                // Exited fullscreen: restore overlay buttons to their original spot.
-                overlayHomes.forEach(({ el, parent, next }) => parent.insertBefore(el, next));
+                // Exited fullscreen: restore moved overlay buttons to their original spot.
+                movedOverlays.splice(0).forEach(({ el, parent, next }) => parent.insertBefore(el, next));
                 if (fullscreenExitBtn) {
                     fullscreenExitBtn.style.display = 'none';
                     fullscreenExitBtn.setAttribute('aria-hidden', 'true');

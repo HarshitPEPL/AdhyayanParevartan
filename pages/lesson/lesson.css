@@ -2,6 +2,10 @@
     padding: 0 !important;
     background: #eef2f6;
     color: #111827;
+    /* the shared .screen rule centres with auto margins, which would shrink-wrap this flex item */
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 !important;
 }
 
 /* ============================================================================
@@ -209,7 +213,7 @@
    ============================================================================ */
 .reader-body {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 16px;
     flex: 1;
     min-height: 0;
@@ -236,22 +240,24 @@
     min-width: 0;
 }
 
+/* Sits in its own row above the page area, so it can never cover the page. */
 .reader-back-pill {
-    position: absolute;
-    top: 12px;
-    left: 12px;
+    position: relative;
     z-index: 5;
+    align-self: flex-start;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.95);
+    margin: 10px 12px 0;
+    background: #fff;
     color: #1B8039;
-    border: 0;
+    border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 999px;
-    padding: 9px 16px 9px 12px;
+    padding: 8px 16px 8px 12px;
     font-weight: 700;
     font-size: 12.5px;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
     cursor: pointer;
     font-family: inherit;
 }
@@ -265,12 +271,15 @@
     color: #fff;
 }
 
+/* The reader area is sized by the layout (flex chain / explicit height below), never by
+   the content, so a tall page can't be cropped by a fixed-height box. */
 #lesson-viewer-container {
     background: linear-gradient(180deg, #e5e7eb 0%, #dfe7ee 100%);
     width: 100%;
     min-width: 0;
-    min-height: clamp(240px, 56vh, 800px);
-    height: min(64vh, 800px);
+    min-height: 0;
+    height: auto;
+    aspect-ratio: auto;
     display: flex;
     align-items: stretch;
     justify-content: stretch;
@@ -278,28 +287,7 @@
     border: 0;
     padding: 0;
     overflow: hidden;
-    flex: 1;
-}
-
-@media (min-width: 768px) {
-    #lesson-viewer-container {
-        min-height: clamp(320px, 62vh, 900px);
-        height: min(66vh, 900px);
-    }
-}
-
-@media (min-width: 1440px) {
-    #lesson-viewer-container {
-        min-height: clamp(400px, 64vh, 1000px);
-        height: min(68vh, 1000px);
-    }
-}
-
-@media (min-width: 2561px) {
-    #lesson-viewer-container {
-        min-height: clamp(500px, 66vh, 1200px);
-        height: min(70vh, 1200px);
-    }
+    flex: 1 1 0;
 }
 
 .reader-iframe {
@@ -311,22 +299,81 @@
     background: #fff;
 }
 
-.pdf-canvas-scroll {
-    flex: 1;
-    min-height: 0;
-    min-width: 0;
-    width: 100%;
-    overflow: auto;
-    display: flex;
-    justify-content: center;
-    background: #525659;
-    padding: 48px 8px 12px;
+/* ============================================================================
+   E-BOOK PAGE VIEWER (pdf-reader.js)
+   .pdf-stage      pan/zoom surface, soft neutral backdrop
+   .pdf-page-wrap  page-turn fade/slide layer
+   .pdf-sheet      the paper sheet; transform = pan + zoom
+   ============================================================================ */
+.pdf-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: linear-gradient(180deg, #f1f5f3 0%, #e7eee9 100%);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: contain;
+    cursor: default;
+    outline: none;
 }
 
-.pdf-canvas-scroll canvas {
-    max-width: 100%;
-    height: auto;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+.pdf-stage.can-pan {
+    cursor: grab;
+}
+
+.pdf-stage.is-panning {
+    cursor: grabbing;
+}
+
+.pdf-page-wrap {
+    position: absolute;
+    inset: 0;
+    transition: opacity 0.1s ease-out, transform 0.1s ease-out;
+}
+
+.pdf-page-wrap.is-leaving {
+    opacity: 0;
+    transform: translateX(calc(var(--dir, 1) * -24px));
+}
+
+.pdf-page-wrap.is-entering {
+    opacity: 0;
+    transform: translateX(calc(var(--dir, 1) * 24px));
+    transition: none;
+}
+
+.pdf-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.pdf-canvas {
+    display: block;
+    pointer-events: none;
+}
+
+.pdf-canvas-base {
+    width: 100%;
+    height: 100%;
+}
+
+.pdf-canvas-detail {
+    position: absolute;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pdf-page-wrap {
+        transition: none;
+    }
 }
 
 #lesson-viewer-container video,
@@ -350,6 +397,26 @@
     max-height: 100vh !important;
     min-height: 100vh !important;
     padding: 0 !important;
+}
+
+/* Fullscreen shows the whole reader card (page + toolbar) edge to edge */
+.reader-viewer-card:fullscreen,
+.reader-viewer-card:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    background: #fff;
+}
+
+.reader-viewer-card:fullscreen .fullscreen-exit-btn,
+.reader-viewer-card:-webkit-full-screen .fullscreen-exit-btn {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    border-radius: 999px;
 }
 
 /* Bottom toolbar: Previous / page jump / Next + zoom + icon actions */
@@ -527,29 +594,53 @@
 }
 
 /* ============================================================================
-   RESPONSIVE — tablet (768–1023px) and mobile (<768px)
+   RESPONSIVE
+     >= 1024px  desktop: reader on the left, details panel on the right; the reader
+                fills the app viewport (height comes from the flex chain, not a fixed px)
+     <  1024px  tablet / mobile: reader uses the full width, details panel below it
    ============================================================================ */
-@media (max-width: 1023px) {
+.reader-zoom-group button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.reader-zoom-group button:disabled:hover {
+    background: #fff;
+    color: #374151;
+}
+
+@media (min-width: 1024px) {
+    .lesson-screen {
+        flex: 1 1 0;
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+
     .reader-sidebar {
-        width: 260px;
-        flex: 0 0 260px;
+        overflow-y: auto;
+        min-height: 0;
     }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
+    .lesson-screen {
+        overflow-x: hidden;
+        flex: 0 0 auto;
+        height: auto;
+        min-height: auto;
+    }
+
+    /* Stacked layout is plain content flow: the app scrolls, nothing is squeezed */
+    .reader-app,
+    .reader-body,
+    .reader-main {
+        flex: 0 0 auto;
+        min-height: auto;
+    }
+
     .reader-app {
         gap: 10px;
-    }
-
-    .reader-topbar {
-        border-radius: 14px;
-        padding: 10px 12px;
-    }
-
-    .reader-topbar-controls .reader-zoom-group,
-    .reader-topbar-controls .reader-icon-fit,
-    .reader-topbar-controls .reader-icon-settings {
-        display: none !important;
     }
 
     .reader-body {
@@ -558,26 +649,16 @@
     }
 
     .reader-viewer-card {
+        flex: none;
         border-radius: 14px;
     }
 
-    .reader-back-pill span {
-        display: none;
-    }
-
-    .reader-back-pill {
-        padding: 9px;
-    }
-
+    /* A definite height keeps the whole reader (page + toolbar) inside the first screen;
+       the details panel then follows below it. */
     #lesson-viewer-container {
-        min-height: 260px;
-        height: min(50vh, 440px);
-    }
-
-    .reader-bottombar {
-        justify-content: space-between;
-        gap: 8px;
-        padding: 10px;
+        flex: none;
+        height: clamp(300px, calc(100vh - 230px), 900px);
+        height: clamp(300px, calc(100dvh - 230px), 900px);
     }
 
     .reader-sidebar {
@@ -597,9 +678,33 @@
     }
 }
 
+@media (max-width: 767px) {
+    .reader-topbar {
+        border-radius: 14px;
+        padding: 10px 12px;
+    }
+
+    .reader-topbar-controls .reader-zoom-group,
+    .reader-topbar-controls .reader-icon-fit,
+    .reader-topbar-controls .reader-icon-settings {
+        display: none !important;
+    }
+
+    /* Phone: topbar + toolbar wrap onto extra rows, so leave more room for them */
+    #lesson-viewer-container {
+        height: clamp(300px, calc(100vh - 320px), 900px);
+        height: clamp(300px, calc(100dvh - 320px), 900px);
+    }
+
+    .reader-bottombar {
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+    }
+}
+
 @media (max-width: 400px) {
     .reader-nav-btn span {
         display: none;
     }
 }
-
