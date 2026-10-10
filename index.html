@@ -9,6 +9,12 @@
     <link rel="apple-touch-icon" href="./Adhyayan-transparent.png">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#2e7d32">
+    <!-- Open connections early to where lesson content lives (S3: e-books, videos, audio;
+         cdnjs: PDF.js), so the first lesson doesn't also pay for DNS + TLS setup. PDF.js reads
+         books with CORS fetches (crossorigin); <video>/<audio> use plain requests. -->
+    <link rel="preconnect" href="https://adhyayan-lms-bucket.s3.ap-south-1.amazonaws.com" crossorigin>
+    <link rel="preconnect" href="https://adhyayan-lms-bucket.s3.ap-south-1.amazonaws.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Baloo+2:wght@600;700;800&family=Mukta:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">

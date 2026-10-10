@@ -441,6 +441,428 @@
     border-radius: 999px;
 }
 
+/* ============================================================================
+   AUDIO BOOK PLAYER (audio-player.js)
+   .audio-player-bg     the material's thumbnail, cover-fitted (grey + headphones without one)
+   .audio-player-scrim  dark gradient so the controls stay readable on any image
+   .audio-player-body   cover art, title, transport, seek bar, volume/speed
+   ============================================================================ */
+.audio-player {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    color: #111827;
+    background: linear-gradient(180deg, #e5e7eb 0%, #dfe7ee 100%);
+    container-type: size;
+    user-select: none;
+    -webkit-user-select: none;
+    --ap-track-rest: rgba(17, 24, 39, 0.16);
+    --ap-track-buffered: rgba(17, 24, 39, 0.32);
+}
+
+.audio-player-bg,
+.audio-player-scrim {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.audio-player-bg {
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+.audio-player-scrim {
+    display: none;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+.audio-player.has-thumb {
+    --ap-track-rest: rgba(255, 255, 255, 0.28);
+    --ap-track-buffered: rgba(255, 255, 255, 0.5);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    color: #fff;
+    background: #111827;
+}
+
+.audio-player.has-thumb .audio-player-scrim {
+    display: block;
+}
+
+.audio-player-body {
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2.2cqh, 18px);
+    padding: 16px clamp(14px, 4cqw, 40px) 18px;
+    box-sizing: border-box;
+}
+
+/* Square cover art: a sharp copy of the thumbnail, or the headphones icon without one */
+.audio-player-art {
+    position: relative;
+    flex: 0 1 auto;
+    width: clamp(88px, 30cqh, 240px);
+    aspect-ratio: 1;
+    max-width: 60%;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-player-cover {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 14px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+
+.audio-player-art-icon {
+    font-size: clamp(2.6rem, 12cqh, 4.5rem);
+    color: #aaa;
+}
+
+.audio-player.has-thumb .audio-player-cover {
+    display: block;
+}
+
+.audio-player.has-thumb .audio-player-art-icon {
+    display: none;
+}
+
+.audio-player-heading {
+    text-align: center;
+    max-width: 100%;
+}
+
+.audio-player-title {
+    font-weight: 800;
+    font-size: clamp(15px, 2.4cqw, 20px);
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.audio-player-subtitle {
+    margin-top: 2px;
+    font-size: 12.5px;
+    opacity: 0.75;
+}
+
+.audio-player-status:empty {
+    display: none;
+}
+
+.audio-player-status {
+    text-shadow: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 8px;
+    max-width: 420px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    background: rgba(17, 24, 39, 0.82);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.audio-player-status .fa-triangle-exclamation {
+    color: #fbbf24;
+}
+
+.audio-player-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #1B8039;
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.audio-player-open:hover {
+    background: #166a2f;
+}
+
+.audio-player-transport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(18px, 5cqw, 36px);
+}
+
+.audio-player-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.audio-player-btn:focus-visible,
+.audio-player-seek:focus-visible,
+.audio-player-volume-range:focus-visible,
+.audio-player-speed-select:focus-visible {
+    outline: 3px solid #4ade80;
+    outline-offset: 3px;
+}
+
+.audio-player-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.audio-player-play {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #1B8039;
+    color: #fff;
+    font-size: 26px;
+    box-shadow: 0 10px 24px rgba(27, 128, 57, 0.35);
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.audio-player-play:not(:disabled):hover {
+    background: #166a2f;
+    transform: scale(1.05);
+}
+
+/* The play icon is optically left-heavy; nudge it to look centred */
+.audio-player-play .fa-play {
+    margin-left: 4px;
+}
+
+.audio-player-skip {
+    width: 52px;
+    height: 52px;
+    flex-direction: column;
+    gap: 2px;
+    border-radius: 50%;
+    font-size: 19px;
+}
+
+.audio-player-skip:hover {
+    background: rgba(127, 127, 127, 0.18);
+}
+
+.audio-player-skip span {
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* Buffering: a ring spins around the play button */
+.audio-player-spinner {
+    display: none;
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #4ade80;
+    border-right-color: #4ade80;
+    animation: audio-player-spin 0.9s linear infinite;
+}
+
+.audio-player.is-loading .audio-player-spinner {
+    display: block;
+}
+
+@keyframes audio-player-spin {
+    to { transform: rotate(360deg); }
+}
+
+.audio-player-timeline {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.audio-player-time {
+    flex: 0 0 auto;
+    min-width: 42px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+/* Shared slider look: played part in green, buffered part lighter, rest faint */
+.audio-player-seek,
+.audio-player-volume-range {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.audio-player-seek:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.audio-player-seek::-webkit-slider-runnable-track,
+.audio-player-volume-range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background:
+        linear-gradient(90deg, #22c55e var(--progress, 0%), transparent var(--progress, 0%)),
+        linear-gradient(90deg, var(--ap-track-buffered) var(--buffered, 0%), var(--ap-track-rest) var(--buffered, 0%));
+}
+
+.audio-player-seek::-moz-range-track,
+.audio-player-volume-range::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background:
+        linear-gradient(90deg, #22c55e var(--progress, 0%), transparent var(--progress, 0%)),
+        linear-gradient(90deg, var(--ap-track-buffered) var(--buffered, 0%), var(--ap-track-rest) var(--buffered, 0%));
+}
+
+.audio-player-seek::-webkit-slider-thumb,
+.audio-player-volume-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-top: -5px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #1B8039;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.audio-player-seek::-moz-range-thumb,
+.audio-player-volume-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #1B8039;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.audio-player-options {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.audio-player-volume {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 1 180px;
+    min-width: 0;
+}
+
+.audio-player-mute {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    font-size: 17px;
+}
+
+.audio-player-mute:hover {
+    background: rgba(127, 127, 127, 0.18);
+}
+
+.audio-player-speed-select {
+    text-shadow: none;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(127, 127, 127, 0.45);
+    background: rgba(255, 255, 255, 0.92);
+    color: #111827;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.audio-player-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* Short player (stacked layout on phones): drop the cover art, keep every control */
+@container (max-height: 400px) {
+    .audio-player-art {
+        display: none;
+    }
+}
+
+@container (max-height: 300px) {
+    .audio-player-subtitle {
+        display: none;
+    }
+}
+
+/* Touch screens: system volume buttons do the job, and bigger tap targets help */
+@media (hover: none) and (pointer: coarse) {
+    .audio-player-volume-range {
+        display: none;
+    }
+
+    .audio-player-skip {
+        width: 56px;
+        height: 56px;
+    }
+
+    .audio-player-play {
+        width: 76px;
+        height: 76px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .audio-player-spinner {
+        animation-duration: 2.5s;
+    }
+
+    .audio-player-play {
+        transition: none;
+    }
+}
+
 /* Embedded Google viewers have a pop-out button at their top-right that opens the book in a new
    tab. A cross-origin iframe can't be edited, so this transparent shield swallows clicks there. */
 .reader-popout-shield {

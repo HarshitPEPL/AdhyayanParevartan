@@ -25,15 +25,20 @@ export function loadPdfJs() {
     return pdfjsLoadPromise;
 }
 
-// Fetch only the bytes needed for the page being shown (in 1 MB range requests) instead of
-// pulling the whole book in the background, so large NCERT PDFs start rendering right away.
+// Read books with 1 MB range requests only. With streaming on, PDF.js also pulls the whole
+// file (30-50 MB for NCERT books) in one parallel response that competes with the ranges the
+// visible page needs: measured ~4 s to the first page versus ~1.8 s without it. Auto-fetch then
+// loads the rest one chunk at a time, always behind requests for the page being shown.
+// (disableAutoFetch + disableStream together stalls PDF.js 3.11 on these linearized books.)
 export const PDF_STREAM_OPTIONS = {
     rangeChunkSize: 1024 * 1024,
-    disableAutoFetch: true,
-    disableStream: false
+    disableAutoFetch: false,
+    disableStream: true
 };
 
-const WARM_LIMIT = 3;
+// One pre-opened book at a time, so hovering across cards never splits the bandwidth
+// between several books and the one actually clicked.
+const WARM_LIMIT = 1;
 const warmed = new Map(); // url -> Promise<PDFDocumentProxy>
 
 function isWarmable(url) {

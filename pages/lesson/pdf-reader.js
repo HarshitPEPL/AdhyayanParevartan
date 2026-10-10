@@ -32,7 +32,9 @@ function isTypingTarget(el) {
 }
 
 /**
- * Mounts the viewer inside `host` and resolves to a controller once page 1 is rendered.
+ * Mounts the viewer inside `host` and resolves to a controller once the first page is rendered.
+ * `hooks.startPage` opens the book straight at that page (e.g. where the reader left off),
+ * so it isn't drawn at page 1 first and then jumped.
  * Throws if the first page cannot be rendered (the caller then falls back to another viewer).
  */
 export async function createPdfReader(host, pdfDoc, hooks = {}) {
@@ -545,8 +547,9 @@ export async function createPdfReader(host, pdfDoc, hooks = {}) {
     window.addEventListener('orientationchange', onOrientation);
 
     // --- go ----------------------------------------------------------------
+    const startPage = clamp(Math.round(Number(hooks.startPage) || 1), 1, pdfDoc.numPages);
     try {
-        await loadPage(1);
+        await loadPage(startPage);
     } catch (err) {
         destroyed = true;
         resizeObserver?.disconnect();
@@ -556,7 +559,7 @@ export async function createPdfReader(host, pdfDoc, hooks = {}) {
         host.style.cssText = originalHostStyle;
         throw err;
     }
-    pageNum = 1;
+    pageNum = startPage;
     resetToFit();
 
     return {

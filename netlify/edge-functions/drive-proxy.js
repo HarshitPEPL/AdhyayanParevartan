@@ -13,8 +13,15 @@ const NO_CACHE_HEADERS = { 'Cache-Control': 'no-store' };
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Range',
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
     'Cache-Control': 'public, max-age=3600'
 };
+
+// `?type=media` marks requests from the lesson's audio player: those forward the
+// browser's Range header (so seeking works and the duration is known) and pass the
+// length/range headers back. PDF requests (no `type`) are served exactly as before.
+const MEDIA_HEADERS_TO_FORWARD = ['content-length', 'content-range', 'accept-ranges'];
 
 // Cached across warm invocations of the same edge function instance so we
 // don't re-authenticate on every single request.
@@ -93,29 +100,46 @@ async function getAccessToken() {
 // with an HTML confirmation page; its hidden form is submitted to get the real file.
 const DRIVE_DOWNLOAD_URL = 'https://drive.usercontent.google.com/download';
 
-async function fetchDriveAnonymously(id) {
-    let res = await fetch(`${DRIVE_DOWNLOAD_URL}?id=${encodeURIComponent(id)}&export=download`, { redirect: 'follow' });
+async function fetchDriveAnonymously(id, extraHeaders = {}) {
+    let res = await fetch(`${DRIVE_DOWNLOAD_URL}?id=${encodeURIComponent(id)}&export=download`, { redirect: 'follow', headers: extraHeaders });
     const type = (res.headers.get('content-type') || '').toLowerCase();
     if (res.ok && type.includes('text/html')) {
+        // A ranged request could return only part of the confirmation page; read it whole.
+        if (extraHeaders.Range) {
+            await res.body?.cancel();
+            res = await fetch(`${DRIVE_DOWNLOAD_URL}?id=${encodeURIComponent(id)}&export=download`, { redirect: 'follow' });
+            if (!res.ok) return null;
+        }
         const html = await res.text();
         const fields = [...html.matchAll(/<input[^>]*type="hidden"[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g)];
         if (!fields.length) return null; // sign-in wall / quota page, not a downloadable file
         const params = new URLSearchParams();
         for (const [, name, value] of fields) params.set(name, value.replace(/&amp;/g, '&'));
-        res = await fetch(`${DRIVE_DOWNLOAD_URL}?${params.toString()}`, { redirect: 'follow' });
+        res = await fetch(`${DRIVE_DOWNLOAD_URL}?${params.toString()}`, { redirect: 'follow', headers: extraHeaders });
         if ((res.headers.get('content-type') || '').toLowerCase().includes('text/html')) return null;
     }
     return res.ok && res.body ? res : null;
 }
 
-function fileResponse(res) {
+function fileResponse(res, isMedia = false) {
     const upstreamType = res.headers.get('content-type') || '';
-    return new Response(res.body, {
-        status: 200,
-        headers: {
-            ...CORS_HEADERS,
-            'Content-Type': !upstreamType || upstreamType.includes('octet-stream') ? 'application/pdf' : upstreamType
+    const headers = {
+        ...CORS_HEADERS,
+        // Media elements sniff the real format from the bytes; only PDFs need the explicit type.
+        'Content-Type': !upstreamType || upstreamType.includes('octet-stream') ? (isMedia ? 'application/octet-stream' : 'application/pdf') : upstreamType
+    };
+    if (isMedia) {
+        // A Content-Length after transparent decompression would be wrong, so only pass it for raw bytes.
+        const encoded = !!res.headers.get('content-encoding');
+        for (const name of MEDIA_HEADERS_TO_FORWARD) {
+            const value = res.headers.get(name);
+            if (value && !(encoded && name !== 'accept-ranges')) headers[name] = value;
         }
+        headers['Vary'] = 'Range';
+    }
+    return new Response(res.body, {
+        status: isMedia && res.status === 206 ? 206 : 200,
+        headers
     });
 }
 
@@ -124,19 +148,23 @@ export default async (request) => {
         return new Response(null, { status: 204, headers: { ...CORS_HEADERS, ...NO_CACHE_HEADERS } });
     }
 
-    const id = new URL(request.url).searchParams.get('id');
+    const searchParams = new URL(request.url).searchParams;
+    const id = searchParams.get('id');
     if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
         return new Response('Missing or invalid Drive file id.', { status: 400, headers: { ...CORS_HEADERS, ...NO_CACHE_HEADERS } });
     }
+    const isMedia = searchParams.get('type') === 'media';
+    const range = isMedia ? request.headers.get('range') : null;
+    const rangeHeaders = range && /^bytes=\d*-\d*$/.test(range) ? { Range: range } : {};
 
     // 1) Optional: Drive API as a service account (only when its credentials are configured).
     if (Deno.env.get('GDRIVE_SA_CLIENT_EMAIL') && Deno.env.get('GDRIVE_SA_PRIVATE_KEY')) {
         try {
             const accessToken = await getAccessToken();
             const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, {
-                headers: { Authorization: 'Bearer ' + accessToken }
+                headers: { Authorization: 'Bearer ' + accessToken, ...rangeHeaders }
             });
-            if (res.ok && res.body) return fileResponse(res);
+            if (res.ok && res.body) return fileResponse(res, isMedia);
         } catch (err) {
             console.warn('Service-account fetch failed, trying the anonymous download:', err.message);
         }
@@ -144,8 +172,8 @@ export default async (request) => {
 
     // 2) Anonymous download of public "anyone with the link" files.
     try {
-        const res = await fetchDriveAnonymously(id);
-        if (res) return fileResponse(res);
+        const res = await fetchDriveAnonymously(id, rangeHeaders);
+        if (res) return fileResponse(res, isMedia);
         return new Response(
             'This file could not be downloaded. Make sure it is shared as "Anyone with the link can view".',
             { status: 502, headers: { ...CORS_HEADERS, ...NO_CACHE_HEADERS } }

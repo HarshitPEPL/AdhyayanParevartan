@@ -2,14 +2,15 @@
 import { Browser } from '@capacitor/browser';
 import { createPdfReader } from './pdf-reader.js';
 import { loadPdfJs, takeWarmPdf, PDF_STREAM_OPTIONS } from './pdf-loader.js';
-
-// Extracts a YouTube video ID from any common URL shape (watch?v=, youtu.be/,
-// embed/, shorts/), ignoring extra query params like `si`/`feature`/`t`.
-function getYouTubeVideoId(url) {
-    if (!url) return null;
-    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/);
-    return match ? match[1] : null;
-}
+import { renderAudioPlayer } from './audio-player.js';
+import {
+    DRIVE_PROXY_ENDPOINT,
+    getYouTubeVideoId,
+    getGoogleDriveEmbedUrl,
+    getGoogleDriveFolderEmbedUrl,
+    getPlayableMediaSources,
+    getThumbnailImageUrl
+} from './media-source.js';
 
 // Lazily loads the YouTube IFrame Player API (only once), so we can detect
 // playback errors (e.g. the owner disabled embedding) and react to them --
@@ -133,7 +134,9 @@ function renderYouTubePlayer(container, videoId, hooks) {
 // or a list of candidates tried in order. On success returns a controller the caller uses
 // to wire up the shared page/zoom toolbar; if none of them can be read as a PDF it returns
 // false so the caller can fall back (Drive iframe on web, "open" screen on the native app).
-async function renderPdfInline(container, pdfUrls) {
+// `getStartPage(numPages)` resolves the page to open at, so a resumed book is drawn straight
+// at that page instead of page 1 first.
+async function renderPdfInline(container, pdfUrls, getStartPage = async () => 1) {
     const candidates = (Array.isArray(pdfUrls) ? pdfUrls : [pdfUrls]).filter(Boolean);
     let pdfjsLib;
     try {
@@ -153,10 +156,11 @@ async function renderPdfInline(container, pdfUrls) {
                 pdfDoc = await pdfjsLib.getDocument({
                     url,
                     ...PDF_STREAM_OPTIONS,
-                    ...(viaProxy ? { disableRange: true, disableAutoFetch: false } : {})
+                    ...(viaProxy ? { disableRange: true, disableStream: false, disableAutoFetch: false } : {})
                 }).promise;
             }
-            return await createPdfReader(container, pdfDoc);
+            const startPage = await getStartPage(pdfDoc.numPages).catch(() => 1);
+            return await createPdfReader(container, pdfDoc, { startPage });
         } catch (err) {
             console.warn('Inline PDF source failed, trying the next one:', url.slice(0, 80), err?.message || err);
         }
@@ -164,23 +168,7 @@ async function renderPdfInline(container, pdfUrls) {
     return false;
 }
 
-// Converts any Google Drive share/view/preview link into Drive's embeddable
-// "/preview" URL. Drive links are HTML pages, not raw media files, so they
-// can only be shown via <iframe>, never via <video>/<audio> src.
-function getGoogleDriveEmbedUrl(url) {
-    if (!url || !url.includes('drive.google.com')) return null;
-    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/[?&]usp=sharing.*?\b([a-zA-Z0-9_-]{10,})/);
-    return idMatch ? `https://drive.google.com/file/d/${idMatch[1]}/preview` : null;
-}
-
-// Some materials were seeded with a link to a whole Drive *folder* instead of
-// the individual file — there's no single document to preview in that case,
-// so fall back to an embeddable folder listing instead of showing nothing.
-function getGoogleDriveFolderEmbedUrl(url) {
-    if (!url || !url.includes('drive.google.com')) return null;
-    const folderMatch = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
-    return folderMatch ? `https://drive.google.com/embeddedfolderview?id=${folderMatch[1]}#list` : null;
-}
+// YouTube / Google Drive link parsing shared by video and audio lives in ./media-source.js.
 
 function getSafePdfUrl(fileUrl) {
     if (!fileUrl) return '';
@@ -196,7 +184,6 @@ function getSafePdfUrl(fileUrl) {
 // So Drive-hosted PDFs are read through our own Netlify function (netlify/edge-functions/
 // drive-proxy.js), which downloads them server-side and re-serves them with CORS open.
 // Non-Drive URLs pass through unchanged.
-const DRIVE_PROXY_ENDPOINT = 'https://parevartanadhayayan.in/api/drive-proxy';
 function getInlineRenderablePdfSources(fileUrl) {
     if (!fileUrl) return [];
     if (fileUrl.includes('drive.google.com')) {
@@ -381,6 +368,12 @@ export function init(navigateTo, state) {
     const youTubeVideoId = getYouTubeVideoId(mat.file_url);
     const driveEmbedUrl = getGoogleDriveEmbedUrl(mat.file_url);
     const driveFolderEmbedUrl = getGoogleDriveFolderEmbedUrl(mat.file_url);
+    // Audio Books play in our own player for every link type the video player accepts
+    // (Drive files via the proxy, Supabase Storage / Dropbox / direct links, data: URLs).
+    // YouTube links and Drive folders keep the same handling as video.
+    const isAudioMaterial = mat.format_name === 'Audio Book'
+        || (mat.format_name !== 'Video Content' && (['mp3', 'wav', 'm4a', 'aac', 'oga', 'opus', 'flac'].includes(ext) || (isDataUrl && mat.file_url.includes('audio'))));
+    const audioSources = isAudioMaterial && !youTubeVideoId && !driveFolderEmbedUrl ? getPlayableMediaSources(mat.file_url) : [];
     // Google blocks its own sign-in flow inside embedded WebViews ("This
     // browser or app may not be secure"), so any drive.google.com iframe shows
     // a broken "Can't access your Google Account" prompt on native Android —
@@ -510,11 +503,15 @@ export function init(navigateTo, state) {
     // so the book content never leaves the app / website.
     let inlineReaderActive = false;
 
-    // Resumes at the saved page and hooks the page/zoom toolbar up to a freshly built viewer.
+    // The saved progress is fetched while the book downloads, so this rarely waits; the reader
+    // then opens directly at that page.
+    const getPdfStartPage = async (numPages) => getResumePage(await savedProgressPromise, numPages);
+
+    // Hooks the page/zoom toolbar up to a freshly built viewer (already at the resume page).
     const attachPdfController = async (controller) => {
         const saved = await savedProgressPromise;
         const resumePage = getResumePage(saved, controller.numPages);
-        if (resumePage > 1) await controller.goToPage(resumePage, { instant: true });
+        if (resumePage !== controller.getCurrentPage()) await controller.goToPage(resumePage, { instant: true });
         inlineReaderActive = true;
         wirePdfControls(controller); // also records the page being opened
     };
@@ -542,6 +539,19 @@ export function init(navigateTo, state) {
             onSnapshot: registerSnapshot,
             onCleanup: registerCleanup
         });
+    } else if (audioSources.length) {
+        const rawThumb = String(mat.thumbnail_url || mat.bg_thumbnail_url || '').trim();
+        const player = renderAudioPlayer(wrapper, {
+            sources: audioSources,
+            // Large Drive thumbnail first, then the link exactly as saved.
+            thumbnailUrls: [...new Set([getThumbnailImageUrl(rawThumb, 1200), rawThumb].filter((u) => /^(https?:|data:|blob:|\/)/i.test(u)))],
+            title: mat.title,
+            subtitle: `Class ${classNum} - ${mat.subject_name}`,
+            openUrl: mat.file_url,
+            onOpenExternal: openExternalLink
+        });
+        trackMediaElement(player.audio);
+        registerCleanup(player.destroy);
     } else if (driveEmbedUrl) {
         if (isNativeAndroid && mat.format_name !== 'E-Book') {
             // Non-E-Book Drive content (video/audio) genuinely hits Google's
@@ -575,7 +585,7 @@ export function init(navigateTo, state) {
                 // fullscreen) instead of Google's. Drive's download host is CORS-enabled for
                 // "anyone with the link" files, so this works on the website and in the APK.
                 wrapper.innerHTML = `<div style="color:#374151; font-size:0.85rem;">Loading…</div>`;
-                renderPdfInline(wrapper, getInlineRenderablePdfSources(mat.file_url)).then(async (controller) => {
+                renderPdfInline(wrapper, getInlineRenderablePdfSources(mat.file_url), getPdfStartPage).then(async (controller) => {
                     if (controller) {
                         await attachPdfController(controller);
                         return;
@@ -616,13 +626,9 @@ export function init(navigateTo, state) {
             reportProgress(30);
         }
     } else if (ext === 'mp4' || ext === 'webm' || ext === 'ogg' || mat.format_name === 'Video Content' || (isDataUrl && mat.file_url.includes('video'))) {
-        wrapper.innerHTML = `<video controls style="width: 100%; height: 100%; max-height: 100%;"><source src="${mat.file_url}">Your browser does not support the video tag.</video>`;
+        wrapper.innerHTML = `<video controls preload="auto" playsinline style="width: 100%; height: 100%; max-height: 100%;"><source src="${mat.file_url}">Your browser does not support the video tag.</video>`;
         const videoEl = wrapper.querySelector('video');
         if (videoEl) trackMediaElement(videoEl);
-    } else if (ext === 'mp3' || ext === 'wav' || mat.format_name === 'Audio Book' || (isDataUrl && mat.file_url.includes('audio'))) {
-        wrapper.innerHTML = `<div style="text-align:center; width: 100%;"><i class="fa-solid fa-headphones" style="font-size: 4rem; color: #aaa; margin-bottom: 20px;"></i><br><audio controls style="width: 80%;"><source src="${mat.file_url}">Your browser does not support the audio tag.</audio></div>`;
-        const audioEl = wrapper.querySelector('audio');
-        if (audioEl) trackMediaElement(audioEl);
     } else if (ext === 'pdf' || (isDataUrl && mat.file_url.includes('pdf'))) {
         let pdfUrl = getSafePdfUrl(mat.file_url);
         if (isDataUrl) {
@@ -668,7 +674,7 @@ export function init(navigateTo, state) {
         const inlineSrc = isDataUrl ? pdfUrl : getInlineRenderablePdfSources(mat.file_url);
         wrapper.innerHTML = `<div style="color:#374151; font-size:0.85rem;">Loading…</div>`;
 
-        renderPdfInline(wrapper, inlineSrc).then(async (controller) => {
+        renderPdfInline(wrapper, inlineSrc, getPdfStartPage).then(async (controller) => {
             if (controller) {
                 await attachPdfController(controller);
                 return;
