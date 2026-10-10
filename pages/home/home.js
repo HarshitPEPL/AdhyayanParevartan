@@ -555,7 +555,7 @@ export async function init(navigateTo, state) {
                         const icon = SUBJECT_ICONS[sub.subject_name] || 'fa-book';
                         const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
                         return `
-                            <button class="subject-card" style="cursor:pointer; border-top: 3px solid ${color};" onclick="window.navigateTo && window.navigateTo('courses')">
+                            <button class="subject-card" style="cursor:pointer; border-top: 3px solid ${color};" onclick="window.navigateTo && window.navigateTo('courses?subject=${encodeURIComponent(sub.subject_name)}')">
                                 <span class="icon-circle" style="background: linear-gradient(135deg, ${color}, ${color}cc); color:#fff; margin:0;">
                                     <i class="fa-solid ${icon}"></i>
                                 </span>

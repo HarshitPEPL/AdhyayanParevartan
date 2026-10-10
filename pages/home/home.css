@@ -16,12 +16,12 @@
     --gold: #c4903d;
     color-scheme: light;
     box-sizing: border-box;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 html {
-    scroll-padding-top: env(safe-area-inset-top, 0px);
+    scroll-padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
 
 * {

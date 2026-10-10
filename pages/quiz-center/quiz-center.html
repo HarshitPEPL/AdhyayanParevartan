@@ -1,134 +1,82 @@
-<div class="screen quiz-center-screen">
-    <div class="quiz-center-header">
-        <div class="qc-user-row">
-            <div class="qc-avatar" id="quiz-center-avatar">?</div>
-            <div>
-                <div class="heading-label">Quiz Center</div>
-                <h2 id="quiz-center-heading">Practice. Learn. Improve.</h2>
-            </div>
+<div class="screen qz-screen has-bottom-nav">
+    <header class="qz-top">
+        <div>
+            <h1 class="qz-title">Quiz</h1>
+            <div class="qz-class" id="qz-class">Class</div>
         </div>
-        <div class="quiz-notification" id="quiz-center-filter-icon" title="Filter"><i class="fa-solid fa-sliders"></i></div>
+        <div class="qz-streak hidden" id="qz-streak">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+            <span id="qz-streak-text"></span>
+        </div>
+    </header>
+
+    <div class="qz-views" id="quiz-center-tabs" role="tablist" aria-label="Quiz sections">
+        <button type="button" class="qz-view active" data-tab="practice" role="tab" aria-selected="true">Quizzes</button>
+        <button type="button" class="qz-view" data-tab="stats" role="tab" aria-selected="false">Stats</button>
+        <button type="button" class="qz-view" data-tab="leaderboard" role="tab" aria-selected="false">Leaderboard</button>
     </div>
 
-    <div class="qc-search-bar">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="quiz-center-search" placeholder="Search subjects...">
-    </div>
+    <!-- PRACTICE -->
+    <div class="qz-panel" data-panel="practice">
+        <section class="qz-hero" id="qz-hero" hidden>
+            <div class="qz-eyebrow">Today's challenge</div>
+            <h2 class="qz-hero-title" id="qz-hero-title"></h2>
+            <p class="qz-hero-meta" id="qz-hero-meta"></p>
+            <button type="button" class="qz-hero-btn" id="qz-hero-start">
+                Start challenge
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+        </section>
 
-    <!-- Active subject/chapter filter chip (set via the filter modal) -->
-    <div class="qc-active-filters-row hidden" id="qc-active-filters-row"></div>
-
-    <div class="qc-tabs" id="quiz-center-tabs">
-        <button type="button" class="qc-tab active" data-tab="practice">Practice</button>
-        <button type="button" class="qc-tab" data-tab="stats">Stats</button>
-        <button type="button" class="qc-tab" data-tab="leaderboard">Leaderboard</button>
-    </div>
-
-    <!-- PRACTICE TAB -->
-    <div class="qc-tab-panel" data-panel="practice">
-        <div class="quiz-summary-card" id="quiz-center-summary">
-            <div class="summary-body">
-                <div class="summary-badge" id="quiz-center-summary-badge">Mathematics</div>
-                <div class="summary-title" id="quiz-center-summary-title">Linear Equations in Two Variables</div>
-                <div class="summary-meta">Recommended for you</div>
-                <div class="summary-progress">
-                    <div class="summary-progress-bar"><div class="summary-progress-fill" id="quiz-center-progress-fill" style="width: 65%;"></div></div>
-                    <div class="summary-progress-label">65%</div>
+        <section class="qz-continue" id="qz-continue" hidden>
+            <div class="qz-continue-top">
+                <span class="qz-eyebrow qz-eyebrow-muted">Continue</span>
+                <span class="qz-continue-count" id="qz-continue-count"></span>
+            </div>
+            <div class="qz-continue-row">
+                <div class="qz-continue-text">
+                    <div class="qz-continue-title" id="qz-continue-title"></div>
+                    <div class="qz-continue-sub" id="qz-continue-sub"></div>
                 </div>
+                <button type="button" class="qz-resume" id="qz-resume">Resume</button>
             </div>
-            <button class="btn btn-primary quiz-center-play"><i class="fa-solid fa-play"></i></button>
-        </div>
+            <div class="qz-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="qz-continue-bar"><span id="qz-continue-fill"></span></div>
+        </section>
 
-        <div class="quick-practice-card" id="quiz-center-quick-practice">
-            <div class="quick-practice-left">
-                <div class="quick-practice-title">Quick Practice</div>
-                <div class="quick-practice-meta">10 Questions | 15 Minutes</div>
+        <div class="qz-chips" id="qz-chips" role="group" aria-label="Filter by subject"></div>
+
+        <section>
+            <div class="qz-section-head">
+                <h2>Chapter quizzes</h2>
+                <button type="button" class="qz-link" id="qz-see-all">See all</button>
             </div>
-            <button class="btn btn-outline" id="quiz-center-start">Start Quiz</button>
-        </div>
-
-        <div class="subject-grid-header">
-            <h3>Choose Subject</h3>
-            <a href="#" class="see-all">See all</a>
-        </div>
-        <div class="subject-grid" id="quiz-center-subject-grid"></div>
-
-        <div class="chapter-select-card" id="quiz-center-chapter-card" style="display:none;">
-            <label for="quiz-center-chapter-dropdown" class="chapter-select-label">Select Chapter</label>
-            <select id="quiz-center-chapter-dropdown" class="chapter-select-dropdown"></select>
-            <button class="btn btn-primary" id="quiz-center-chapter-start">Start Quiz</button>
-        </div>
-
-        <div class="recent-scores-header">
-            <h3>Recent Scores</h3>
-            <a href="#" class="see-all">See all</a>
-        </div>
-        <div class="recent-scores" id="quiz-center-recent-scores"></div>
+            <div class="qz-list" id="qz-list" aria-live="polite"></div>
+            <div id="qz-controls"></div>
+        </section>
     </div>
 
-    <!-- STATS TAB -->
-    <div class="qc-tab-panel hidden" data-panel="stats">
+    <!-- STATS -->
+    <div class="qz-panel hidden" data-panel="stats">
         <div class="qc-stats-hero">
-            <div class="qc-stats-ring" id="qc-month-ring">
-                <span id="qc-month-count">0</span>
-            </div>
+            <div class="qc-stats-ring" id="qc-month-ring"><span id="qc-month-count">0</span></div>
             <div class="qc-stats-ring-label">Quizzes played this month</div>
         </div>
-
         <div class="qc-stats-row">
-            <div class="qc-stat-box">
-                <div class="qc-stat-value" id="qc-stat-attempted">0</div>
-                <div class="qc-stat-label">Attempted</div>
-            </div>
-            <div class="qc-stat-box">
-                <div class="qc-stat-value" id="qc-stat-won">0</div>
-                <div class="qc-stat-label">Won</div>
-            </div>
-            <div class="qc-stat-box">
-                <div class="qc-stat-value" id="qc-stat-xp">0</div>
-                <div class="qc-stat-label">Total XP</div>
-            </div>
+            <div class="qc-stat-box"><div class="qc-stat-value" id="qc-stat-attempted">0</div><div class="qc-stat-label">Attempted</div></div>
+            <div class="qc-stat-box"><div class="qc-stat-value" id="qc-stat-won">0</div><div class="qc-stat-label">Won</div></div>
+            <div class="qc-stat-box"><div class="qc-stat-value" id="qc-stat-xp">0</div><div class="qc-stat-label">Total XP</div></div>
         </div>
-
-        <div class="subject-grid-header">
-            <h3>Top Performance by Category</h3>
-        </div>
+        <div class="qz-section-head"><h2>Top performance by category</h2></div>
         <div class="qc-bar-chart" id="qc-bar-chart"></div>
     </div>
 
-    <!-- LEADERBOARD TAB -->
-    <div class="qc-tab-panel hidden" data-panel="leaderboard">
+    <!-- LEADERBOARD -->
+    <div class="qz-panel hidden" data-panel="leaderboard">
         <div class="qc-lb-toggle" id="qc-lb-toggle">
-            <button type="button" class="qc-lb-toggle-btn active" data-range="week">This Week</button>
-            <button type="button" class="qc-lb-toggle-btn" data-range="all">All Time</button>
+            <button type="button" class="qc-lb-toggle-btn active" data-range="week">This week</button>
+            <button type="button" class="qc-lb-toggle-btn" data-range="all">All time</button>
         </div>
-
         <div class="qc-podium" id="qc-podium"></div>
         <div class="qc-lb-list" id="qc-lb-list"></div>
-    </div>
-
-    <!-- Filter modal sheet (triggered by the sliders icon) -->
-    <div class="modal-overlay hidden" id="qc-filter-overlay"></div>
-    <div class="modal-sheet hidden" id="qc-filter-sheet">
-        <div class="modal-header" style="text-align:center;">
-            <div class="close-btn" id="qc-filter-close"><i class="fa-solid fa-xmark"></i></div>
-            <h2>Filter Quizzes</h2>
-            <p>Choose a subject and chapter number to narrow down quizzes</p>
-        </div>
-
-        <div class="filter-group">
-            <label class="filter-group-label">Subject</label>
-            <div class="qc-pill-row" id="qc-filter-modal-subjects"></div>
-        </div>
-
-        <div class="filter-group">
-            <label class="filter-group-label">Chapter</label>
-            <div class="qc-pill-row" id="qc-filter-modal-chapters">
-                <div class="qc-pill active" data-chapter="All">All Chapters</div>
-            </div>
-        </div>
-
-        <button class="btn btn-primary" id="qc-filter-apply">Apply Filters</button>
-        <button class="btn btn-outline" id="qc-filter-reset">Reset</button>
     </div>
 </div>

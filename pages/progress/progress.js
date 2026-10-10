@@ -60,11 +60,28 @@ export async function init(navigateTo, state) {
         const completedMaterials = materialProgress.filter(p => p.percent >= 100);
 
         // Update stats
-        if (el('stat-lessons')) el('stat-lessons').textContent = materials.length;
-        if (el('stat-quizzes')) el('stat-quizzes').textContent = quizzes.length;
-        if (el('stat-score'))   el('stat-score').textContent   = attempts.length
-            ? `${Math.round(attempts.reduce((sum, a) => sum + a.score_percent, 0) / attempts.length)}%`
-            : '—';
+        const set = (id, v) => { if (el(id)) el(id).textContent = v; };
+        const classMatIds = new Set(materials.map(m => Number(m.material_id)));
+        const doneCount = completedMaterials.filter(p => classMatIds.has(Number(p.material_id))).length;
+        const overallPct = materials.length ? Math.round((doneCount / materials.length) * 100) : 0;
+        const takenQuizIds = new Set(attempts.map(a => a.quiz_id ?? a.quiz_title));
+        const avgScore = attempts.length
+            ? Math.round(attempts.reduce((sum, a) => sum + a.score_percent, 0) / attempts.length)
+            : null;
+        const totalSec = materialProgress.reduce((s, p) => s + (Number(p.last_position_sec) || 0), 0);
+
+        set('stat-lessons', doneCount);
+        set('stat-lessons-note', `of ${materials.length} topics`);
+        set('stat-quizzes', takenQuizIds.size);
+        set('stat-quizzes-note', `of ${quizzes.length} available`);
+        set('stat-score', avgScore == null ? '—' : `${avgScore}%`);
+        set('stat-score-note', attempts.length ? `${attempts.length} attempt${attempts.length !== 1 ? 's' : ''} average` : 'No attempts yet');
+        set('stat-time', formatDuration(totalSec));
+        set('hero-percent', `${overallPct}%`);
+        if (el('hero-ring')) el('hero-ring').style.setProperty('--p', overallPct);
+        set('hero-sub', materials.length
+            ? `You have completed ${doneCount} of ${materials.length} topics in Class ${classNumber}.`
+            : 'No topics available for your class yet.');
 
         if (!subjects || subjects.length === 0) {
             if (subjectList) {
@@ -83,38 +100,20 @@ export async function init(navigateTo, state) {
         // subject's materials the student has actually finished (percent >= 100
         // in the local lesson-progress tracker), not on quiz scores.
         if (subjectList) {
-            subjectList.innerHTML = subjects.map((sub, i) => {
-                const subMats   = materials.filter(m => m.subject_name === sub.subject_name);
-                const matCount  = subMats.length;
-                const icon      = SUBJECT_ICONS[sub.subject_name] || 'fa-book';
-                const color     = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
-
-                const completedCount = completedMaterials.filter(p => p.subject_name === sub.subject_name).length;
-                const pct = matCount ? Math.round((completedCount / matCount) * 100) : 0;
-
-                const subAttempts   = attempts.filter(a => a.subject_name === sub.subject_name);
-                const attemptLabel  = subAttempts.length ? `${subAttempts.length} quiz attempt${subAttempts.length !== 1 ? 's' : ''}` : 'No quiz attempts yet';
-
-                return `
-                    <div class="progress-trace-row">
-                        <div class="icon-circle" style="background:${color}18;color:${color};">
-                            <i class="fa-solid ${icon}"></i>
-                        </div>
-                        <div class="details">
-                            <div class="top">
-                                <h4>${sub.subject_name}</h4>
-                                <span>${pct}%</span>
-                            </div>
-                            <div class="volume">
-                                ${completedCount}/${matCount} lesson${matCount !== 1 ? 's' : ''} completed • ${attemptLabel}
-                            </div>
-                            <div class="progress-bar-thin">
-                                <div class="fill" style="width:${pct}%;background:${color};"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            const cards = subjects.map((sub, i) => {
+                const matCount = materials.filter(m => m.subject_name === sub.subject_name).length;
+                const done = completedMaterials.filter(p => p.subject_name === sub.subject_name).length;
+                const quizCount = attempts.filter(a => a.subject_name === sub.subject_name).length;
+                return {
+                    name: sub.subject_name,
+                    icon: sub.subject_name === 'Science' ? 'fa-flask' : 'fa-book',
+                    color: SUBJECT_COLORS[i % SUBJECT_COLORS.length],
+                    total: matCount,
+                    done,
+                    quizLabel: quizCount ? `${quizCount} quiz attempt${quizCount !== 1 ? 's' : ''}` : 'No quiz attempts yet'
+                };
+            });
+            mountSubjectCarousel(subjectList, cards);
         }
 
         renderRecentActivity(activityList, completedMaterials, attempts);
@@ -175,6 +174,106 @@ function renderRecentActivity(container, completedMaterials, attempts) {
             </div>
         </div>
     `).join('');
+}
+
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const SUBJECT_TINTS = [
+    ['#e8f3e9', '#2e7d32'], ['#e6eef9', '#1e5fbf'], ['#f0e6f6', '#7b1fa2'], ['#fdeee6', '#e8590c'],
+    ['#e0f0ee', '#00796b'], ['#f9e6ee', '#ad1457'], ['#ebe7f6', '#4527a0']
+];
+const SUBJECTS_PER_PAGE = 8;
+
+function subjectRowHtml(c, i) {
+    const [bg, fg] = SUBJECT_TINTS[i % SUBJECT_TINTS.length];
+    const empty = c.total === 0;
+    const pct = empty ? 0 : Math.round((c.done / c.total) * 100);
+    const detail = empty
+        ? 'No lessons yet'
+        : `${c.done}/${c.total} lesson${c.total !== 1 ? 's' : ''} completed • ${escapeHtml(c.quizLabel)}`;
+    return `
+        <div class="sp-row${empty ? ' is-empty' : ''}">
+            <div class="sp-icon" style="background:${bg};color:${fg};"><i class="fa-solid ${c.icon}"></i></div>
+            <div class="sp-info">
+                <div class="sp-top">
+                    <h4 title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</h4>
+                    <span class="sp-pct">${empty ? '—' : pct + '%'}</span>
+                </div>
+                <p class="sp-detail">${detail}</p>
+                <div class="sp-bar"><div class="sp-fill" style="width:${pct}%"></div></div>
+            </div>
+        </div>`;
+}
+
+// Pages of 8 subjects (4 left + 4 right, column-first) that slide horizontally.
+function mountSubjectCarousel(host, cards) {
+    const pages = [];
+    for (let i = 0; i < cards.length; i += SUBJECTS_PER_PAGE) pages.push(cards.slice(i, i + SUBJECTS_PER_PAGE));
+    const pageCount = pages.length;
+
+    const section = host.closest('.evaluation-pipeline') || document;
+    const subtitle = section.querySelector('#subject-progress-count');
+    const prevBtn = section.querySelector('#sp-prev');
+    const nextBtn = section.querySelector('#sp-next');
+
+    host.innerHTML = `
+        <div class="sp-viewport" tabindex="0" aria-label="Subjects, use left and right arrow keys to change page">
+            <div class="sp-track">
+                ${pages.map((pg, n) => `<div class="sp-page" aria-label="Page ${n + 1} of ${pageCount}">${pg.map((c, j) => subjectRowHtml(c, n * SUBJECTS_PER_PAGE + j)).join('')}</div>`).join('')}
+            </div>
+        </div>
+        <div class="sp-dots" ${pageCount <= 1 ? 'hidden' : ''}>
+            ${pages.map((_, n) => `<button type="button" class="sp-dot" data-page="${n}" aria-label="Show subjects page ${n + 1}"></button>`).join('')}
+        </div>`;
+
+    const viewport = host.querySelector('.sp-viewport');
+    const track = host.querySelector('.sp-track');
+    const dots = host.querySelectorAll('.sp-dot');
+    let page = 0;
+
+    const update = () => {
+        track.style.transform = `translateX(${-page * 100}%)`;
+        track.querySelectorAll('.sp-page').forEach((p, i) => p.setAttribute('aria-hidden', String(i !== page)));
+        dots.forEach((d, i) => {
+            d.classList.toggle('on', i === page);
+            if (i === page) d.setAttribute('aria-current', 'page'); else d.removeAttribute('aria-current');
+        });
+        if (prevBtn) prevBtn.disabled = page === 0;
+        if (nextBtn) nextBtn.disabled = page >= pageCount - 1;
+        if (subtitle) {
+            const start = page * SUBJECTS_PER_PAGE + 1;
+            const end = Math.min(start + SUBJECTS_PER_PAGE - 1, cards.length);
+            subtitle.textContent = `${start}-${end} of ${cards.length} subject${cards.length !== 1 ? 's' : ''}`;
+        }
+    };
+    const go = n => { page = Math.max(0, Math.min(n, pageCount - 1)); update(); };
+
+    // onclick (not addEventListener) so re-mounting never stacks handlers on the header buttons.
+    if (prevBtn) prevBtn.onclick = () => go(page - 1);
+    if (nextBtn) nextBtn.onclick = () => go(page + 1);
+    dots.forEach(d => d.addEventListener('click', () => go(Number(d.dataset.page))));
+    viewport.addEventListener('keydown', e => {
+        if (e.key === 'ArrowLeft') go(page - 1);
+        else if (e.key === 'ArrowRight') go(page + 1);
+    });
+
+    let sx = 0, sy = 0;
+    viewport.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    viewport.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(page + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+
+    update();
+}
+
+function formatDuration(sec) {
+    if (!sec) return '—';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h) return `${h}h ${m}m`;
+    return m ? `${m}m` : '<1m';
 }
 
 function formatRelativeTime(timestamp) {

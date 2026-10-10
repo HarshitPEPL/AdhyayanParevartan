@@ -155,6 +155,61 @@
     font-size: 14px;
 }
 
+/* ===== Responsive layout ===== */
+.screen.admin-screen {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 20px clamp(14px, 3vw, 48px) 40px;
+    padding-right: max(clamp(14px, 3vw, 48px), 84px); /* room for the fixed config icons */
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+.admin-screen *, .admin-screen *::before, .admin-screen *::after { box-sizing: border-box; }
+.admin-screen img, .admin-screen pre { max-width: 100%; }
+.admin-header { flex-wrap: wrap; gap: 12px; }
+.admin-header h2 { margin: 0; min-width: 0; }
+.admin-card { min-width: 0; }
+
+.admin-tabs { flex-wrap: wrap; }
+.admin-tabs .tab-btn { white-space: nowrap; }
+
+/* Tables scroll inside their card instead of stretching the page */
+.admin-table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.admin-table th, .admin-table td { white-space: nowrap; }
+.admin-table td .btn, .admin-table td button { width: auto; }
+
+.admin-search { flex-wrap: wrap; }
+.admin-search input { min-width: 0; }
+
+@media (max-width: 1100px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 768px) {
+    .screen.admin-screen { padding-right: clamp(14px, 3vw, 48px); }
+    /* Config icons become an inline row under the header instead of floating over content */
+    .admin-screen .supabase-manager {
+        position: static;
+        display: inline-flex;
+        width: 44px;
+        height: 44px;
+        margin: 0 8px 12px 0;
+    }
+    .admin-header { margin-bottom: 16px; }
+    .admin-tabs .tab-btn { flex: 1 1 calc(33.333% - 10px); min-width: 110px; }
+    #competitive-bg-field > div { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+    .admin-tabs .tab-btn { flex: 1 1 calc(50% - 10px); min-width: 0; padding: 8px; font-size: 14px; }
+    .admin-card { padding: 14px; }
+    .admin-card > div[style*="display:flex"],
+    .admin-card > div[style*="display: flex"] { flex-wrap: wrap; }
+    .admin-header { flex-direction: column; align-items: stretch; }
+    .admin-header .btn { width: 100% !important; }
+}
+
 @media (max-width: 768px) {
     .admin-tabs {
         flex-wrap: wrap;

@@ -1,4 +1,5 @@
 // Uses window.adhyayan global (set by bundled core/app.js after db init)
+import { loadPdfJs, warmPdf } from '../lesson/pdf-loader.js';
 
 function escapeHTML(str) {
     if (!str) return '';
@@ -147,6 +148,7 @@ export async function init(navigateTo, state) {
     const filterResetBtn   = document.getElementById('courses-filter-reset');
     const modalSubjectRow  = document.getElementById('filter-modal-subjects');
     const modalChapterRow  = document.getElementById('filter-modal-chapters');
+    const modalBookRow     = document.getElementById('filter-modal-books');
 
     if (classLabel) {
         const name = state.currentUser?.full_name || 'Student';
@@ -156,11 +158,11 @@ export async function init(navigateTo, state) {
     let materials     = [];
     let materialsLoaded = false;
     let activeChapter  = 'All';
-    let activeSubject  = 'All';
+    let activeSubject  = state.routeParams?.subject || 'All';
     let activeType     = typeFromSlug(state.routeParams?.type);
     // Selections staged inside the modal until "Apply Filters" is pressed
     let pendingChapter = 'All';
-    let pendingSubject = 'All';
+    let pendingSubject = activeSubject;
     // Declared here (rather than near its search-input listener below) because
     // loadMaterials() -> renderFiltered() reads it and runs before this point
     // in the function body; declaring it later left it in the temporal dead
@@ -225,6 +227,11 @@ export async function init(navigateTo, state) {
                 });
             });
         }
+        syncSubjectPills();
+        subjectSlider?.querySelector('.subject-pill.active')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+        modalSubjectRow?.querySelectorAll('.subject-pill').forEach(p => {
+            p.classList.toggle('active', p.dataset.subject === pendingSubject);
+        });
     }
 
     // --- Load materials ---
@@ -273,9 +280,22 @@ export async function init(navigateTo, state) {
     // Prefer the real chapter_number column when materials have it set; otherwise
     // fall back to deriving an order from first-appearance (sorted by material_id,
     // since older seeded materials predate the chapter_number column).
+    function isEBook(m) {
+        return normalizeContentType(m.format_name) === 'E-Book';
+    }
+
     function getSubjectChapters(subject) {
+        return getSubjectTitleList(subject, m => !isEBook(m));
+    }
+
+    // E-Books are picked by book name (e.g. "Marigold IV") within a subject.
+    function getSubjectBooks(subject) {
+        return getSubjectTitleList(subject, m => isEBook(m));
+    }
+
+    function getSubjectTitleList(subject, include) {
         const chapters = [...materials]
-            .filter(m => m.subject_name === subject)
+            .filter(m => m.subject_name === subject && include(m))
             .sort((a, b) => a.material_id - b.material_id)
             .reduce((acc, m) => {
                 const existing = acc.find(c => c.title === m.title);
@@ -301,27 +321,39 @@ export async function init(navigateTo, state) {
         return getSubjectChapters(subject).map(c => c.title);
     }
 
-    // --- Chapter chips (inside the filter modal, scoped to the selected subject) ---
+    // --- Book + topic chips (inside the filter modal, scoped to the selected subject) ---
+    // E-Books filter by book name; video/audio filter by topic. Both share one
+    // selection (pendingChapter), which is matched against the material title.
     function renderChapterChips() {
-        if (!modalChapterRow) return;
+        const showBooks  = activeType === 'All' || activeType === 'E-Book';
+        const showTopics = activeType !== 'E-Book';
+        document.getElementById('filter-book-group')?.classList.toggle('hidden', !showBooks);
+        document.getElementById('filter-topic-group')?.classList.toggle('hidden', !showTopics);
 
-        const chapters = pendingSubject === 'All' ? [] : getSubjectChapters(pendingSubject);
-
-        const chips = [`<div class="category-pill" data-chapter="All">All Chapters</div>`];
-        chapters.forEach((c, i) => {
-            const label = c.chapter_number ? `Chapter ${c.chapter_number}` : `Chapter ${i + 1}`;
-            chips.push(`<div class="category-pill" data-chapter="${escapeHTML(c.title)}">${label}</div>`);
-        });
-        modalChapterRow.innerHTML = chips.join('');
-
-        modalChapterRow.querySelectorAll('.category-pill').forEach(pill => {
-            pill.classList.toggle('active', pill.dataset.chapter === pendingChapter);
-            pill.addEventListener('click', () => {
-                pendingChapter = pill.dataset.chapter;
-                modalChapterRow.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
-                pill.classList.add('active');
+        const fill = (row, items, allLabel, emptyHint) => {
+            if (!row) return;
+            const chips = [`<div class="category-pill" data-chapter="All">${allLabel}</div>`];
+            items.forEach(c => {
+                chips.push(`<div class="category-pill" data-chapter="${escapeHTML(c.title)}">${escapeHTML(c.title)}</div>`);
             });
-        });
+            row.innerHTML = chips.join('');
+            if (pendingSubject === 'All') {
+                row.insertAdjacentHTML('beforeend', `<span class="filter-hint">${emptyHint}</span>`);
+            }
+            row.querySelectorAll('.category-pill').forEach(pill => {
+                pill.classList.toggle('active', pill.dataset.chapter === pendingChapter);
+                pill.addEventListener('click', () => {
+                    pendingChapter = pill.dataset.chapter;
+                    [modalBookRow, modalChapterRow].forEach(r => r?.querySelectorAll('.category-pill').forEach(p => {
+                        p.classList.toggle('active', p.dataset.chapter === pendingChapter);
+                    }));
+                });
+            });
+        };
+
+        const none = pendingSubject === 'All';
+        fill(modalBookRow, none ? [] : getSubjectBooks(pendingSubject), 'All Books', 'Pick a subject to see its books');
+        fill(modalChapterRow, none ? [] : getSubjectChapters(pendingSubject), 'All Topics', 'Pick a subject to see its topics');
     }
 
     // --- Filter modal open/close ---
@@ -408,13 +440,8 @@ export async function init(navigateTo, state) {
             chips.push(`<div class="active-filter-chip">Content Type: ${escapeHTML(activeType)}<i class="fa-solid fa-xmark" id="clear-type-filter" role="button" aria-label="Clear content type"></i></div>`);
         }
         if (activeChapter !== 'All') {
-            const chapters = getSubjectChapters(activeSubject);
-            const idx = chapters.findIndex(c => c.title === activeChapter);
-            const matchedChapter = idx >= 0 ? chapters[idx] : null;
-            const chapterLabel = matchedChapter?.chapter_number
-                ? `Chapter ${matchedChapter.chapter_number}`
-                : (idx >= 0 ? `Chapter ${idx + 1}` : escapeHTML(activeChapter));
-            chips.push(`<div class="active-filter-chip">${chapterLabel}<i class="fa-solid fa-xmark" id="clear-chapter-filter"></i></div>`);
+            const chapterIsBook = materials.some(m => m.title === activeChapter && isEBook(m));
+            chips.push(`<div class="active-filter-chip">${chapterIsBook ? 'Book' : 'Topic'}: ${escapeHTML(activeChapter)}<i class="fa-solid fa-xmark" id="clear-chapter-filter"></i></div>`);
         }
         chips.push(`<button type="button" class="active-filter-clear" id="clear-all-filters">Clear Filters</button>`);
         activeFiltersRow.classList.remove('hidden');
@@ -477,8 +504,10 @@ export async function init(navigateTo, state) {
 
     function setContentType(type) {
         activeType = type;
+        activeChapter = pendingChapter = 'All'; // a book/topic pick doesn't carry over to another type
         currentPage = 1;
         syncTypeFilterUI();
+        renderChapterChips();
         renderActiveFilterChip();
         renderFiltered();
     }
@@ -522,6 +551,7 @@ export async function init(navigateTo, state) {
         if (activeSubject !== 'All') {
             filtered = filtered.filter(m => m.subject_name === activeSubject);
         }
+        // A book/topic pick narrows by title within the chosen subject.
         if (activeChapter !== 'All') {
             filtered = filtered.filter(m => m.title === activeChapter);
         }
@@ -584,7 +614,7 @@ export async function init(navigateTo, state) {
             ` : `<div class="course-card-not-started">Not Started</div>`;
 
             return `
-                <div class="course-card" onclick="window.viewMaterial(${mat.material_id})">
+                <div class="course-card" data-material-id="${mat.material_id}" onclick="window.viewMaterial(${mat.material_id})">
                     <div class="course-card-banner${mat.thumbnail_url ? ' has-thumb' : ''}" style="${mat.thumbnail_url ? '' : `background:${banner};`}">
                         ${bannerHTML}
                     </div>
@@ -634,6 +664,20 @@ export async function init(navigateTo, state) {
     }
 
     // --- Global click handler for items ---
+    // Start opening an e-book as soon as a finger/pointer lands on its card, so the
+    // reader is usually ready by the time the click completes.
+    if (container) {
+        const warmFromEvent = (e) => {
+            const card = e.target.closest?.('.course-card');
+            if (!card) return;
+            const mat = materials.find(m => m.material_id === Number(card.dataset.materialId));
+            if (mat && isEBook(mat)) warmPdf(mat.file_url);
+        };
+        container.addEventListener('pointerover', warmFromEvent);
+        container.addEventListener('touchstart', warmFromEvent, { passive: true });
+        container.addEventListener('focusin', warmFromEvent);
+        loadPdfJs().catch(() => {});
+    }
     window.viewMaterial = function(id) {
         const mat = materials.find(m => m.material_id === id);
         if (mat) {

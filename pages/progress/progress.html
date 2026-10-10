@@ -4,23 +4,62 @@
         <div class="progress-class-tag" id="progress-class-tag">Class —</div>
     </div>
 
-    <div class="stats-dashboard">
-        <div class="stat-frame">
-            <div class="stat-val" id="stat-lessons">0</div>
-            <div class="stat-label">LESSONS</div>
+    <div class="progress-hero">
+        <div class="hero-ring" id="hero-ring" style="--p:0">
+            <span id="hero-percent">0%</span>
         </div>
-        <div class="stat-frame">
-            <div class="stat-val" id="stat-quizzes">0</div>
-            <div class="stat-label">QUIZZES</div>
-        </div>
-        <div class="stat-frame">
-            <div class="stat-val" id="stat-score">—</div>
-            <div class="stat-label">AVG SCORE</div>
+        <div class="hero-text">
+            <h3>Overall completion</h3>
+            <p id="hero-sub">Complete lessons to see your progress grow.</p>
         </div>
     </div>
 
-    <div class="evaluation-pipeline">
-        <div class="divider-title">Subject Progress</div>
+    <div class="lp-header">
+        <div>
+            <h3 class="lp-title">Your learning progress</h3>
+            <p class="lp-sub" id="lp-sub">Your activity will show here as you learn.</p>
+        </div>
+        <a href="#courses" class="lp-link" onclick="window.navigateTo && window.navigateTo('courses'); return false;">Continue learning <span aria-hidden="true">→</span></a>
+    </div>
+
+    <div class="stats-dashboard">
+        <div class="stat-frame" style="--c:#2f9560;--tint:#e3f2e9">
+            <span class="stat-icon"><i class="fa-solid fa-book-open"></i></span>
+            <div class="stat-label">Topics covered</div>
+            <div class="stat-val" id="stat-lessons">0</div>
+            <small id="stat-lessons-note">of 0 topics</small>
+        </div>
+        <div class="stat-frame" style="--c:#4a62a8;--tint:#e8edf8">
+            <span class="stat-icon"><i class="fa-solid fa-bullseye"></i></span>
+            <div class="stat-label">Quiz score</div>
+            <div class="stat-val" id="stat-score">—</div>
+            <small id="stat-score-note">No attempts yet</small>
+        </div>
+        <div class="stat-frame" style="--c:#e0922b;--tint:#fcf1de">
+            <span class="stat-icon"><i class="fa-solid fa-circle-question"></i></span>
+            <div class="stat-label">Quizzes taken</div>
+            <div class="stat-val" id="stat-quizzes">0</div>
+            <small id="stat-quizzes-note">of 0 available</small>
+        </div>
+        <div class="stat-frame" style="--c:#8a5cc0;--tint:#f0e9f8">
+            <span class="stat-icon"><i class="fa-solid fa-clock"></i></span>
+            <div class="stat-label">Time spent</div>
+            <div class="stat-val" id="stat-time">—</div>
+            <small>Audio &amp; video lessons</small>
+        </div>
+    </div>
+
+    <div class="evaluation-pipeline" role="region" aria-roledescription="carousel" aria-label="Subject progress">
+        <div class="sp-header">
+            <div>
+                <h3 class="sp-title">SUBJECT PROGRESS</h3>
+                <p class="sp-count" id="subject-progress-count" aria-live="polite"></p>
+            </div>
+            <div class="sp-nav">
+                <button type="button" class="sp-nav-btn" id="sp-prev" aria-label="Previous subjects" disabled><i class="fa-solid fa-chevron-left"></i></button>
+                <button type="button" class="sp-nav-btn" id="sp-next" aria-label="Next subjects" disabled><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </div>
         <div class="progress-trace-list" id="dynamic-subject-progress">
             <!-- Populated by progress.js -->
             <div class="loading-state" style="padding:30px;text-align:center;color:#bbb;">

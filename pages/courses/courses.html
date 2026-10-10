@@ -74,11 +74,18 @@
             </div>
         </div>
 
-        <div class="filter-group">
-            <label class="filter-group-label">Chapter</label>
+        <div class="filter-group" id="filter-book-group">
+            <label class="filter-group-label">Book (E-Books)</label>
+            <div class="category-slider" id="filter-modal-books">
+                <div class="category-pill active" data-chapter="All">All Books</div>
+            </div>
+        </div>
+
+        <div class="filter-group" id="filter-topic-group">
+            <label class="filter-group-label">Topic (Video &amp; Audio)</label>
             <div class="category-slider" id="filter-modal-chapters">
                 <!-- Populated by courses.js based on the selected subject -->
-                <div class="category-pill active" data-chapter="All">All Chapters</div>
+                <div class="category-pill active" data-chapter="All">All Topics</div>
             </div>
         </div>
 

@@ -45,5 +45,14 @@
 
     <!-- Permissions -->
 
+    <!-- Android 11+ package visibility: needed to hand https links to a browser (e.g. YouTube, OAuth) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
     <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

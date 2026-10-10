@@ -1,6 +1,7 @@
 // Logic for lesson
 import { Browser } from '@capacitor/browser';
 import { createPdfReader } from './pdf-reader.js';
+import { loadPdfJs, takeWarmPdf, PDF_STREAM_OPTIONS } from './pdf-loader.js';
 
 // Extracts a YouTube video ID from any common URL shape (watch?v=, youtu.be/,
 // embed/, shorts/), ignoring extra query params like `si`/`feature`/`t`.
@@ -125,27 +126,7 @@ function renderYouTubePlayer(container, videoId, hooks) {
     }).catch(() => showYouTubeFallback(container, videoId));
 }
 
-// Lazily loads Mozilla's PDF.js (only once) so PDFs can be rasterized onto a
-// <canvas> and shown right inside the app — Android's WebView has no built-in
-// PDF plugin, so a plain <iframe src="file.pdf"> just shows a blank page there.
-// 3.x is the last line that ships a classic (non-module) pdf.min.js + worker on cdnjs.
-const PDFJS_VERSION = '3.11.174';
-let pdfjsLoadPromise = null;
-function loadPdfJs() {
-    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-    if (pdfjsLoadPromise) return pdfjsLoadPromise;
-    pdfjsLoadPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
-        script.onload = () => {
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
-            resolve(window.pdfjsLib);
-        };
-        script.onerror = () => reject(new Error('Failed to load PDF renderer.'));
-        document.head.appendChild(script);
-    });
-    return pdfjsLoadPromise;
-}
+// PDF.js is loaded by ./pdf-loader.js (shared with the library page, which pre-opens books on hover).
 
 // Renders a PDF page-by-page inside the shared reader shell used elsewhere on this
 // page (see pdf-reader.js for the fit / pinch / pan / zoom engine). `pdfUrls` is one URL
@@ -163,8 +144,18 @@ async function renderPdfInline(container, pdfUrls) {
     }
     for (const url of candidates) {
         try {
-            // The proxy streams the whole file in one response, so range requests are skipped.
-            const pdfDoc = await pdfjsLib.getDocument({ url, disableRange: url.startsWith(DRIVE_PROXY_ENDPOINT) }).promise;
+            let pdfDoc = null;
+            const warmedDoc = takeWarmPdf(url);
+            if (warmedDoc) pdfDoc = await warmedDoc.catch(() => null);
+            if (!pdfDoc) {
+                // The proxy streams the whole file in one response, so range requests are skipped.
+                const viaProxy = url.startsWith(DRIVE_PROXY_ENDPOINT);
+                pdfDoc = await pdfjsLib.getDocument({
+                    url,
+                    ...PDF_STREAM_OPTIONS,
+                    ...(viaProxy ? { disableRange: true, disableAutoFetch: false } : {})
+                }).promise;
+            }
             return await createPdfReader(container, pdfDoc);
         } catch (err) {
             console.warn('Inline PDF source failed, trying the next one:', url.slice(0, 80), err?.message || err);

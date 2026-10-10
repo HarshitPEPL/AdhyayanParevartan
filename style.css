@@ -82,10 +82,10 @@ html, body {
 /* --- NATIVE MOBILE APP / APK OVERRIDES --- */
 /* Bezel-less screen safe area notches padding for native APK environments */
 body.native-app #app-container {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
 body.native-app #bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 #system-ribbon .status-icons {

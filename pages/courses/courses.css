@@ -203,6 +203,13 @@
     padding: 4px;
 }
 
+.filter-hint {
+    align-self: center;
+    font-size: 11px;
+    color: #98a098;
+    white-space: nowrap;
+}
+
 /* Format category pills */
 .category-slider {
     gap: 8px;

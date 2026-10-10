@@ -1,40 +1,78 @@
-<div class="screen quiz-screen">
-    <div class="quiz-header">
-        <button class="back-btn" onclick="navigateTo('home')" aria-label="Back to home"><i class="fa-solid fa-chevron-left"></i></button>
-        <div class="quiz-header-center">
-            <div class="counter" id="quiz-counter">Loading quiz...</div>
-            <div class="quiz-progress-track">
-                <div class="quiz-progress-fill" id="quiz-progress-fill"></div>
+<div class="screen qq-screen">
+    <section id="qq-question-view" aria-label="Quiz question">
+        <div class="qq-top">
+            <button type="button" class="qq-close" id="qq-close" aria-label="Close quiz">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+            <div class="qq-top-right">
+                <span class="qq-counter" id="quiz-counter">Loading quiz...</span>
+                <span class="qq-timer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>
+                    <span id="quiz-timer">00:00</span>
+                </span>
             </div>
         </div>
-        <div class="stopwatch"><i class="fa-solid fa-stopwatch"></i> <span id="quiz-timer">00:00</span></div>
-    </div>
-
-    <div class="quiz-meta-card">
-        <div class="quiz-meta-icon" id="quiz-page-icon"><i class="fa-solid fa-book"></i></div>
-        <div class="quiz-meta-text">
-            <div class="quiz-meta-subject" id="quiz-page-subject">Subject</div>
-            <div class="quiz-meta-chapter" id="quiz-page-chapter">Chapter name</div>
+        <div class="qq-bar" role="progressbar" aria-label="Quiz progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="qq-bar">
+            <span id="quiz-progress-fill"></span>
         </div>
-        <div class="quiz-type-badge" id="quiz-type-badge">MCQ</div>
-    </div>
 
-    <div id="quiz-question-view" class="quiz-question-view">
-        <div class="question-frame" id="quiz-question"></div>
-        <div class="options-matrix" id="quiz-options"></div>
-    </div>
+        <span class="qq-pill" id="qq-pill">Quiz</span>
+        <h1 class="qq-question" id="quiz-question"></h1>
+        <div class="qq-options" id="quiz-options" role="radiogroup" aria-label="Answer options"></div>
+        <div class="qq-feedback" id="qq-feedback" role="status" aria-live="polite" hidden></div>
 
-    <div class="quiz-results-view hidden" id="quiz-results-view">
-        <div class="results-trophy"><i class="fa-solid fa-trophy"></i></div>
-        <div class="results-score-ring" id="results-score-ring"><span id="results-score-value">0%</span></div>
-        <div class="results-title" id="results-title">Quiz complete!</div>
-        <div class="results-subtitle" id="results-subtitle">You got 0 out of 0 correct.</div>
-        <div class="results-stats" id="results-stats"></div>
-        <div class="results-hint"><i class="fa-solid fa-circle-info"></i> You can revisit the quiz from Home anytime.</div>
-    </div>
+        <div class="qq-footer">
+            <button type="button" class="qq-btn qq-btn-outline" id="quiz-skip-btn">Skip</button>
+            <button type="button" class="qq-btn qq-btn-main" id="quiz-next-btn" disabled>Check answer</button>
+        </div>
+    </section>
 
-    <div class="quiz-footer-nav">
-        <button class="btn btn-outline" id="quiz-prev-btn">Previous</button>
-        <button class="btn btn-primary" id="quiz-next-btn" disabled>Next Question</button>
+    <section id="qq-results-view" hidden aria-label="Quiz results">
+        <div class="qq-top">
+            <button type="button" class="qq-close" id="qq-results-close" aria-label="Close results">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+            <span class="qq-results-name" id="qq-results-name">Quiz</span>
+        </div>
+
+        <div class="qq-result-card">
+            <div class="qq-ring">
+                <svg viewBox="0 0 120 120" width="148" height="148" aria-hidden="true">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="var(--track)" stroke-width="10"/>
+                    <circle id="qq-ring-arc" cx="60" cy="60" r="52" fill="none" stroke="var(--green)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" transform="rotate(-90 60 60)"/>
+                </svg>
+                <div class="qq-ring-text">
+                    <strong id="qq-ring-score">0/0</strong>
+                    <span id="qq-ring-pct">0%</span>
+                </div>
+            </div>
+            <h2 class="qq-result-title" id="results-title">Quiz complete!</h2>
+            <p class="qq-result-line" id="results-subtitle"></p>
+            <div class="qq-tiles">
+                <div class="qq-tile-stat good"><strong id="qq-stat-correct">0</strong><span>Correct</span></div>
+                <div class="qq-tile-stat bad"><strong id="qq-stat-wrong">0</strong><span>Wrong</span></div>
+                <div class="qq-tile-stat grey"><strong id="qq-stat-time">0:00</strong><span>Time</span></div>
+            </div>
+        </div>
+
+        <div id="qq-review" hidden>
+            <h3 class="qq-review-title">Review mistakes</h3>
+            <div id="qq-review-list"></div>
+        </div>
+
+        <div class="qq-footer">
+            <button type="button" class="qq-btn qq-btn-outline" id="qq-retry">Retry</button>
+            <button type="button" class="qq-btn qq-btn-main" id="qq-next-quiz">Next chapter quiz</button>
+        </div>
+    </section>
+
+    <div class="qq-sheet-backdrop" id="qq-sheet" hidden>
+        <div class="qq-sheet" role="dialog" aria-modal="true" aria-labelledby="qq-sheet-q">
+            <span class="qq-badge-q" id="qq-sheet-badge">Q1</span>
+            <h3 id="qq-sheet-q"></h3>
+            <p class="qq-sheet-row wrong"><span>Your answer</span><b id="qq-sheet-yours"></b></p>
+            <p class="qq-sheet-row right"><span>Correct answer</span><b id="qq-sheet-correct"></b></p>
+            <button type="button" class="qq-btn qq-btn-main" id="qq-sheet-close">Got it</button>
+        </div>
     </div>
 </div>
