@@ -2349,3 +2349,43 @@ button:focus-visible {
 .comp-track::before,
 .comp-track::after { display: none !important; content: none !important; }
 .comp-card { scroll-snap-align: start !important; }
+
+/* Explore subjects: swipeable carousel with centered dots */
+.explore-subjects-section .subjects-grid {
+    display: flex;
+    grid-template-columns: none;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-top: 6px;
+    padding-bottom: 10px;
+}
+.explore-subjects-section .subjects-grid::-webkit-scrollbar { display: none; }
+.explore-subjects-section .subjects-grid .subject-card {
+    flex: 0 0 calc((100% - 12px) / 2);
+    scroll-snap-align: start;
+    justify-content: center;
+}
+@media (min-width: 641px) {
+    .explore-subjects-section .subjects-grid .subject-card { flex-basis: calc((100% - 24px) / 3); }
+}
+@media (min-width: 1025px) {
+    .explore-subjects-section .subjects-grid { gap: 14px; }
+    .explore-subjects-section .subjects-grid .subject-card { flex-basis: calc((100% - 56px) / 5); }
+}
+.subjects-dots { margin: 6px auto 0; }
+.subjects-dots button {
+    all: unset;
+    box-sizing: border-box;
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #d1d5db;
+    cursor: pointer;
+    transition: width 0.2s, background 0.2s;
+}
+.subjects-dots button.active { width: 20px; background: #22a35a; }
+.subjects-dots button:focus-visible { outline: 2px solid #22a35a; outline-offset: 2px; }

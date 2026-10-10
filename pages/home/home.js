@@ -551,7 +551,7 @@ export async function init(navigateTo, state) {
                 if (!subjects || subjects.length === 0) {
                     subGrid.innerHTML = `<div style="padding:16px;color:#888;font-size:14px;">No subjects found for Class ${classNumber}.</div>`;
                 } else {
-                    subGrid.innerHTML = subjects.slice(0, 5).map((sub, i) => {
+                    subGrid.innerHTML = subjects.map((sub, i) => {
                         const icon = SUBJECT_ICONS[sub.subject_name] || 'fa-book';
                         const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
                         return `
@@ -563,8 +563,11 @@ export async function init(navigateTo, state) {
                             </button>
                         `;
                     }).join('');
+                    setupSubjectsCarousel(subGrid, document.getElementById('subjects-dots'));
                 }
             }
+            const seeAll = document.getElementById('home-subjects-see-all');
+            if (seeAll) seeAll.onclick = () => window.navigateTo && window.navigateTo('courses');
         } catch (err) {
             console.error('Failed to load subjects:', err);
         }
@@ -788,6 +791,43 @@ const COMP_ART = {
         + '<polygon points="170,175 205,126 224,152 250,112 290,175" fill-opacity=".5"/>'
         + '<polygon points="250,112 241,127 250,123 258,129" fill-opacity=".9"/><polygon points="205,126 198,136 205,133 211,138" fill-opacity=".9"/></g>'
 };
+
+// One dot per subject card; the active dot follows the card nearest the left edge.
+function setupSubjectsCarousel(track, dotsEl) {
+    if (!track || !dotsEl) return;
+    const cards = Array.from(track.querySelectorAll('.subject-card'));
+    dotsEl.replaceChildren();
+    dotsEl.hidden = cards.length <= 1;
+    cards.forEach((card, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('aria-label', `Go to subject ${i + 1}`);
+        b.addEventListener('click', () => {
+            track.scrollTo({ left: card.offsetLeft - track.offsetLeft, behavior: 'smooth' });
+        });
+        dotsEl.appendChild(b);
+    });
+    const dots = Array.from(dotsEl.children);
+    const update = () => {
+        const max = track.scrollWidth - track.clientWidth;
+        let idx = 0;
+        if (max > 1 && track.scrollLeft >= max - 2) {
+            idx = cards.length - 1;
+        } else {
+            const base = track.scrollLeft + track.offsetLeft;
+            let best = Infinity;
+            cards.forEach((c, i) => {
+                const d = Math.abs(c.offsetLeft - base);
+                if (d < best) { best = d; idx = i; }
+            });
+        }
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    };
+    let raf = 0;
+    track.onscroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    track.scrollLeft = 0;
+    update();
+}
 
 function renderCompetitiveCarousel(navigateTo, state) {
     const track = document.getElementById('home-competitive-track');
