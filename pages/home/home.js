@@ -507,12 +507,13 @@ export async function init(navigateTo, state) {
         state.lastLibraryRoute = 'home'; // the lesson's back button returns here
         navigateTo('lesson');
     };
-    const refreshContinue = async (classNumber) => {
+    // `materialsRequest` lets the caller share one class-materials fetch with the subjects row.
+    const refreshContinue = async (classNumber, materialsRequest = window.adhyayan.getMaterialsByClass(classNumber)) => {
         const token = ++continueToken;
         showContinueState('loading');
         let materials = [];
         try {
-            materials = await window.adhyayan.getMaterialsByClass(classNumber) || [];
+            materials = await materialsRequest || [];
             const progress = await window.adhyayan.getMaterialProgressForUser(user?.user_id);
             if (token === continueToken) {
                 renderContinueLearning({ materials, progress, classNumber, openMaterial: openContinueMaterial });
@@ -536,20 +537,31 @@ export async function init(navigateTo, state) {
         let loadedMaterials = [];
         let loadedQuizzes = [];
 
+        // One fetch of the class's materials feeds both the continue card and the subjects row.
+        const classMaterialsRequest = window.adhyayan.getMaterialsByClass(classNumber);
+        classMaterialsRequest.catch(() => {}); // failures are handled where it's awaited
         // Fetched in parallel with the subjects below; renders its own states.
-        const materialsPromise = refreshContinue(classNumber);
+        const materialsPromise = refreshContinue(classNumber, classMaterialsRequest);
 
         const subGrid = document.getElementById('subjects-grid');
         if (el('subNote')) el('subNote').textContent = `Jump straight into a subject for Class ${classNumber}.`;
 
         try {
-            const subjects = await window.adhyayan.getSubjectsByClass(classNumber);
+            const [allSubjects, classMaterials] = await Promise.all([
+                window.adhyayan.getSubjectsByClass(classNumber),
+                classMaterialsRequest.catch(() => null)
+            ]);
             if (isStale()) return;
-            loadedSubjects = subjects || [];
+            // Only subjects with uploaded materials get a card (same rule as the Courses
+            // page filters). If materials couldn't be loaded, show every subject rather than none.
+            const withContent = classMaterials ? new Set(classMaterials.map((m) => m.subject_name)) : null;
+            const subjects = (allSubjects || []).filter((s) => !withContent || withContent.has(s.subject_name));
+            loadedSubjects = subjects;
 
             if (subGrid) {
-                if (!subjects || subjects.length === 0) {
-                    subGrid.innerHTML = `<div style="padding:16px;color:#888;font-size:14px;">No subjects found for Class ${classNumber}.</div>`;
+                if (subjects.length === 0) {
+                    subGrid.innerHTML = `<div style="padding:16px;color:#888;font-size:14px;">No subjects with study material yet for Class ${classNumber}.</div>`;
+                    setupSubjectsCarousel(subGrid, document.getElementById('subjects-dots'));
                 } else {
                     subGrid.innerHTML = subjects.map((sub, i) => {
                         const icon = SUBJECT_ICONS[sub.subject_name] || 'fa-book';
