@@ -201,6 +201,8 @@ end $$;
 insert into roles (role_name) values ('Admin') on conflict (role_name) do nothing;
 insert into roles (role_name) values ('Teacher') on conflict (role_name) do nothing;
 insert into roles (role_name) values ('Student') on conflict (role_name) do nothing;
+-- Parent accounts (signup and login both offer this role; users.role_id 4).
+insert into roles (role_id, role_name) overriding system value values (4, 'Parent') on conflict do nothing;
 
 insert into content_formats (format_name) values ('E-Book') on conflict (format_name) do nothing;
 insert into content_formats (format_name) values ('Audio Book') on conflict (format_name) do nothing;

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,68 +8,117 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Tillana:wght@500&display=swap" rel="stylesheet">
 <style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-html{font-size:16px;-webkit-text-size-adjust:100%;background:#f5f5f3}
+/* Login screen. This <style> is injected with the page and removed when the route changes,
+   so nothing here leaks into other screens. Rules prefixed with #root-view / body.auth-active
+   override the older shared rules in style.css (.screen margins/padding per breakpoint,
+   .auth-screen overflow, .auth-page fixed height) for this screen only. */
 *{-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
-body{margin:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif}
 a{cursor:pointer}
-.screen.auth-screen{background:#f5f5f3;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vh,14px) clamp(12px,3vw,20px);overflow-x:hidden}
-.auth-page{width:min(100%,680px);margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(2px,0.4vh,5px);padding:0 clamp(12px,2vw,24px)}
-.auth-header-container{text-align:center;margin-bottom:clamp(2px,0.3vh,4px);width:100%}
-.auth-title{display:flex;align-items:center;justify-content:center;gap:clamp(3px,1vw,6px);margin:0;font-size:clamp(.95rem,2.8vw,1.4rem);line-height:1.05;letter-spacing:-.04em;color:#111;font-weight:800}
-.auth-brand-logo{font-family:Tillana,serif;font-weight:500;letter-spacing:0;font-size:clamp(1.8rem,6.5vw,2.8rem);line-height:1;background:linear-gradient(90deg,#0d3d14,#1fa63a);-webkit-background-clip:text;background-clip:text;color:transparent}
-.auth-brand-logo-img{display:block;width:clamp(90px,24vw,160px);max-width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(17,17,17,.08))}
-.auth-subtitle{margin:clamp(1px,0.2vh,2px) 0 0;font-size:clamp(.68rem,1.8vw,.78rem);color:#666;font-weight:600;font-style:italic}
-.auth-form-group{width:100%;margin-bottom:clamp(2px,0.3vh,4px);display:flex;flex-direction:column;gap:clamp(2px,0.35vh,5px);align-items:center}
-.input-with-icon{position:relative;width:100%}
-.input-with-icon i{position:absolute;left:clamp(12px,2.5vw,18px);top:50%;transform:translateY(-50%);color:#6f6f6f;font-size:clamp(.9rem,1vw,1.1rem);pointer-events:none;display:flex}
-.input-with-icon input,.input-with-icon select{width:100%;height:clamp(39px,6vmin,48px);border-radius:clamp(10px,2.8vmin,16px);border:1px solid #cfcfcf;background:rgba(255,255,255,.3);color:#111;font-size:clamp(.88rem,0.93vw,.98rem);font-weight:500;padding:0 clamp(12px,2.5vw,18px) 0 clamp(40px,7vw,50px);outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none;min-height:39px;font-family:inherit}
-.input-with-icon select{cursor:pointer;padding-right:42px}
+
+/* ---- Full-screen background (white bands came from #desktop-wrapper / #app-container) ---- */
+body.auth-active,
+body.auth-active #desktop-wrapper,
+body.auth-active #app-container{background:#f5f5f3}
+/* No rubber-band bounce: the screen only scrolls when it genuinely can't fit (e.g. landscape phones). */
+body.auth-active #root-view{overflow-x:hidden;overscroll-behavior:none}
+body.auth-active,body.auth-active html{overscroll-behavior:none}
+
+/* ---- Fit to the screen height ----
+   Vertical spacing and control heights shrink with the viewport height, so the whole form fits
+   without scrolling on short screens (desktop browsers with toolbars, small phones), and reach
+   the full sizes (14px/20px gaps, 50px controls) on tall ones. Controls never go below 44px. */
+#root-view > .screen.auth-screen{
+  --gap-field:clamp(4px,1.4vh,14px);
+  --gap-section:clamp(6px,1.9vh,20px);
+  --ctrl-h:clamp(44px,6vh,50px);
+  --pad-top:clamp(10px,3.5vh,40px);
+  --pad-bottom:clamp(12px,3vh,24px);
+  --card-pad:clamp(12px,3vh,32px);
+  --logo-w:clamp(100px,17vh,160px)
+}
+@supports (height:1dvh){
+  #root-view > .screen.auth-screen{
+    --gap-field:clamp(4px,1.4dvh,14px);
+    --gap-section:clamp(6px,1.9dvh,20px);
+    --ctrl-h:clamp(44px,6dvh,50px);
+    --pad-top:clamp(10px,3.5dvh,40px);
+    --pad-bottom:clamp(12px,3dvh,24px);
+    --card-pad:clamp(12px,3dvh,32px);
+    --logo-w:clamp(100px,17dvh,160px)
+  }
+}
+
+/* ---- Phone (< 600px): full width, content from the top, no card ---- */
+#root-view > .screen.auth-screen{
+  /* flex:1 0 auto fills #root-view (the viewport, minus the app's own safe-area padding) and
+     grows past it only when the content is taller, so #root-view scrolls instead of clipping. */
+  flex:1 0 auto;width:100%;max-width:none;margin:0;min-height:0;
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+  padding:var(--pad-top) 20px var(--pad-bottom);box-sizing:border-box;background:#f5f5f3;
+  overflow:visible!important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;
+  /* The shared .screen fade-in slides up 10px, which briefly overflows and shows a scrollbar */
+  animation:none
+}
+.auth-brand-panel{display:none}
+.auth-form-side{width:100%;display:flex;justify-content:center}
+#root-view .auth-page{
+  width:100%;max-width:420px;height:auto;max-height:none;overflow:visible;margin:0 auto;padding:0;
+  display:flex;flex-direction:column;align-items:stretch;gap:var(--gap-section);box-sizing:border-box
+}
+.auth-header-container{text-align:center;margin:0;width:100%}
+.auth-title{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin:0;font-size:1.25rem;line-height:1.1;letter-spacing:-.02em;color:#111;font-weight:800}
+.auth-brand-logo{font-family:Tillana,serif;font-weight:500;letter-spacing:0;font-size:2.4rem;line-height:1;background:linear-gradient(90deg,#0d3d14,#1fa63a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.auth-brand-logo-img{display:block;width:var(--logo-w);max-width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(17,17,17,.08))}
+.auth-subtitle{margin:4px 0 0;font-size:.85rem;color:#666;font-weight:600;font-style:italic}
+
+#root-view .auth-form-group{width:100%;margin:0;display:flex;flex-direction:column;gap:var(--gap-field);align-items:stretch}
+#root-view .input-with-icon{position:relative;width:100%;margin:0}
+.input-with-icon i{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#6f6f6f;font-size:18px;pointer-events:none;display:flex}
+#root-view .input-with-icon input,#root-view .input-with-icon select{width:100%;height:var(--ctrl-h);min-height:0;border-radius:12px;border:1px solid #cfcfcf;background:rgba(255,255,255,.3);color:#111;font-size:16px;font-weight:500;padding:0 16px 0 46px;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none;font-family:inherit}
+#root-view .input-with-icon select{cursor:pointer;padding-right:44px}
 .input-with-icon input::placeholder{color:#6b6b6b}
-.input-with-icon input:focus,.input-with-icon select:focus{border-color:#1a8a48;box-shadow:0 0 0 3px rgba(26,138,72,.12)}
+#root-view .input-with-icon input:focus,#root-view .input-with-icon select:focus{border-color:#1a8a48;box-shadow:0 0 0 3px rgba(26,138,72,.12)}
 .select-wrap{position:relative}
-.select-arrow{position:absolute;right:clamp(12px,2.5vw,18px);top:50%;transform:translateY(-50%);color:#444;pointer-events:none;display:flex;font-size:.8rem}
+.select-arrow{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:#444;pointer-events:none;display:flex;font-size:14px}
 .input-with-icon i.select-arrow{left:auto}
-.terms-checkbox-wrap{display:flex;align-items:center;justify-content:center;gap:clamp(5px,0.8vw,8px);width:fit-content;max-width:100%;color:#666;font-size:clamp(.75rem,1.9vw,.83rem);cursor:pointer}
-.terms-checkbox-wrap input{width:16px;height:16px;margin:0;accent-color:#1B8039;cursor:pointer;flex:0 0 auto}
+.terms-checkbox-wrap{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;width:100%;color:#666;font-size:.9rem;cursor:pointer}
+.terms-checkbox-wrap input{width:20px;height:20px;margin:0;accent-color:#1B8039;cursor:pointer;flex:0 0 auto}
 .terms-checkbox-wrap a,.footer-links a{color:#1B8039;font-weight:600;text-decoration:none}
 .terms-checkbox-wrap a:hover{text-decoration:underline}
-.forgot-password-wrap{width:100%;display:flex;justify-content:flex-end;padding-right:4px;margin-bottom:clamp(2px,0.25vh,3px)}
-.forgot-link{color:#1b8d47;font-size:.93rem;font-weight:800;text-decoration:none;line-height:1}
-.auth-continue{width:100%;height:clamp(40px,6vmin,50px);border:none;border-radius:clamp(12px,3vmin,18px);background:linear-gradient(180deg,#72c76e,#5bb861);color:#fff;font-size:clamp(.88rem,0.95vw,1.05rem);font-weight:800;box-shadow:inset 0 -2px 0 rgba(0,0,0,.08);cursor:pointer;transition:transform .15s,filter .2s;min-height:40px;font-family:inherit;margin-bottom:clamp(2px,0.3vh,4px)}
+/* The 44px tap areas below have empty space around their text; pull them in so the visible gaps match. */
+.forgot-password-wrap{width:100%;display:flex;justify-content:flex-end;margin:calc(var(--gap-field) * -0.6) 0}
+.forgot-link{color:#1b8d47;font-size:.95rem;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:0 4px}
+.auth-continue{width:100%;height:var(--ctrl-h);border:none;border-radius:14px;background:linear-gradient(180deg,#72c76e,#5bb861);color:#fff;font-size:16px;font-weight:800;box-shadow:inset 0 -2px 0 rgba(0,0,0,.08);cursor:pointer;transition:transform .15s,filter .2s;font-family:inherit;margin:0}
 .auth-continue:hover{transform:translateY(-1px);filter:brightness(.98)}
-.separator{display:flex;align-items:center;width:100%;margin:clamp(2px,0.3vh,4px) 0 clamp(2px,0.3vh,4px)}
+#root-view .auth-continue,#root-view #btn-google{min-height:var(--ctrl-h);max-height:var(--ctrl-h)}
+.auth-continue:disabled{opacity:.7;cursor:wait;transform:none}
+.separator{display:flex;align-items:center;width:100%;margin:0}
+/* style.css also draws ::before/::after lines on .separator; the spans already draw them here */
+#root-view .separator::before,#root-view .separator::after{content:none}
 .separator span:first-child,.separator span:last-child{flex:1;height:1px;background:#a0a0a0}
-.separator span:nth-child(2){padding:0 clamp(10px,2vw,18px);color:#111;font-size:clamp(.87rem,0.9vw,1rem);font-weight:700}
-#btn-google{width:100%;height:clamp(39px,5.8vmin,48px);border-radius:clamp(12px,3vmin,18px);border:1px solid #cfcfcf;background:rgba(255,255,255,.35);color:#4f4f4f;font-size:clamp(.83rem,0.92vw,.93rem);font-weight:600;display:flex;align-items:center;justify-content:center;gap:clamp(8px,1.8vw,14px);cursor:pointer;min-height:39px;font-family:inherit;transition:background .2s;margin-bottom:clamp(2px,0.3vh,4px)}
-.footer-links{margin-top:clamp(2px,0.3vh,4px);display:flex;align-items:center;justify-content:center;gap:clamp(4px,0.7vw,7px);flex-wrap:wrap;font-size:clamp(.73rem,1.8vw,.83rem);color:#111;font-weight:500}
-.class-setter{width:100%;margin-top:clamp(2px,0.3vh,4px);margin-bottom:clamp(4px,0.6vh,8px);text-align:center}
-.class-label{margin:0 0 clamp(3px,0.6vh,6px);font-size:clamp(.78rem,1.9vw,.88rem);color:#111;font-weight:800}
-.class-capsules-container{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding-bottom:6px;scrollbar-width:none;width:100%}
-.class-capsules-container::-webkit-scrollbar{display:none}
-.class-page{flex:0 0 100%;width:100%;display:flex;justify-content:center;gap:14px;align-items:center;scroll-snap-align:center;scroll-snap-stop:always;padding:0 clamp(8px,1.5vw,12px)}
-#pills{display:flex;flex-direction:row;width:100%;height:100%}
-.pill{width:clamp(36px,6vmin,46px);height:clamp(36px,6vmin,46px);flex:0 0 auto;border-radius:50%;border:2px solid #a7a7a7;background:#fff;display:flex;align-items:center;justify-content:center;font-size:clamp(.88rem,0.95vw,1rem);font-weight:700;color:#111;cursor:pointer;transition:all .2s;user-select:none;font-family:inherit}
-.pill.active,.pill:hover{background:#1b8d47;border-color:#1b8d47;color:#fff}
-.carousel-indicators{display:flex;justify-content:center;align-items:center;gap:clamp(6px,1vw,10px);margin-top:8px;margin-bottom:6px;height:10px;position:relative;width:clamp(70px,25vw,120px);margin-left:auto;margin-right:auto}
-.carousel-indicators::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:#e0e0e0;border-radius:2px;z-index:0;transform:translateY(-50%)}
-.carousel-dot{width:8px;height:8px;border-radius:50%;background:#fff;border:1.5px solid #d0d0d0;cursor:pointer;transition:all .3s ease;position:relative;z-index:1;font-family:inherit;padding:0}
-.carousel-dot.active{background:#2aa35c;border-color:#2aa35c;box-shadow:none}
-.compliance-text{margin-top:clamp(2px,0.3vh,4px);font-size:clamp(.58rem,1.4vw,.68rem);color:#666;font-weight:600;text-align:center}
+.separator span:nth-child(2){padding:0 16px;color:#111;font-size:1rem;font-weight:700}
+#btn-google{width:100%;height:var(--ctrl-h);border-radius:14px;border:1px solid #cfcfcf;background:rgba(255,255,255,.35);color:#4f4f4f;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:12px;cursor:pointer;font-family:inherit;transition:background .2s;margin:0}
+.footer-links{display:flex;align-items:center;justify-content:center;gap:4px 6px;flex-wrap:wrap;font-size:.85rem;color:#111;font-weight:500;margin:calc(var(--gap-section) * -0.6) 0}
+.footer-links a{display:inline-flex;align-items:center;min-height:44px;padding:0 2px}
+#root-view .footer-links .divider{margin:0;color:#a0a0a0}
+.compliance-text{font-size:.75rem;color:#666;font-weight:600;text-align:center}
 .hidden{display:none!important}
+
+/* ---- Popups ---- */
 #signup-overlay,#forgot-pwd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;backdrop-filter:blur(2px)}
-#signup-modal,#forgot-pwd-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:min(92vw,420px);max-height:90vh;overflow-y:auto;background:#fff;border-radius:20px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3);opacity:1;visibility:visible}
+#signup-modal,#forgot-pwd-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:calc(100vw - 32px);max-width:none;max-height:90vh;max-height:90dvh;overflow-y:auto;background:#fff;border-radius:20px;padding:24px;box-sizing:border-box;box-shadow:0 20px 60px rgba(0,0,0,.3);opacity:1;visibility:visible}
 #signup-modal.hidden,#forgot-pwd-modal.hidden{display:none!important}
 #signup-overlay.hidden,#forgot-pwd-overlay.hidden{display:none!important}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .modal-title{font-size:1.2rem;font-weight:800;color:#111;margin:0}
-.modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#333;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#333;padding:0;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-weight:bold;margin-right:-10px}
 .modal-close:hover{color:#000}
-.form-field{margin-bottom:12px}
+.form-field{margin-bottom:14px}
 .form-field label{display:block;font-size:.9rem;font-weight:600;margin-bottom:6px;color:#111}
-.form-field input,.form-field select{width:100%;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-size:.95rem;font-family:inherit;box-sizing:border-box;background:#f9f9f9}
+#signup-modal .form-field input,#signup-modal .form-field select,#forgot-pwd-modal .form-field input{width:100%;height:50px;padding:0 14px;border:1px solid #cfcfcf;border-radius:12px;font-size:16px;font-family:inherit;box-sizing:border-box;background:#f9f9f9}
 .form-field input:focus,.form-field select:focus{outline:none;border-color:#1a8a48;background:#fff;box-shadow:0 0 0 3px rgba(26,138,72,.12)}
-.btn-modal{width:100%;padding:12px;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+#signup-modal .pwd-toggle,#forgot-pwd-modal .pwd-toggle{width:44px!important;height:44px!important;right:4px!important}
+.btn-modal{width:100%;min-height:50px;padding:12px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
 .btn-modal:disabled{opacity:0.6;cursor:not-allowed}
 .btn-primary-modal{background:linear-gradient(180deg,#72c76e,#5bb861);color:#fff}
 .btn-primary-modal:hover:not(:disabled){filter:brightness(.98)}
@@ -77,50 +126,279 @@ a{cursor:pointer}
 .toast.hidden{display:none}
 .google-class-warning{display:none;color:#d9534f;font-size:.85rem;font-weight:600;margin-top:8px;text-align:center}
 :focus-visible{outline:3px solid rgba(27,128,57,.4);outline-offset:2px}
-@media (max-width:520px){.input-with-icon input,.input-with-icon select{font-size:16px}}
+/* Show/hide password, error box, inline SVG icons */
+.input-with-icon .login-eye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;background:transparent;color:#6f6f6f;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;min-width:44px;min-height:44px}
+.input-with-icon .login-eye i{position:static;transform:none;pointer-events:none}
+.auth-error{display:none;width:100%;box-sizing:border-box;gap:8px;align-items:center;background:#fdecea;border:1px solid #e7a39b;color:#a8261a;border-radius:12px;padding:8px 14px;font-size:.9rem;font-weight:600;text-align:left}
+.auth-error.show{display:flex}
+/* Class is no longer picked on the login screen, so this warning must never show */
+#google-class-warning{display:none!important}
+#btn-google svg{width:20px;height:20px;flex:0 0 20px}
+.input-with-icon i svg{display:block}
+.input-with-icon .login-eye svg{display:block}
+
+/* ---- Tablet (600px–1023px): centered white card on grey ---- */
+@media (min-width:600px){
+  #root-view > .screen.auth-screen{padding:var(--card-pad) 32px}
+  /* Auto margins center the card vertically but, unlike justify-content:center,
+     never push its top out of reach when the screen is shorter than the card. */
+  .auth-form-side{margin:auto 0}
+  #root-view .auth-page{max-width:440px;background:#fff;padding:var(--card-pad) 32px;border-radius:24px;box-shadow:0 10px 40px rgba(0,0,0,.08)}
+  #signup-modal,#forgot-pwd-modal{width:min(440px,calc(100vw - 32px))}
+}
+
+/* ---- Desktop (>= 1024px): brand panel + form card, both full height ---- */
+@media (min-width:1024px){
+  #root-view > .screen.auth-screen{display:grid;grid-template-columns:45% 55%;align-items:stretch;padding:0}
+  .auth-brand-panel{display:flex;flex-direction:column;justify-content:center;gap:clamp(12px,2.6vh,28px);padding:clamp(24px,6vh,64px) clamp(40px,5vw,96px);background:linear-gradient(160deg,#1B8039,#0d3d14);color:#fff;box-sizing:border-box}
+  .auth-brand-panel-logo{display:block;width:200px;height:auto;filter:brightness(0) invert(1)}
+  .auth-brand-panel-tagline{margin:0;font-size:1.75rem;line-height:1.3;font-weight:800;letter-spacing:-.01em}
+  .auth-brand-panel-benefits{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;font-size:1.05rem;font-weight:600;opacity:.92}
+  .auth-brand-panel-benefits li{display:flex;align-items:center;gap:12px}
+  .auth-brand-panel-benefits li::before{content:'';flex:0 0 8px;height:8px;border-radius:50%;background:#9be29b}
+  .auth-form-side{margin:0;display:flex;align-items:center;justify-content:center;padding:var(--card-pad) 48px;box-sizing:border-box;background:#f5f5f3}
+}
+
+
+/* ---- Desktop brand panel: learning animation (from learning-animation.html) ---- */
+.learn-anim{width:100%;max-width:520px;height:auto;display:block;overflow:visible}
+.learn-anim *{transform-box:fill-box;transform-origin:center}
+
+/* soft glow behind the student */
+.la-glow{animation:la-pulse 4s ease-in-out infinite}
+@keyframes la-pulse{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.9;transform:scale(1.08)}}
+
+/* student gently bobbing */
+.la-kid{animation:la-bob 3.2s ease-in-out infinite}
+@keyframes la-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.la-arm-l{transform-origin:100% 100%;animation:la-wave-l 2.4s ease-in-out infinite}
+.la-arm-r{transform-origin:0% 100%;animation:la-wave-r 2.4s ease-in-out infinite}
+@keyframes la-wave-l{0%,100%{transform:rotate(0)}50%{transform:rotate(-10deg)}}
+@keyframes la-wave-r{0%,100%{transform:rotate(0)}50%{transform:rotate(10deg)}}
+.la-blink{animation:la-blink 5s infinite}
+@keyframes la-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+
+/* turning page */
+.la-page{transform-box:view-box;transform-origin:200px 0;animation:la-flip 6s ease-in-out infinite}
+@keyframes la-flip{0%,35%{transform:scaleX(1)}60%,100%{transform:scaleX(-1)}}
+
+/* floating learning objects */
+.la-float{animation:la-float 5s ease-in-out infinite}
+.la-d1{animation-delay:-.6s}.la-d2{animation-delay:-1.4s}.la-d3{animation-delay:-2.2s}
+.la-d4{animation-delay:-3s}.la-d5{animation-delay:-3.8s}.la-d6{animation-delay:-4.4s}
+@keyframes la-float{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-12px) rotate(4deg)}}
+.la-spin{animation:la-spin 14s linear infinite}
+@keyframes la-spin{to{transform:rotate(360deg)}}
+.la-twinkle{animation:la-twinkle 2.2s ease-in-out infinite}
+@keyframes la-twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+
+/* sparkles rising out of the book */
+.la-spark{animation:la-rise 4s ease-in infinite;opacity:0}
+@keyframes la-rise{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:1}100%{opacity:0;transform:translateY(-150px) scale(1.1)}}
+
+@media (prefers-reduced-motion:reduce){.learn-anim *{animation:none!important}}
+
+/* In the panel: at most 420px wide, and no taller than the height left after the logo,
+   heading and benefit lines (~400px), so the panel still fits the screen without scrolling.
+   400/340 is the illustration's aspect ratio. */
+.auth-brand-panel .learn-anim{max-width:420px;width:min(100%,calc((100vh - 400px) * 400 / 340));flex:0 0 auto}
+@supports (height:1dvh){.auth-brand-panel .learn-anim{width:min(100%,calc((100dvh - 400px) * 400 / 340))}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
 <div class="screen auth-screen">
+  <!-- Desktop only (>= 1024px): brand panel beside the form -->
+  <aside class="auth-brand-panel">
+    <img src="/Adhyayan-transparent.png" alt="Adhyayan" class="auth-brand-panel-logo">
+    <p class="auth-brand-panel-tagline">Sign in to continue your learning journey</p>
+    <svg class="learn-anim" viewBox="0 0 400 340" role="img" aria-label="A student sitting on a magical open book, amazed by floating stars, planets, letters and numbers">
+      <defs>
+        <radialGradient id="la-glow-g" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#FFF6C9" stop-opacity=".9"/>
+          <stop offset="60%" stop-color="#C8F2C2" stop-opacity=".25"/>
+          <stop offset="100%" stop-color="#C8F2C2" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="la-page-g" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EAF3E6"/>
+        </linearGradient>
+        <linearGradient id="la-planet-g" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0" stop-color="#FFB27A"/><stop offset="1" stop-color="#E8613C"/>
+        </linearGradient>
+      </defs>
+
+      <!-- glow -->
+      <ellipse class="la-glow" cx="200" cy="190" rx="150" ry="130" fill="url(#la-glow-g)"/>
+
+      <!-- dashed orbit with a travelling dot -->
+      <ellipse cx="200" cy="175" rx="160" ry="62" fill="none" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="1.5" stroke-dasharray="4 7"/>
+      <circle r="5" fill="#FFE27A">
+        <animateMotion dur="9s" repeatCount="indefinite" path="M40 175a160 62 0 1 0 320 0a160 62 0 1 0 -320 0"/>
+      </circle>
+
+      <!-- twinkling background stars -->
+      <g fill="#FFFFFF">
+        <circle class="la-twinkle" cx="40" cy="60" r="2.5"/>
+        <circle class="la-twinkle la-d2" cx="360" cy="40" r="2"/>
+        <circle class="la-twinkle la-d4" cx="330" cy="120" r="2.5"/>
+        <circle class="la-twinkle la-d1" cx="70" cy="140" r="2"/>
+        <circle class="la-twinkle la-d3" cx="200" cy="22" r="2.5"/>
+        <circle class="la-twinkle la-d5" cx="120" cy="30" r="1.8"/>
+      </g>
+
+      <!-- ===== Floating learning objects ===== -->
+      <!-- star -->
+      <g transform="translate(70 70)"><g class="la-float">
+        <path d="M0-18 5-6 18-5 8 3 11 16 0 9-11 16-8 3-18-5-5-6Z" fill="#FFD447" stroke="#F2A900" stroke-width="2" stroke-linejoin="round"/>
+      </g></g>
+      <!-- planet with ring -->
+      <g transform="translate(330 78)"><g class="la-float la-d2">
+        <circle r="20" fill="url(#la-planet-g)"/>
+        <circle cx="-7" cy="-6" r="4" fill="#FFFFFF" opacity=".35"/>
+        <ellipse rx="32" ry="8" fill="none" stroke="#FFE7A8" stroke-width="3" transform="rotate(-18)"/>
+      </g></g>
+      <!-- atom -->
+      <g transform="translate(52 175)"><g class="la-float la-d4">
+        <g class="la-spin" fill="none" stroke="#9EE6FF" stroke-width="2.2">
+          <ellipse rx="22" ry="8"/><ellipse rx="22" ry="8" transform="rotate(60)"/><ellipse rx="22" ry="8" transform="rotate(-60)"/>
+        </g>
+        <circle r="4.5" fill="#9EE6FF"/>
+      </g></g>
+      <!-- ABC tile -->
+      <g transform="translate(140 40)"><g class="la-float la-d1">
+        <rect x="-26" y="-15" width="52" height="30" rx="8" fill="#FFFFFF"/>
+        <text y="6" text-anchor="middle" font-family="system-ui,sans-serif" font-size="17" font-weight="800" fill="#1B8039">ABC</text>
+      </g></g>
+      <!-- 2+3 tile -->
+      <g transform="translate(262 38)"><g class="la-float la-d3">
+        <rect x="-24" y="-15" width="48" height="30" rx="8" fill="#FFD447"/>
+        <text y="6" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="800" fill="#7A4B00">2+3</text>
+      </g></g>
+      <!-- lightbulb -->
+      <g transform="translate(350 182)"><g class="la-float la-d5">
+        <circle r="15" fill="#FFF3A6"/>
+        <path d="M-6 13h12v6a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3z" fill="#B9C3BB"/>
+        <path d="M-5 2 0 7 5 2" fill="none" stroke="#E0A800" stroke-width="2" stroke-linecap="round"/>
+        <g stroke="#FFF3A6" stroke-width="2.5" stroke-linecap="round" class="la-twinkle">
+          <path d="M0-24v-6"/><path d="M-18-16l-4-4"/><path d="M18-16l4-4"/>
+        </g>
+      </g></g>
+      <!-- pencil -->
+      <g transform="translate(100 120) rotate(-35)"><g class="la-float la-d6">
+        <rect x="-22" y="-6" width="36" height="12" rx="2" fill="#FF8A5B"/>
+        <rect x="-28" y="-6" width="7" height="12" rx="2" fill="#F7A8C4"/>
+        <path d="M14-6 26 0 14 6Z" fill="#F6D7A7"/><path d="M22-2 26 0 22 2Z" fill="#3A3A48"/>
+      </g></g>
+      <!-- globe -->
+      <g transform="translate(300 128)"><g class="la-float la-d2">
+        <circle r="15" fill="#6EC3FF"/>
+        <path d="M-9-6c4-2 6 2 9 0s3-5 6-3M-11 4c4 3 7-1 10 2s5 3 9 0" fill="none" stroke="#3FAE5A" stroke-width="4" stroke-linecap="round"/>
+      </g></g>
+
+      <!-- ===== Magic open book ===== -->
+      <g>
+        <path d="M200 300 Q130 284 46 296 L46 306 Q130 296 200 314 Q270 296 354 306 L354 296 Q270 284 200 300Z" fill="#0F5A26"/>
+        <path d="M200 270 Q138 246 56 258 L56 300 Q138 290 200 308Z" fill="url(#la-page-g)"/>
+        <path d="M200 270 Q262 246 344 258 L344 300 Q262 290 200 308Z" fill="url(#la-page-g)"/>
+        <g fill="none" stroke="#C9DCC6" stroke-width="2" stroke-linecap="round">
+          <path d="M80 268 Q130 262 180 276"/><path d="M80 280 Q130 274 180 288"/>
+          <path d="M220 276 Q270 262 320 268"/><path d="M220 288 Q270 274 320 280"/>
+        </g>
+        <!-- turning page -->
+        <path class="la-page" d="M200 270 Q250 236 318 244 L318 290 Q258 286 200 308Z" fill="#FFFFFF" stroke="#DDE9D9" stroke-width="1"/>
+        <path d="M200 270 L200 308" stroke="#B5CDB1" stroke-width="2"/>
+      </g>
+
+      <!-- sparkles rising from the book -->
+      <g fill="#FFE27A">
+        <circle class="la-spark" cx="150" cy="270" r="3"/>
+        <circle class="la-spark" cx="250" cy="270" r="3" style="animation-delay:-1s"/>
+        <circle class="la-spark" cx="120" cy="275" r="2.5" style="animation-delay:-2s"/>
+        <circle class="la-spark" cx="280" cy="275" r="2.5" style="animation-delay:-3s"/>
+        <circle class="la-spark" cx="200" cy="262" r="3.5" style="animation-delay:-1.6s"/>
+        <path class="la-spark" d="M175 268l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" style="animation-delay:-2.6s"/>
+        <path class="la-spark" d="M228 266l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" style="animation-delay:-.4s"/>
+      </g>
+
+      <!-- ===== Student ===== -->
+      <g class="la-kid">
+        <!-- arms raised in wonder -->
+        <g class="la-arm-l"><path d="M186 214 Q168 196 160 170" fill="none" stroke="#FF9F43" stroke-width="11" stroke-linecap="round"/><circle cx="159" cy="166" r="7" fill="#E9B48A"/></g>
+        <g class="la-arm-r"><path d="M214 214 Q232 196 240 170" fill="none" stroke="#FF9F43" stroke-width="11" stroke-linecap="round"/><circle cx="241" cy="166" r="7" fill="#E9B48A"/></g>
+        <!-- body -->
+        <rect x="180" y="202" width="40" height="52" rx="16" fill="#FF9F43"/>
+        <path d="M190 204 L200 216 L210 204" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- legs (sitting) -->
+        <rect x="166" y="246" width="34" height="16" rx="8" fill="#3D6FD8"/>
+        <rect x="200" y="246" width="34" height="16" rx="8" fill="#3D6FD8"/>
+        <ellipse cx="164" cy="256" rx="8" ry="7" fill="#2B2B3A"/>
+        <ellipse cx="236" cy="256" rx="8" ry="7" fill="#2B2B3A"/>
+        <!-- neck + head -->
+        <rect x="194" y="192" width="12" height="14" rx="5" fill="#E9B48A"/>
+        <circle cx="200" cy="176" r="24" fill="#F2C29B"/>
+        <circle cx="176" cy="180" r="5" fill="#E9B48A"/><circle cx="224" cy="180" r="5" fill="#E9B48A"/>
+        <!-- hair -->
+        <path d="M176 172 Q174 148 200 148 Q228 148 225 172 Q218 160 206 160 Q198 166 186 162 Q180 166 176 172Z" fill="#2B2B3A"/>
+        <!-- eyes looking up -->
+        <g class="la-blink">
+          <ellipse cx="191" cy="174" rx="3.6" ry="4.4" fill="#2B2B3A"/>
+          <ellipse cx="209" cy="174" rx="3.6" ry="4.4" fill="#2B2B3A"/>
+        </g>
+        <circle cx="192.2" cy="172.2" r="1.3" fill="#FFFFFF"/><circle cx="210.2" cy="172.2" r="1.3" fill="#FFFFFF"/>
+        <!-- cheeks + "wow" mouth -->
+        <circle cx="184" cy="185" r="4" fill="#F59A9A" opacity=".55"/><circle cx="216" cy="185" r="4" fill="#F59A9A" opacity=".55"/>
+        <ellipse cx="200" cy="188" rx="4.5" ry="5.5" fill="#B4473A"/>
+      </g>
+    </svg>
+    <ul class="auth-brand-panel-benefits">
+      <li>Lessons for Classes 1 to 12</li>
+      <li>Learn at your own pace, anytime</li>
+      <li>Teachers and parents can track progress</li>
+    </ul>
+  </aside>
+  <div class="auth-form-side">
   <div class="auth-page">
     <div class="auth-header-container">
       <h2 class="auth-title"><span>Welcome to</span><img src="/Adhyayan-transparent.png" alt="Adhyayan" class="auth-brand-logo-img" onerror="this.outerHTML='<span class=&quot;auth-brand-logo&quot; lang=&quot;hi&quot;>अध्ययन</span>'"></h2>
       <p class="auth-subtitle">Sign in to continue your learning journey</p>
     </div>
 
-    <form id="loginForm" class="auth-form-group">
+    <form id="loginForm" class="auth-form-group" novalidate>
       <div class="input-with-icon">
-        <i class="fa-regular fa-envelope"></i>
-        <input type="email" placeholder="Enter your email" id="auth-email">
+        <i aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg></i>
+        <input type="email" placeholder="Enter your email" id="auth-email" aria-label="Email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
       </div>
       <div class="input-with-icon">
-        <i class="fa-solid fa-lock"></i>
-        <input type="password" placeholder="Enter your password" id="auth-password">
+        <i aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></i>
+        <input type="password" placeholder="Enter your password" id="auth-password" aria-label="Password" autocomplete="current-password" style="padding-right:48px">
+        <button type="button" class="login-eye" id="login-pwd-toggle" aria-label="Show password"><svg id="login-eye-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
       </div>
       <div class="input-with-icon select-wrap">
-        <i class="fa-solid fa-user-tag"></i>
-        <select id="auth-role">
-          <option value="">Select your role</option>
-          <option value="student">Student</option>
+        <i aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg></i>
+        <select id="auth-role" aria-label="Your role">
+          <option value="student" selected>Student</option>
           <option value="teacher">Teacher</option>
+          <option value="parent">Parent</option>
           <option value="admin">Admin</option>
         </select>
-        <i class="fa-solid fa-chevron-down select-arrow"></i>
+        <i class="select-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></i>
       </div>
       <label class="terms-checkbox-wrap" for="auth-terms">
-        <input type="checkbox" id="auth-terms">
+        <input type="checkbox" id="auth-terms" checked>
         <span>I agree to the <a href="#" id="auth-terms-link">Terms and Conditions</a></span>
       </label>
       <div class="forgot-password-wrap"><a href="#" class="forgot-link" id="btn-forgot-password">Forgot password?</a></div>
-      <div class="google-class-warning" id="google-class-warning">Please select your class first</div>
+      <div class="google-class-warning" id="google-class-warning" role="alert">Please select your class first</div>
+      <div class="auth-error" id="auth-error" role="alert" aria-live="assertive">
+        <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;width:18px;height:18px"><circle cx="12" cy="12" r="10"></circle><path d="M12 7v6"></path><path d="M12 17h.01"></path></svg><span id="auth-error-text"></span>
+      </div>
       <button type="submit" class="btn btn-primary auth-continue" id="btn-continue">Continue</button>
     </form>
 
     <div class="separator"><span></span><span>OR</span><span></span></div>
 
     <button class="btn btn-social" id="btn-google" type="button">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20" aria-hidden="true">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.7 17.74 9.5 24 9.5z"/>
         <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
         <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -136,15 +414,8 @@ a{cursor:pointer}
       <a href="#" id="btn-visible-admin-login">Admin Portal</a>
     </div>
 
-    <div class="class-setter">
-      <p class="class-label">I'm in class</p>
-      <div class="class-capsules-container" id="class-slider">
-        <div class="class-group" id="pills"></div>
-      </div>
-      <div class="carousel-indicators" id="dots"></div>
-    </div>
-
     <div class="compliance-text">By continuing you agree to Terms &amp; Privacy</div>
+  </div>
   </div>
 </div>
 
@@ -163,14 +434,13 @@ a{cursor:pointer}
     <h2 class="modal-title">Create Account</h2>
     <button class="modal-close" id="signup-modal-close" type="button">&times;</button>
   </div>
-  <div id="signup-class-indicator" style="background:#f0f8f0;border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.9rem;color:#1b8d47;font-weight:600;text-align:center;"></div>
   <div class="form-field">
     <label for="signup-name">Full Name</label>
     <input type="text" id="signup-name" placeholder="Enter your full name">
   </div>
   <div class="form-field">
     <label for="signup-email">Email</label>
-    <input type="email" id="signup-email" placeholder="Enter your email">
+    <input type="email" id="signup-email" placeholder="Enter your email" autocapitalize="off" spellcheck="false">
   </div>
   <div class="form-field">
     <label for="signup-password">Password (min 6 chars)</label>
@@ -187,6 +457,25 @@ a{cursor:pointer}
       <option value="student">Student</option>
       <option value="teacher">Teacher</option>
       <option value="parent">Parent</option>
+    </select>
+  </div>
+  <!-- Class is chosen here, once, at signup (students only) -->
+  <div class="form-field" id="signup-class-field">
+    <label for="signup-class">Class</label>
+    <select id="signup-class" style="width:100%;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-family:inherit;">
+      <option value="">Select your class</option>
+      <option value="1">Class 1</option>
+      <option value="2">Class 2</option>
+      <option value="3">Class 3</option>
+      <option value="4">Class 4</option>
+      <option value="5">Class 5</option>
+      <option value="6">Class 6</option>
+      <option value="7">Class 7</option>
+      <option value="8">Class 8</option>
+      <option value="9">Class 9</option>
+      <option value="10">Class 10</option>
+      <option value="11">Class 11</option>
+      <option value="12">Class 12</option>
     </select>
   </div>
   <button class="btn-modal btn-primary-modal" id="btn-submit-signup">Create Account</button>
@@ -240,37 +529,6 @@ a{cursor:pointer}
     <button class="btn-modal btn-primary-modal" id="btn-forgot-save-pwd">Update Password</button>
   </div>
 </div>
-
-<script>
-// Prevent default on all # links
-document.querySelectorAll('a[href="#"]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
-
-// Initialize modals after DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-  // Overlay click handlers for modals
-  const signupOverlay = document.getElementById('signup-overlay');
-  const forgotOverlay = document.getElementById('forgot-pwd-overlay');
-  
-  if (signupOverlay) {
-    signupOverlay.addEventListener('click', function(e) {
-      if (e.target === this) {
-        const modal = document.getElementById('signup-modal');
-        if (modal) modal.classList.add('hidden');
-        this.classList.add('hidden');
-      }
-    });
-  }
-  
-  if (forgotOverlay) {
-    forgotOverlay.addEventListener('click', function(e) {
-      if (e.target === this) {
-        const modal = document.getElementById('forgot-pwd-modal');
-        if (modal) modal.classList.add('hidden');
-        this.classList.add('hidden');
-      }
-    });
-  }
-});
-</script>
+<!-- Page logic lives in auth.js: the router injects this file with innerHTML, so inline <script> tags never run. -->
 </body>
 </html>

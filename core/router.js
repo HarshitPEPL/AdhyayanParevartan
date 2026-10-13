@@ -3,6 +3,7 @@ import { state } from './app.js';
 export const routes = {
     'splash': { showNav: false },
     'auth': { showNav: false },
+    'choose-class': { showNav: false },
     'home': { showNav: true },
     'courses': { showNav: true },
     'competitive-exams': { showNav: true },
@@ -109,6 +110,8 @@ export async function navigateTo(routeId, options = {}) {
     }
 
     state.currentRoute = routeId;
+    // Lets the login screen fill the viewport (auth.html scopes its full-screen rules to this).
+    document.body.classList.toggle('auth-active', routeId === 'auth');
 
     // Lets the page being left (e.g. the lesson reader) save its final position first.
     if (typeof window.__pageTeardown === 'function') {

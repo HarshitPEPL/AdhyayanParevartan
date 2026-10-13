@@ -1,6 +1,6 @@
 // Uses window.adhyayan global (set by the bundled core/app.js after db init)
 import CryptoJS from 'crypto-js';
-import { sendEmail, isEmailConfigured } from '../../core/email.js';
+import { sendEmail } from '../../core/email.js';
 import { signInWithGoogle, isGoogleAuthConfigured } from '../../core/googleAuth.js';
 
 // Helper function to check database connection status
@@ -15,17 +15,69 @@ function getConnectionStatus() {
     }
 }
 
+const ROLE_IDS = { admin: 1, teacher: 2, student: 3, parent: 4 };
+const ROLE_LABELS = { 1: 'Admin', 2: 'Teacher', 3: 'Student', 4: 'Parent' };
+
+const MESSAGES = {
+    emptyFields: 'Please enter your email and password.',
+    wrongCredentials: 'Wrong email or password. Please try again.',
+    network: "Couldn't connect. Check your internet and try again.",
+    google: 'Google sign-in failed. Please try again.',
+    terms: 'Please accept the Terms and Conditions',
+    pendingApproval: 'Your account is waiting for admin approval. Please try again once your admin has activated it.'
+};
+
+const EYE_OPEN = '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle>';
+const EYE_CLOSED = '<path d="M3 3l18 18"></path><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.8 9.8 0 0 0 5.4-1.6"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>';
+
+// A valid saved class (1–12) or null.
+export function getSavedClass(user) {
+    const n = Number(user?.class_number);
+    return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
+}
+
+// Where a freshly signed-in user lands. Students go straight to their saved class;
+// a student without one picks it once on the "Choose your class" screen.
+// Teachers and parents keep landing on Home, as before.
+export function completeLogin(user, state, navigateTo) {
+    state.currentUser = user;
+    const savedClass = getSavedClass(user);
+    state.selectedClass = savedClass;
+    window.adhyayan?.saveSession?.();
+    const needsClass = Number(user.role_id) === ROLE_IDS.student && !savedClass;
+    navigateTo(needsClass ? 'choose-class' : 'home', { replace: true });
+}
+
 export function init(navigateTo, state) {
     const { getUserByEmail, addUser, updateUserPassword } = window.adhyayan;
-    let selectedClass = null;
-    const googleWarningEl = document.getElementById('google-class-warning');
     const roleSelect = document.getElementById('auth-role');
     const termsCheckbox = document.getElementById('auth-terms');
     const loginForm = document.getElementById('loginForm');
-    
+    const emailInput = document.getElementById('auth-email');
+    const passwordInput = document.getElementById('auth-password');
+    const btnContinue = document.getElementById('btn-continue');
+    const btnGoogle = document.getElementById('btn-google');
+
     // Log connection status
     console.log(`[AUTH] ${getConnectionStatus()}`);
 
+    document.querySelectorAll('a[href="#"]').forEach(a => a.addEventListener('click', e => e.preventDefault()));
+
+    // --- ERROR BOX ---
+    // Every login failure is shown here; nothing fails silently.
+    function showAuthError(message) {
+        const text = document.getElementById('auth-error-text');
+        const box = document.getElementById('auth-error');
+        if (!text || !box) return;
+        text.textContent = message;
+        box.classList.add('show');
+    }
+    function hideAuthError() {
+        document.getElementById('auth-error')?.classList.remove('show');
+    }
+    [emailInput, passwordInput, roleSelect].forEach(el => el?.addEventListener('input', hideAuthError));
+    roleSelect?.addEventListener('change', hideAuthError);
+    termsCheckbox?.addEventListener('change', hideAuthError);
 
     // --- PASSWORD HASHING UTILITY (SHA-256 using crypto-js) ---
     // Uses crypto-js for consistent SHA-256 hashing across browser and Node.js
@@ -50,7 +102,17 @@ export function init(navigateTo, state) {
         return String(otp).padStart(6, '0');
     }
 
-    // --- PASSWORD SHOW/HIDE TOGGLE ---
+    // --- PASSWORD SHOW/HIDE TOGGLES ---
+    const loginEye = document.getElementById('login-pwd-toggle');
+    loginEye?.addEventListener('click', () => {
+        const show = passwordInput.type === 'password';
+        passwordInput.type = show ? 'text' : 'password';
+        loginEye.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        loginEye.style.opacity = show ? '1' : '.7';
+        const icon = document.getElementById('login-eye-icon');
+        if (icon) icon.innerHTML = show ? EYE_CLOSED : EYE_OPEN;
+    });
+
     document.querySelectorAll('.pwd-toggle').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -67,393 +129,150 @@ export function init(navigateTo, state) {
         });
     });
 
-    const roleMap = {
-        student: 3,
-        teacher: 2,
-        parent: 4,
-        admin: 1
+    const getSelectedRole = () => roleSelect?.value || 'student';
+
+    // Admin accounts sign in through the Admin Portal; every other account signs in with
+    // its own role, whatever is picked in the dropdown. Returns an error message or null.
+    const checkAccountRole = (user) => {
+        if (Number(user.role_id) === ROLE_IDS.admin && getSelectedRole() !== 'admin') {
+            return 'This account is registered as an Admin. Please select Admin and try again.';
+        }
+        if (Number(user.role_id) === ROLE_IDS.student && !user.is_approved) {
+            return MESSAGES.pendingApproval;
+        }
+        return null;
     };
 
-    const getSelectedRole = () => roleSelect ? roleSelect.value : '';
-    const getSelectedRoleLabel = () => {
-        const role = getSelectedRole();
-        if (role === 'student') return 'Student';
-        if (role === 'teacher') return 'Teacher';
-        if (role === 'parent') return 'Parent';
-        if (role === 'admin') return 'Admin';
-        return '';
+    const setBusy = (busy) => {
+        if (btnContinue) {
+            btnContinue.disabled = busy;
+            btnContinue.textContent = busy ? 'Logging in…' : 'Continue';
+        }
+        if (btnGoogle) {
+            btnGoogle.disabled = busy;
+            btnGoogle.style.opacity = busy ? '0.6' : '';
+        }
     };
 
-    // --- CLASS SELECTOR: Swipeable Carousel with 3 pages of 4 classes (1–4, 5–8, 9–12) ---
-    const pills = document.getElementById('pills');
-    const dots = document.getElementById('dots');
-    const slider = document.getElementById('class-slider');
-    let currentPage = 0;
-    let isDragging = false;
-    let startX = 0;
-    let scrollLeft = 0;
-
-    function initClassSelector() {
-        // Build the carousel structure with 3 pages
-        pills.innerHTML = '';
-        
-        for (let page = 0; page < 3; page++) {
-            const classPage = document.createElement('div');
-            classPage.className = 'class-page';
-            classPage.style.flex = '0 0 100%';
-            classPage.style.width = '100%';
-            classPage.style.display = 'flex';
-            classPage.style.justifyContent = 'center';
-            classPage.style.gap = '14px';
-            classPage.style.alignItems = 'center';
-            classPage.style.scrollSnapAlign = 'center';
-            classPage.style.scrollSnapStop = 'always';
-            
-            for (let i = 1; i <= 4; i++) {
-                const classNum = page * 4 + i;
-                const b = document.createElement('button');
-                b.type = 'button';
-                b.className = 'pill';
-                b.dataset.class = classNum;
-                if (selectedClass === classNum) b.classList.add('active');
-                b.textContent = classNum;
-                b.setAttribute('aria-pressed', selectedClass === classNum);
-                b.onclick = (e) => {
-                    e.preventDefault();
-                    // Update selected class without re-rendering
-                    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-                    b.classList.add('active');
-                    b.setAttribute('aria-pressed', 'true');
-                    selectedClass = classNum;
-                };
-                classPage.appendChild(b);
-            }
-            pills.appendChild(classPage);
-        }
-
-        // Initialize dots
-        initDots();
-    }
-
-    function initDots() {
-        dots.innerHTML = '';
-        for (let p = 0; p < 3; p++) {
-            const d = document.createElement('button');
-            d.type = 'button';
-            d.className = 'carousel-dot';
-            d.dataset.page = p;
-            if (p === currentPage) d.classList.add('active');
-            d.setAttribute('aria-label', 'Classes page ' + (p + 1));
-            if (p === currentPage) d.setAttribute('aria-current', 'true');
-            d.onclick = (e) => {
-                e.preventDefault();
-                // Scroll to the page
-                if (slider) {
-                    slider.scrollTo({ left: p * slider.clientWidth, behavior: 'smooth' });
-                }
-            };
-            dots.appendChild(d);
-        }
-    }
-
-    function updateDotsIndicator() {
-        if (!slider || !dots) return;
-        // Compute current page based on scroll position
-        const newPage = Math.round(slider.scrollLeft / slider.clientWidth);
-        
-        if (newPage !== currentPage) {
-            currentPage = newPage;
-            // Update dots
-            dots.querySelectorAll('.carousel-dot').forEach((dot, idx) => {
-                if (idx === newPage) {
-                    dot.classList.add('active');
-                    dot.setAttribute('aria-current', 'true');
-                } else {
-                    dot.classList.remove('active');
-                    dot.removeAttribute('aria-current');
-                }
-            });
-        }
-    }
-
-    // Initialize carousel
-    initClassSelector();
-
-    // Smooth scroll updates
-    if (slider) {
-        slider.addEventListener('scroll', updateDotsIndicator, { passive: true });
-    }
-
-    // --- MOUSE DRAG SUPPORT (Desktop) ---
-    if (slider) {
-        // Mouse down - start drag
-        slider.addEventListener('pointerdown', (e) => {
-            isDragging = true;
-            startX = e.clientX;
-            scrollLeft = slider.scrollLeft;
-            slider.style.scrollBehavior = 'auto';
-            slider.style.cursor = 'grabbing';
-        });
-
-        // Mouse move - drag
-        document.addEventListener('pointermove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.clientX;
-            const walk = (startX - x) * 1; // 1x multiplier for 1:1 drag
-            slider.scrollLeft = scrollLeft + walk;
-        });
-
-        // Mouse up - end drag
-        document.addEventListener('pointerup', () => {
-            if (isDragging) {
-                isDragging = false;
-                slider.style.scrollBehavior = 'smooth';
-                slider.style.cursor = 'grab';
-                // Snap to nearest page after drag
-                const pageWidth = slider.clientWidth;
-                const currentScroll = slider.scrollLeft;
-                const nextPage = Math.round(currentScroll / pageWidth);
-                slider.scrollTo({ left: nextPage * pageWidth, behavior: 'smooth' });
-            }
-        });
-
-        slider.style.cursor = 'grab';
-    }
-
-    const validateAndNavigate = async (route) => {
-        const emailInput = document.getElementById('auth-email');
-        const passwordInput = document.getElementById('auth-password');
-        const selectedRole = getSelectedRole();
+    // --- EMAIL / PASSWORD LOGIN ---
+    loginForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAuthError();
 
         if (!termsCheckbox?.checked) {
-            alert("Please agree to the Terms and Conditions before logging in.");
-            termsCheckbox?.focus();
+            showAuthError(MESSAGES.terms);
             return;
         }
 
-        if (!selectedRole) {
-            alert("Please select your role before logging in.");
-            if (roleSelect) roleSelect.focus();
+        const email = emailInput?.value.trim() || '';
+        const password = passwordInput?.value || '';
+        if (!email || !password) {
+            showAuthError(MESSAGES.emptyFields);
             return;
         }
 
-        if (!selectedClass) {
-            // Show a more prominent warning message
-            if (googleWarningEl) {
-                googleWarningEl.style.display = 'block';
-                googleWarningEl.textContent = 'Please select your class from the numbers below';
-                googleWarningEl.style.color = '#d9534f';
-                googleWarningEl.style.marginTop = '12px';
-            }
-            // Show toast message
-            const toastEl = document.getElementById('auth-toast') || document.createElement('div');
-            if (!document.getElementById('auth-toast')) {
-                toastEl.id = 'auth-toast';
-                toastEl.className = 'toast';
-                document.body.appendChild(toastEl);
-            }
-            toastEl.textContent = 'Please select your class (1-12) before continuing';
-            toastEl.classList.remove('hidden');
-            setTimeout(() => toastEl.classList.add('hidden'), 3500);
-            return;
-        }
-        
-        // Clear the warning if class is selected
-        if (googleWarningEl) {
-            googleWarningEl.style.display = 'none';
-        }
+        setBusy(true);
+        try {
+            console.log(`[AUTH] Attempting login with database: ${window.adhyayan?.dbType || 'unknown'}`);
 
-        if (emailInput && passwordInput) {
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-
-            if (!email || !password) {
-                alert("Please enter both email and password.");
+            let user;
+            try {
+                user = await getUserByEmail(email);
+            } catch (err) {
+                console.error('[AUTH] Login lookup failed:', err);
+                showAuthError(MESSAGES.network);
                 return;
             }
 
-            try {
-                // Log database type for debugging
-                const dbType = window.adhyayan?.dbType || 'unknown';
-                console.log(`[AUTH] Attempting login with database: ${dbType}`);
-                console.log(`[AUTH] User email: ${email}`);
-                
-                const user = await getUserByEmail(email);
-                if (!user) {
-                    console.warn(`[AUTH] User not found: ${email}`);
-                    alert("Account not found. Please sign up or contact your admin to create your account.");
-                    return;
-                }
-                
-                console.log(`[AUTH] User found: ${user.full_name} (ID: ${user.user_id})`);
-
-                const expectedRoleId = roleMap[selectedRole];
-                if (user.role_id !== expectedRoleId) {
-                    console.warn(`[AUTH] Role mismatch. Expected: ${expectedRoleId}, Got: ${user.role_id}`);
-                    alert(`This account is not registered as a ${getSelectedRoleLabel()}. Please select the correct role or use the correct credentials.`);
-                    return;
-                }
-                
-                console.log(`[AUTH] Role verified: ${getSelectedRoleLabel()}`);
-
-                // Hash the entered password and compare
-                const hashedPassword = await hashPassword(password);
-                if (user.password_hash !== hashedPassword) {
-                    console.warn(`[AUTH] Password mismatch for user: ${email}`);
-                    alert("Incorrect password. Please try again.");
-                    return;
-                }
-                
-                console.log(`[AUTH] Password verified`);
-
-                // Security Check: Enforce admin creation/approval for student logins
-                if (user.role_id === 3 && !user.is_approved) {
-                    console.warn(`[AUTH] Student account not approved: ${email}`);
-                    alert("Access Denied: Your account is pending administrator approval. Please contact your admin to activate your email and password.");
-                    return;
-                }
-
-                if (selectedRole === 'admin') {
-                    console.log(`[AUTH] Admin redirect to admin-login`);
-                    alert("Admin access is restricted to the super admin portal. Please use the Admin Portal login flow.");
-                    navigateTo('admin-login', { replace: true });
-                    return;
-                }
-
-                console.log(`[AUTH] Login successful! Navigating to ${route}...`);
-                state.currentUser = user;
-                state.selectedClass = user.class_number || selectedClass || 9;
-                window.adhyayan?.saveSession?.();
-                navigateTo(route, { replace: true });
-            } catch (e) {
-                console.error("[AUTH] Login error:", e);
-                const dbType = window.adhyayan?.dbType || 'unknown';
-                const errorMsg = String(e?.message || '').toLowerCase();
-                
-                // Check if it's a secure context issue
-                if (errorMsg.includes('digest') || errorMsg.includes('crypto')) {
-                    alert("⚠️ Your browser's security features are not fully available.\n\nPlease access the app using:\n• http://localhost:5173 (local testing)\n• https://yourdomain.com (production)\n\nOr try a different browser.");
-                } else if (errorMsg.includes('network') || errorMsg.includes('connect')) {
-                    alert(`Connection failed (${dbType} backend). Check your internet and try again.`);
-                } else if (errorMsg.includes('timeout')) {
-                    alert("Request timed out. Please check your internet connection and try again.");
-                } else if (errorMsg.includes('unauthorized') || errorMsg.includes('forbidden')) {
-                    alert("Database authentication failed. Please contact your administrator.");
-                } else {
-                    alert("Login failed. Check your connection and try again.");
-                }
+            if (!user || user.password_hash !== await hashPassword(password)) {
+                console.warn(`[AUTH] Wrong email or password for: ${email}`);
+                showAuthError(MESSAGES.wrongCredentials);
+                return;
             }
-        } else {
-            state.selectedClass = selectedClass || 9;
-            navigateTo(route, { replace: true });
-        }
-    };
 
-    // Handle form submission
-    loginForm?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        validateAndNavigate('home');
+            const roleError = checkAccountRole(user);
+            if (roleError) {
+                showAuthError(roleError);
+                return;
+            }
+
+            if (Number(user.role_id) === ROLE_IDS.admin) {
+                // Admin access is restricted to the super admin portal.
+                navigateTo('admin-login', { replace: true });
+                return;
+            }
+
+            const selected = getSelectedRole();
+            if (ROLE_IDS[selected] !== Number(user.role_id)) {
+                console.info(`[AUTH] Role picked was ${selected}; signing in as ${ROLE_LABELS[user.role_id] || user.role_id}, the account's own role.`);
+            }
+
+            console.log(`[AUTH] Login successful: ${user.full_name} (ID: ${user.user_id})`);
+            completeLogin(user, state, navigateTo);
+        } catch (err) {
+            console.error('[AUTH] Login error:', err);
+            showAuthError(MESSAGES.network);
+        } finally {
+            setBusy(false);
+        }
     });
 
-    // Google sign-in handler
-    document.getElementById('btn-google')?.addEventListener('click', async (e) => {
-        const selectedRole = getSelectedRole();
+    // --- GOOGLE SIGN-IN ---
+    btnGoogle?.addEventListener('click', async () => {
+        hideAuthError();
         if (!termsCheckbox?.checked) {
-            alert("Please agree to the Terms and Conditions before continuing.");
-            termsCheckbox?.focus();
+            showAuthError(MESSAGES.terms);
             return;
         }
-        if (!selectedRole) {
-            alert("Please select Student, Teacher, or Admin before continuing with Google.");
-            if (roleSelect) roleSelect.focus();
-            return;
-        }
+        const selectedRole = getSelectedRole();
         if (selectedRole === 'admin') {
-            alert("Admin access is restricted to the super admin portal. Please use the Admin Portal login flow.");
+            // Admin access is restricted to the super admin portal.
             navigateTo('admin-login', { replace: true });
             return;
         }
-        if (!selectedClass) {
-            // Show a more prominent warning message
-            if (googleWarningEl) {
-                googleWarningEl.style.display = 'block';
-                googleWarningEl.textContent = 'Please select your class from the numbers below';
-                googleWarningEl.style.color = '#d9534f';
-                googleWarningEl.style.marginTop = '12px';
-            }
-            // Show toast message
-            const toastEl = document.getElementById('auth-toast') || document.createElement('div');
-            if (!document.getElementById('auth-toast')) {
-                toastEl.id = 'auth-toast';
-                toastEl.className = 'toast';
-                document.body.appendChild(toastEl);
-            }
-            toastEl.textContent = 'Please select your class (1-12) before continuing';
-            toastEl.classList.remove('hidden');
-            setTimeout(() => toastEl.classList.add('hidden'), 3500);
-            return;
-        }
-        if (googleWarningEl) googleWarningEl.style.display = 'none';
 
         if (!isGoogleAuthConfigured()) {
-            // No live OAuth Client ID yet (added later once the app has a live domain
-            // to register with Google) — fall back to the placeholder mock login.
-            state.currentUser = { full_name: "Google User", email: "google@user.com", class_number: selectedClass, is_approved: 1, role_id: roleMap[selectedRole] };
-            state.selectedClass = selectedClass;
-            window.adhyayan?.saveSession?.();
-            navigateTo('home', { replace: true });
+            // No live OAuth Client ID on this origin (e.g. a LAN dev server) — fall back to
+            // the placeholder mock login. The class is then picked on the next screen.
+            completeLogin({ full_name: 'Google User', email: 'google@user.com', class_number: null, is_approved: 1, role_id: ROLE_IDS[selectedRole] }, state, navigateTo);
             return;
         }
 
-        const btnGoogle = e.currentTarget;
-        const originalLabel = btnGoogle.innerHTML;
-        btnGoogle.style.pointerEvents = 'none';
-        btnGoogle.style.opacity = '0.6';
-
+        setBusy(true);
         try {
             const profile = await signInWithGoogle();
             if (!profile?.email) throw new Error('No email returned by Google.');
 
             let user = await getUserByEmail(profile.email);
             if (!user) {
+                // New Google users get an approved profile without a class;
+                // students then pick their class once on the next screen.
                 const randomPassword = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                // Hash the random password before storing
                 const hashedPassword = await hashPassword(randomPassword);
-                await addUser(profile.name, profile.email, hashedPassword, roleMap[selectedRole], selectedClass, 1, profile.sub);
+                await addUser(profile.name, profile.email, hashedPassword, ROLE_IDS[selectedRole], null, 1, profile.sub);
                 user = await getUserByEmail(profile.email);
+                if (!user) throw new Error('Account was not created.');
             }
 
-            if (user.role_id !== roleMap[selectedRole]) {
-                alert(`This Google account is registered as a ${user.role_id === 3 ? 'Student' : user.role_id === 2 ? 'Teacher' : 'Admin'}, not as a ${getSelectedRoleLabel()}. Please select the correct role.`);
+            const roleError = checkAccountRole(user);
+            if (roleError) {
+                showAuthError(roleError);
                 return;
             }
 
-            if (user.role_id === 3 && !user.is_approved) {
-                alert("Access Denied: Your account is pending administrator approval. Please contact your admin to activate your account.");
-                return;
-            }
-
-            state.currentUser = user;
-            state.selectedClass = user.class_number || selectedClass;
-            window.adhyayan?.saveSession?.();
-            navigateTo('home', { replace: true });
+            completeLogin(user, state, navigateTo);
         } catch (err) {
-            console.error("Google sign-in failed:", err);
+            console.error('Google sign-in failed:', err);
             const errText = String(err?.message || '').toLowerCase();
-            if (err?.message === 'popup_closed') {
-                // user cancelled the popup; no urgent message needed
-            } else if (errText.includes('origin_mismatch') || errText.includes('origin mismatch')) {
-                alert(`Google sign-in is blocked for this origin: ${window.location.origin}.\n\nAdd this exact URL in Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client ID > Authorized JavaScript origins, then try again.`);
-            } else if (errText.includes('28444') || errText.includes('developer console is not set up correctly')) {
-                alert("Google Sign-In isn't fully set up for the Android app yet.\n\nAn Android OAuth Client ID (package name + SHA-1 fingerprint) needs to be registered in Google Cloud Console before native sign-in will work.");
+            if (errText.includes('origin_mismatch') || errText.includes('origin mismatch')) {
+                showAuthError(`Google sign-in is not allowed from ${window.location.origin}. Add it to the OAuth Client's Authorized JavaScript origins in Google Cloud Console.`);
+            } else if (errText.includes('failed to fetch') || errText.includes('network')) {
+                showAuthError(MESSAGES.network);
             } else {
-                alert("Google sign-in failed. Please try again.");
+                showAuthError(MESSAGES.google);
             }
         } finally {
-            btnGoogle.style.pointerEvents = '';
-            btnGoogle.style.opacity = '';
-            btnGoogle.innerHTML = originalLabel;
+            setBusy(false);
         }
     });
 
@@ -470,25 +289,23 @@ export function init(navigateTo, state) {
     const btnShowSignup = document.getElementById('btn-show-signup');
     const btnSubmitSignup = document.getElementById('btn-submit-signup');
     const signupRoleSelect = document.getElementById('signup-role');
-    const signupClassIndicator = document.getElementById('signup-class-indicator');
+    const signupClassSelect = document.getElementById('signup-class');
+    const signupClassField = document.getElementById('signup-class-field');
+
+    // The Class field only applies to students.
+    const syncSignupClassField = () => {
+        signupClassField?.classList.toggle('hidden', signupRoleSelect?.value !== 'student');
+    };
+    signupRoleSelect?.addEventListener('change', syncSignupClassField);
 
     btnShowSignup?.addEventListener('click', (e) => {
         e.preventDefault();
         if (signupRoleSelect) {
-            signupRoleSelect.value = getSelectedRole() || 'student';
+            const loginRole = getSelectedRole();
+            signupRoleSelect.value = ['student', 'teacher', 'parent'].includes(loginRole) ? loginRole : 'student';
         }
-        // Update class indicator
-        if (signupClassIndicator) {
-            if (selectedClass) {
-                signupClassIndicator.textContent = `Class selected: ${selectedClass}`;
-                signupClassIndicator.style.display = 'block';
-            } else {
-                signupClassIndicator.textContent = 'Please select your class from the numbers below first';
-                signupClassIndicator.style.display = 'block';
-                signupClassIndicator.style.background = '#fff3cd';
-                signupClassIndicator.style.color = '#856404';
-            }
-        }
+        if (signupClassSelect) signupClassSelect.value = '';
+        syncSignupClassField();
         if (signupModal) signupModal.classList.remove('hidden');
         if (signupOverlay) signupOverlay.classList.remove('hidden');
     });
@@ -500,36 +317,30 @@ export function init(navigateTo, state) {
         document.getElementById('signup-name').value = '';
         document.getElementById('signup-email').value = '';
         document.getElementById('signup-password').value = '';
+        if (signupClassSelect) signupClassSelect.value = '';
     };
-    
+
     signupClose?.addEventListener('click', closeSignupModal);
     signupOverlay?.addEventListener('click', (e) => {
         if (e.target === signupOverlay) closeSignupModal();
     });
 
     btnSubmitSignup?.addEventListener('click', async () => {
-        if (!selectedClass) {
-            // Show warning message with toast
-            const toastEl = document.getElementById('auth-toast') || document.createElement('div');
-            if (!document.getElementById('auth-toast')) {
-                toastEl.id = 'auth-toast';
-                toastEl.className = 'toast';
-                document.body.appendChild(toastEl);
-            }
-            toastEl.textContent = 'Please select your class from the numbers below first';
-            toastEl.classList.remove('hidden');
-            setTimeout(() => toastEl.classList.add('hidden'), 3500);
-            return;
-        }
-
         const name = document.getElementById('signup-name').value.trim();
         const email = document.getElementById('signup-email').value.trim();
         const password = document.getElementById('signup-password').value;
-        const signupRole = signupRoleSelect ? signupRoleSelect.value : (getSelectedRole() || 'student');
-        const signupRoleId = roleMap[signupRole] || 3;
+        const signupRole = signupRoleSelect?.value || 'student';
+        const signupRoleId = ROLE_IDS[signupRole] || ROLE_IDS.student;
+        const signupClass = signupRole === 'student' ? Number(signupClassSelect?.value) || null : null;
 
-        if (!name || !email || !password || !signupRole) {
-            alert("Please fill out all fields and select your role.");
+        if (!name || !email || !password) {
+            alert("Please fill out all fields.");
+            return;
+        }
+
+        if (signupRole === 'student' && !signupClass) {
+            alert("Please select your class.");
+            signupClassSelect?.focus();
             return;
         }
 
@@ -540,7 +351,7 @@ export function init(navigateTo, state) {
 
         try {
             console.log(`[SIGNUP] Attempting to create account for: ${email}`);
-            
+
             const existing = await getUserByEmail(email);
             if (existing) {
                 console.warn(`[SIGNUP] Email already exists: ${email}`);
@@ -552,16 +363,17 @@ export function init(navigateTo, state) {
             const hashedPassword = await hashPassword(password);
 
             console.log(`[SIGNUP] Creating user: ${name} (${email}) as ${signupRole}`);
-            await addUser(name, email, hashedPassword, signupRoleId, selectedClass, 0);
+            await addUser(name, email, hashedPassword, signupRoleId, signupClass, 0);
             console.log(`[SIGNUP] User created successfully`);
 
             // Send a registration confirmation email (best-effort; app still works
             // without it since the on-screen toast already confirms registration)
+            const registeredFor = signupClass ? ` for Class ${signupClass}` : '';
             sendEmail({
                 toEmail: email,
                 toName: name,
                 subject: 'Adhyayan Parevartan — Registration Received',
-                message: `Hi ${name},\n\nThank you for registering with Adhyayan Parevartan for Class ${selectedClass}.\n\nYour account has been created and is currently pending administrator approval. You will be able to log in once an administrator activates your account.\n\nIf you did not request this, please ignore this email.`
+                message: `Hi ${name},\n\nThank you for registering with Adhyayan Parevartan${registeredFor}.\n\nYour account has been created and is currently pending administrator approval. You will be able to log in once an administrator activates your account.\n\nIf you did not request this, please ignore this email.`
             }).catch(() => {});
 
             const successToast = document.getElementById('signup-success-toast');
@@ -577,10 +389,10 @@ export function init(navigateTo, state) {
             console.error("[SIGNUP] Error:", e);
             const errorMsg = String(e?.message || '').toLowerCase();
             const dbType = window.adhyayan?.dbType || 'unknown';
-            
+
             if (errorMsg.includes('already exists')) {
                 alert("This email is already registered. Please try logging in.");
-            } else if (errorMsg.includes('network') || errorMsg.includes('connect')) {
+            } else if (errorMsg.includes('network') || errorMsg.includes('connect') || errorMsg.includes('fetch')) {
                 alert(`Connection failed (${dbType} backend). Please check your internet.`);
             } else if (errorMsg.includes('database')) {
                 alert("Database error. Please contact your administrator.");

@@ -1539,16 +1539,19 @@ export async function saveSiteContent(pageKey, title, content) {
 }
 
 // 7. USER AUTH & DYNAMIC PROFILE HANDLERS
+// Case-insensitive, so "Rahul@..." typed with an auto-capitalising keyboard still matches.
 export async function getUserByEmail(email) {
     if (dbType === 'supabase') {
+        // ilike treats % and _ as wildcards; escape them so only the exact address matches.
+        const pattern = email.trim().replace(/[\\%_]/g, (ch) => `\\${ch}`);
         const { data, error } = await supabaseClient
             .from('users')
             .select('*')
-            .eq('email', email.trim());
+            .ilike('email', pattern);
         if (error) throw error;
         return data.length ? data[0] : null;
     } else {
-        const stmt = sqliteDb.prepare("SELECT user_id, role_id, full_name, email, password_hash, class_number, is_approved FROM users WHERE email = ?");
+        const stmt = sqliteDb.prepare("SELECT user_id, role_id, full_name, email, password_hash, class_number, is_approved FROM users WHERE LOWER(email) = LOWER(?)");
         stmt.bind([email.trim()]);
         let user = null;
         if (stmt.step()) {
