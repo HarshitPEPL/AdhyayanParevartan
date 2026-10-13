@@ -150,10 +150,11 @@ body.auth-active,body.auth-active html{overscroll-behavior:none}
 /* ---- Desktop (>= 1024px): brand panel + form card, both full height ---- */
 @media (min-width:1024px){
   #root-view > .screen.auth-screen{display:grid;grid-template-columns:45% 55%;align-items:stretch;padding:0}
-  .auth-brand-panel{display:flex;flex-direction:column;justify-content:center;gap:clamp(12px,2.6vh,28px);padding:clamp(24px,6vh,64px) clamp(40px,5vw,96px);background:linear-gradient(160deg,#1B8039,#0d3d14);color:#fff;box-sizing:border-box}
-  .auth-brand-panel-logo{display:block;width:200px;height:auto;filter:brightness(0) invert(1)}
-  .auth-brand-panel-tagline{margin:0;font-size:1.75rem;line-height:1.3;font-weight:800;letter-spacing:-.01em}
-  .auth-brand-panel-benefits{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;font-size:1.05rem;font-weight:600;opacity:.92}
+  /* Centered column: logo → 24px → heading → 28px → animation → 28px → benefits */
+  .auth-brand-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0;padding:48px 40px;background:linear-gradient(160deg,#1B8039,#0d3d14);color:#fff;box-sizing:border-box}
+  .auth-brand-panel-logo{display:block;width:220px;max-width:100%;height:auto;margin:0 auto;filter:brightness(0) invert(1)}
+  .auth-brand-panel-tagline{margin:24px auto 0;max-width:420px;font-size:1.75rem;line-height:1.3;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+  .auth-brand-panel-benefits{list-style:none;margin:28px auto 0;width:fit-content;max-width:100%;padding:0;display:flex;flex-direction:column;gap:14px;font-size:1.05rem;font-weight:600;opacity:.92;text-align:left}
   .auth-brand-panel-benefits li{display:flex;align-items:center;gap:12px}
   .auth-brand-panel-benefits li::before{content:'';flex:0 0 8px;height:8px;border-radius:50%;background:#9be29b}
   .auth-form-side{margin:0;display:flex;align-items:center;justify-content:center;padding:var(--card-pad) 48px;box-sizing:border-box;background:#f5f5f3}
@@ -198,11 +199,12 @@ body.auth-active,body.auth-active html{overscroll-behavior:none}
 
 @media (prefers-reduced-motion:reduce){.learn-anim *{animation:none!important}}
 
-/* In the panel: at most 420px wide, and no taller than the height left after the logo,
-   heading and benefit lines (~400px), so the panel still fits the screen without scrolling.
-   400/340 is the illustration's aspect ratio. */
-.auth-brand-panel .learn-anim{max-width:420px;width:min(100%,calc((100vh - 400px) * 400 / 340));flex:0 0 auto}
-@supports (height:1dvh){.auth-brand-panel .learn-anim{width:min(100%,calc((100dvh - 400px) * 400 / 340))}}
+/* In the panel: centered, at most 380px wide and 38vh tall. The width also tracks the height
+   left after the logo, heading, benefit lines and padding (~420px), so on short screens the
+   illustration shrinks instead of the panel overflowing. 400/340 is its aspect ratio. */
+.auth-brand-panel .learn-anim{display:block;margin:28px auto 0;width:100%;max-width:380px;max-height:38vh;flex:0 0 auto}
+.auth-brand-panel .learn-anim{max-width:min(380px,calc(38vh * 400 / 340),calc((100vh - 420px) * 400 / 340))}
+@supports (height:1dvh){.auth-brand-panel .learn-anim{max-height:38dvh;max-width:min(380px,calc(38dvh * 400 / 340),calc((100dvh - 420px) * 400 / 340))}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
