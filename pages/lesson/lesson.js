@@ -554,21 +554,46 @@ export function init(navigateTo, state) {
         registerCleanup(player.destroy);
     } else if (driveEmbedUrl) {
         if (isNativeAndroid && mat.format_name !== 'E-Book') {
-            // Non-E-Book Drive content (video/audio) genuinely hits Google's
-            // embedded sign-in wall in native WebViews — open externally.
-            wrapper.innerHTML = `
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
-                    <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
-                    <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">Ready to open</div>
-                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Google Drive can't be viewed inside the app. Open it in your browser to read the file.</div>
-                    <button class="btn btn-primary" id="drive-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open in Google Drive</button>
-                </div>
-            `;
-            wrapper.querySelector('#drive-open-external')?.addEventListener('click', () => {
-                openExternalLink(mat.file_url);
-                reportProgress(100);
-            });
-            reportProgress(40);
+            // Drive's "/preview" iframe hits Google's embedded sign-in wall in native WebViews,
+            // so the app streams the file bytes through the drive proxy into its own <video>
+            // (same sources as the audio player). Only if every source fails is Drive opened externally.
+            const showDriveOpenExternal = () => {
+                wrapper.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; color:#fff; width:100%; height:100%; background:linear-gradient(180deg, #111827, #1f2937);">
+                        <i class="fa-brands fa-google-drive" style="font-size:3rem; margin-bottom:16px; color:#8ab4f8;"></i>
+                        <div style="font-size:1.05rem; font-weight:700; margin-bottom:8px;">Ready to open</div>
+                        <div style="font-size:0.82rem; opacity:0.8; margin-bottom:18px; max-width: 300px; line-height:1.5;">Google Drive can't be viewed inside the app. Open it in your browser to view the file.</div>
+                        <button class="btn btn-primary" id="drive-open-external" style="padding:10px 18px; border-radius: 999px; font-weight:700;">Open in Google Drive</button>
+                    </div>
+                `;
+                wrapper.querySelector('#drive-open-external')?.addEventListener('click', () => {
+                    openExternalLink(mat.file_url);
+                    reportProgress(100);
+                });
+                reportProgress(40);
+            };
+
+            const videoSources = getPlayableMediaSources(mat.file_url);
+            wrapper.innerHTML = `<video controls preload="metadata" playsinline style="width: 100%; height: 100%; max-height: 100%; background:#000;"></video>`;
+            const videoEl = wrapper.querySelector('video');
+            let videoSourceIndex = -1;
+            const tryNextVideoSource = () => {
+                const resumeAt = videoEl.currentTime || 0;
+                videoSourceIndex += 1;
+                if (videoSourceIndex >= videoSources.length) {
+                    showDriveOpenExternal();
+                    return;
+                }
+                videoEl.src = videoSources[videoSourceIndex];
+                if (resumeAt > 0) {
+                    videoEl.addEventListener('loadedmetadata', () => { videoEl.currentTime = resumeAt; }, { once: true });
+                }
+                videoEl.load();
+            };
+            videoEl.addEventListener('error', () => { if (videoEl.error) tryNextVideoSource(); });
+            trackMediaElement(videoEl);
+            registerCleanup(() => { videoEl.pause(); videoEl.removeAttribute('src'); videoEl.load(); });
+            tryNextVideoSource();
         } else {
             // Google's embedded viewer (Drive "/preview") is the last-resort fallback: it has its own
             // chrome, including a pop-out button that would open the book in a new tab and take the

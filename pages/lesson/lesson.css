@@ -307,6 +307,7 @@
    ============================================================================ */
 .pdf-stage {
     position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
     inset: 0;
     overflow: hidden;
     background: linear-gradient(180deg, #f1f5f3 0%, #e7eee9 100%);
@@ -329,6 +330,7 @@
 
 .pdf-page-wrap {
     position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
     inset: 0;
     transition: opacity 0.1s ease-out, transform 0.1s ease-out;
 }
@@ -412,6 +414,7 @@
 /* In-page fullscreen (platforms without the Fullscreen API): fills the app window, same page */
 .reader-viewer-card.is-fake-fullscreen {
     position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
     inset: 0;
     z-index: 10000;
     width: 100%;
@@ -449,6 +452,8 @@
    ============================================================================ */
 .audio-player {
     position: absolute;
+    /* Plain fallbacks precede inset / clamp(cq*) for older Android WebViews that drop those. */
+    top: 0; right: 0; bottom: 0; left: 0;
     inset: 0;
     overflow: hidden;
     color: #111827;
@@ -463,6 +468,7 @@
 .audio-player-bg,
 .audio-player-scrim {
     position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
     inset: 0;
     pointer-events: none;
 }
@@ -497,7 +503,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 12px;
     gap: clamp(8px, 2.2cqh, 18px);
+    padding: 16px 24px 18px;
     padding: 16px clamp(14px, 4cqw, 40px) 18px;
     box-sizing: border-box;
 }
@@ -506,6 +514,7 @@
 .audio-player-art {
     position: relative;
     flex: 0 1 auto;
+    width: 160px;
     width: clamp(88px, 30cqh, 240px);
     aspect-ratio: 1;
     max-width: 60%;
@@ -525,6 +534,7 @@
 }
 
 .audio-player-art-icon {
+    font-size: 4rem;
     font-size: clamp(2.6rem, 12cqh, 4.5rem);
     color: #aaa;
 }
@@ -544,6 +554,7 @@
 
 .audio-player-title {
     font-weight: 800;
+    font-size: 18px;
     font-size: clamp(15px, 2.4cqw, 20px);
     line-height: 1.3;
     overflow: hidden;
@@ -604,6 +615,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 24px;
     gap: clamp(18px, 5cqw, 36px);
 }
 
@@ -678,6 +690,7 @@
 .audio-player-spinner {
     display: none;
     position: absolute;
+    top: -6px; right: -6px; bottom: -6px; left: -6px;
     inset: -6px;
     border-radius: 50%;
     border: 3px solid transparent;
